@@ -449,6 +449,20 @@ Every completed implementation response should include:
 - Known limitations
 - Suggested Git commit message
 
+## Session Startup
+
+At the beginning of every new Codex session:
+
+1. Read AGENTS.md completely.
+2. Read docs/vision.md.
+3. Read docs/roadmap.md if it exists.
+4. Read the latest entry in docs/devlog.md if it exists.
+5. Inspect the current repository state before proposing changes.
+6. Summarize the current project status before implementing anything.
+
+Never assume previous chat context still applies.
+Always derive understanding from the repository.
+
 ## Workflow for Every Task
 
 Before implementation:
@@ -516,15 +530,20 @@ A task is complete only when:
 
 ## Development Log
 
-When a milestone is completed:
+When a meaningful milestone is completed:
 
-- Update docs/devlog.md.
-- Append a new entry; never rewrite previous entries.
-- Include:
-  - Summary of the feature
-  - Files created or modified
-  - Design decisions
-  - Technical decisions
-  - Known limitations
-  - Suggested Git commit message
-  - Recommended next milestone
+1. Update docs/devlog.md.
+2. Append a new entry only. Never rewrite previous entries.
+3. Include:
+
+- Milestone name
+- Summary
+- Files created or modified
+- Gameplay changes
+- Design decisions
+- Technical decisions
+- Known limitations
+- Suggested Git commit message
+- Recommended next milestone
+
+Keep entries concise, factual, and chronological.
