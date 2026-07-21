@@ -1,3 +1,27 @@
-# Godot 4+ specific ignores
+# Godot-generated files
 .godot/
+
+# Godot mobile export output
 /android/
+
+# .NET build output
+bin/
+obj/
+
+# Visual Studio local files
+.vs/
+*.user
+*.suo
+
+# Operating-system files
+.DS_Store
+Thumbs.db
+
+# Local environment and secret files
+.env
+.env.*
+!.env.example
+
+# Temporary files
+*.tmp
+*.log
