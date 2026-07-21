@@ -513,3 +513,21 @@ A task is complete only when:
 - Test steps are provided
 - Unrelated files were not unnecessarily changed
 - Known limitations are stated
+
+
+## Development Workflow
+
+At the completion of every meaningful milestone:
+
+- Update docs/devlog.md.
+- Summarize:
+  - Features completed
+  - Files changed
+  - Design decisions
+  - Technical decisions
+  - Known limitations
+  - Next milestone
+
+Keep entries concise and factual.
+Do not rewrite previous entries.
+Append only.
