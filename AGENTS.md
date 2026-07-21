@@ -514,20 +514,17 @@ A task is complete only when:
 - Unrelated files were not unnecessarily changed
 - Known limitations are stated
 
+## Development Log
 
-## Development Workflow
-
-At the completion of every meaningful milestone:
+When a milestone is completed:
 
 - Update docs/devlog.md.
-- Summarize:
-  - Features completed
-  - Files changed
+- Append a new entry; never rewrite previous entries.
+- Include:
+  - Summary of the feature
+  - Files created or modified
   - Design decisions
   - Technical decisions
   - Known limitations
-  - Next milestone
-
-Keep entries concise and factual.
-Do not rewrite previous entries.
-Append only.
+  - Suggested Git commit message
+  - Recommended next milestone
