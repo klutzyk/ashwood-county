@@ -1,0 +1,21 @@
+[gd_scene format=3 uid="uid://dpnkhckxsxaj5"]
+
+[ext_resource type="Script" uid="uid://csey60dmaiucd" path="res://scripts/player/Player.cs" id="1_tjl6x"]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_kgutl"]
+radius = 46.0
+height = 172.0
+
+[node name="World" type="Node2D" unique_id=1981578101]
+
+[node name="Player" type="CharacterBody2D" parent="." unique_id=298278906]
+script = ExtResource("1_tjl6x")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player" unique_id=1739048095]
+position = Vector2(302, 190)
+shape = SubResource("CapsuleShape2D_kgutl")
+
+[node name="PlaceholderVisual" type="Polygon2D" parent="Player" unique_id=1144114956]
+position = Vector2(302, 190)
+color = Color(0.25, 0.65, 0.9, 1)
+polygon = PackedVector2Array(-46, -86, 46, -86, 46, 86, -46, 86)
