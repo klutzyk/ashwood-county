@@ -41,6 +41,7 @@
 
 ## World
 
+- [x] Create temporary scale-evaluation sandbox
 - [ ] Configure project resolution
 - [ ] Configure tile size
 - [ ] Create first tileset

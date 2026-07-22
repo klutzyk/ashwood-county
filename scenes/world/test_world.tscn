@@ -16,10 +16,10 @@ position = Vector2(302, 190)
 shape = SubResource("CapsuleShape2D_kgutl")
 
 [node name="PlaceholderVisual" type="Polygon2D" parent="Player" unique_id=1144114956]
-position = Vector2(302, 190)
+position = Vector2(303, 193)
+scale = Vector2(0.8924731, 0.54651165)
 color = Color(0.25, 0.65, 0.9, 1)
-polygon = PackedVector2Array(-46, -86, 46, -86, 46, 86, -46, 86)
+polygon = PackedVector2Array(-47, -81, 46, -86, 46, 86, -46, 86)
 
-[node name="Camera2D" type="Camera2D" parent="Player"]
+[node name="Camera2D" type="Camera2D" parent="Player" unique_id=1174542764]
 position = Vector2(302, 190)
-enabled = true
