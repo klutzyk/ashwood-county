@@ -32,8 +32,8 @@
 
 ## Camera
 
-- [ ] Camera2D
-- [ ] Camera follows player
+- [x] Camera2D
+- [x] Camera follows player
 - [ ] Camera smoothing
 - [ ] Camera zoom
 - [ ] Camera limits
