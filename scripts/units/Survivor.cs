@@ -43,6 +43,8 @@ public partial class Survivor : Node2D
     public int CarriedAmount { get; private set; }
     public ResourceType CarriedResourceType { get; private set; } = ResourceType.Wood;
     public ResourceType LastCarriedResourceType { get; private set; } = ResourceType.Wood;
+    public Vector2 MovementVector { get; private set; }
+    public bool IsMoving => MovementVector.LengthSquared() > 0.000001f;
 
     public override void _Ready()
     {
@@ -110,15 +112,23 @@ public partial class Survivor : Node2D
         float distance = toDestination.Length();
         if (distance <= ArrivalThreshold)
         {
+            MovementVector = Vector2.Zero;
             SimulationPosition = destination;
             UpdateRenderedPosition();
             return true;
         }
 
         float travelDistance = Mathf.Min(MovementSpeed * (float)delta, distance);
-        SimulationPosition += toDestination / distance * travelDistance;
+        MovementVector = toDestination / distance;
+        SimulationPosition += MovementVector * travelDistance;
         UpdateRenderedPosition();
-        return travelDistance >= distance;
+        bool arrived = travelDistance >= distance;
+        if (arrived)
+        {
+            MovementVector = Vector2.Zero;
+        }
+
+        return arrived;
     }
 
     public int GetRemainingCarryCapacity(ResourceType resourceType)
@@ -178,7 +188,7 @@ public partial class Survivor : Node2D
 
     private static Rect2 GetLocalSelectionBounds()
     {
-        return new Rect2(-22, -72, 44, 76);
+        return new Rect2(-30, -118, 60, 122);
     }
 
     private void AssignOrder(ISurvivorOrder order)

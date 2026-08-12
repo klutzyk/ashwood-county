@@ -11,7 +11,7 @@ public partial class SelectionIndicator : Node2D
         for (int i = 0; i <= pointCount; i++)
         {
             float angle = Mathf.Tau * i / pointCount;
-            outline[i] = new Vector2(Mathf.Cos(angle) * 27, Mathf.Sin(angle) * 10 - 2);
+            outline[i] = new Vector2(Mathf.Cos(angle) * 31, Mathf.Sin(angle) * 11 - 2);
         }
 
         DrawColoredPolygon(outline[..pointCount], new Color(0.38f, 0.95f, 0.46f, 0.18f));
