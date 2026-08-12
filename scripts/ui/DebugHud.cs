@@ -1,0 +1,28 @@
+using AshwoodCounty.World;
+using Godot;
+
+namespace AshwoodCounty.UI;
+
+public partial class DebugHud : CanvasLayer
+{
+    private IsometricWorld _world = null!;
+    private Label _gridValue = null!;
+    private Label _zoomValue = null!;
+    private Label _fpsValue = null!;
+
+    public override void _Ready()
+    {
+        _world = GetNode<IsometricWorld>("../World");
+        _gridValue = GetNode<Label>("Panel/Margin/Rows/GridValue");
+        _zoomValue = GetNode<Label>("Panel/Margin/Rows/ZoomValue");
+        _fpsValue = GetNode<Label>("Panel/Margin/Rows/FpsValue");
+    }
+
+    public override void _Process(double delta)
+    {
+        Vector2I cell = _world.HoveredCell;
+        _gridValue.Text = cell.X >= 0 ? $"{cell.X}, {cell.Y}" : "Outside map";
+        _zoomValue.Text = $"{_world.CameraZoom:0.00}x";
+        _fpsValue.Text = Engine.GetFramesPerSecond().ToString();
+    }
+}

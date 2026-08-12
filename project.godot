@@ -11,17 +11,45 @@ config_version=5
 [application]
 
 config/name="Ashwood County"
+run/main_scene="res://scenes/world/World.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
 
 [display]
 
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/size/window_width_override=1280
+window/size/window_height_override=720
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
+
+[input]
+
+camera_up={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":87)]
+}
+camera_down={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":83)]
+}
+camera_left={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":65)]
+}
+camera_right={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":68)]
+}
 
 [dotnet]
 
 project/assembly_name="Ashwood County"
+
+[environment]
+
+defaults/default_clear_color=Color(0.18, 0.27, 0.2, 1)
 
 [physics]
 

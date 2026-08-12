@@ -1,0 +1,127 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/IsometricWorld.cs" id="1_world"]
+[ext_resource type="Script" path="res://scripts/world/TerrainRenderer.cs" id="2_terrain"]
+[ext_resource type="Script" path="res://scripts/world/HoverHighlight.cs" id="3_hover"]
+[ext_resource type="Script" path="res://scripts/camera/StrategyCamera.cs" id="4_camera"]
+[ext_resource type="Script" path="res://scripts/world/PlaceholderObject.cs" id="5_object"]
+[ext_resource type="Script" path="res://scripts/ui/DebugHud.cs" id="6_hud"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_debug"]
+bg_color = Color(0.055, 0.075, 0.06, 0.88)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.39, 0.56, 0.34, 0.8)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[node name="Main" type="Node"]
+
+[node name="World" type="Node2D" parent="."]
+script = ExtResource("1_world")
+
+[node name="Terrain" type="Node2D" parent="World"]
+script = ExtResource("2_terrain")
+
+[node name="HoverHighlight" type="Node2D" parent="World"]
+script = ExtResource("3_hover")
+
+[node name="Objects" type="Node2D" parent="World"]
+y_sort_enabled = true
+
+[node name="TreeA" type="Node2D" parent="World/Objects"]
+script = ExtResource("5_object")
+GridPosition = Vector2(5, 7)
+
+[node name="BuildingA" type="Node2D" parent="World/Objects"]
+script = ExtResource("5_object")
+Kind = 2
+GridPosition = Vector2(9, 9)
+
+[node name="SurvivorA" type="Node2D" parent="World/Objects"]
+script = ExtResource("5_object")
+Kind = 1
+GridPosition = Vector2(10, 11)
+
+[node name="ResourcePileA" type="Node2D" parent="World/Objects"]
+script = ExtResource("5_object")
+Kind = 3
+GridPosition = Vector2(12, 9)
+
+[node name="TreeB" type="Node2D" parent="World/Objects"]
+script = ExtResource("5_object")
+GridPosition = Vector2(13, 13)
+
+[node name="SurvivorB" type="Node2D" parent="World/Objects"]
+script = ExtResource("5_object")
+Kind = 1
+GridPosition = Vector2(7, 13)
+
+[node name="BuildingB" type="Node2D" parent="World/Objects"]
+script = ExtResource("5_object")
+Kind = 2
+GridPosition = Vector2(17, 14)
+
+[node name="ResourcePileB" type="Node2D" parent="World/Objects"]
+script = ExtResource("5_object")
+Kind = 3
+GridPosition = Vector2(18, 17)
+
+[node name="TreeC" type="Node2D" parent="World/Objects"]
+script = ExtResource("5_object")
+GridPosition = Vector2(21, 12)
+
+[node name="TreeD" type="Node2D" parent="World/Objects"]
+script = ExtResource("5_object")
+GridPosition = Vector2(20, 21)
+
+[node name="StrategyCamera" type="Camera2D" parent="World"]
+position = Vector2(0, 720)
+position_smoothing_enabled = false
+script = ExtResource("4_camera")
+
+[node name="DebugHud" type="CanvasLayer" parent="."]
+script = ExtResource("6_hud")
+
+[node name="Panel" type="PanelContainer" parent="DebugHud"]
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 178.0
+offset_bottom = 112.0
+theme_override_styles/panel = SubResource("StyleBox_debug")
+
+[node name="Margin" type="MarginContainer" parent="DebugHud/Panel"]
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 9
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 9
+
+[node name="Rows" type="GridContainer" parent="DebugHud/Panel/Margin"]
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 4
+columns = 2
+
+[node name="GridLabel" type="Label" parent="DebugHud/Panel/Margin/Rows"]
+theme_override_colors/font_color = Color(0.66, 0.76, 0.63, 1)
+text = "GRID"
+
+[node name="GridValue" type="Label" parent="DebugHud/Panel/Margin/Rows"]
+text = "--"
+
+[node name="ZoomLabel" type="Label" parent="DebugHud/Panel/Margin/Rows"]
+theme_override_colors/font_color = Color(0.66, 0.76, 0.63, 1)
+text = "ZOOM"
+
+[node name="ZoomValue" type="Label" parent="DebugHud/Panel/Margin/Rows"]
+text = "1.00x"
+
+[node name="FpsLabel" type="Label" parent="DebugHud/Panel/Margin/Rows"]
+theme_override_colors/font_color = Color(0.66, 0.76, 0.63, 1)
+text = "FPS"
+
+[node name="FpsValue" type="Label" parent="DebugHud/Panel/Margin/Rows"]
+text = "0"

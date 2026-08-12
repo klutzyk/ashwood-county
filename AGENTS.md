@@ -47,10 +47,26 @@ Do not convert the project into a full 3D game.
 - Avoid speculative systems that are not currently required.
 - Keep visual assets replaceable.
 - Use placeholder art when necessary rather than blocking gameplay development.
-- Do not download assets without explicit permission.
+- External assets may be used according to the External Assets rules below.
 - Do not add external dependencies without a good reason.
 - Use C# for gameplay code.
 - Current user instructions override outdated documentation.
+
+## External Assets
+
+External assets may be used when they materially improve the game or significantly reduce unnecessary asset-production work.
+
+- Prefer free assets with clear commercial-use licensing.
+- Prefer cohesive asset packs that match the established Ashwood County art direction rather than mixing many unrelated styles.
+- Record the asset name, source, creator, licence, source URL and where it is used in `docs/assets_reference.md`.
+- Do not purchase assets, subscriptions or paid licences without explicit permission.
+- Do not use assets with unclear, incompatible or non-commercial licensing.
+- Do not download large quantities of assets speculatively.
+- Search for external assets when there is a concrete production need rather than browsing indefinitely.
+- Existing suitable project assets should be reused where practical.
+- AI-generated/project-specific artwork may also be created and integrated into the game.
+- Keep gameplay systems independent from specific artwork so assets can be replaced later without rewriting gameplay logic.
+- When downloading an asset pack, preserve its licence/readme information where practical.
 
 ## Repository Safety
 
