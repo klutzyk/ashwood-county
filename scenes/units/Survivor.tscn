@@ -1,0 +1,15 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/units/Survivor.cs" id="1_survivor"]
+[ext_resource type="Script" path="res://scripts/units/SelectionIndicator.cs" id="2_indicator"]
+[ext_resource type="Script" path="res://scripts/units/SurvivorPlaceholderVisual.cs" id="3_visual"]
+
+[node name="Survivor" type="Node2D"]
+script = ExtResource("1_survivor")
+
+[node name="SelectionIndicator" type="Node2D" parent="."]
+show_behind_parent = true
+script = ExtResource("2_indicator")
+
+[node name="Visual" type="Node2D" parent="."]
+script = ExtResource("3_visual")

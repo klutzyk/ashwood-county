@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/IsometricWorld.cs" id="1_world"]
 [ext_resource type="Script" path="res://scripts/world/TerrainRenderer.cs" id="2_terrain"]
@@ -6,6 +6,8 @@
 [ext_resource type="Script" path="res://scripts/camera/StrategyCamera.cs" id="4_camera"]
 [ext_resource type="Script" path="res://scripts/world/PlaceholderObject.cs" id="5_object"]
 [ext_resource type="Script" path="res://scripts/ui/DebugHud.cs" id="6_hud"]
+[ext_resource type="PackedScene" path="res://scenes/units/Survivor.tscn" id="7_survivor"]
+[ext_resource type="Script" path="res://scripts/systems/SurvivorSelectionController.cs" id="8_selection"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_debug"]
 bg_color = Color(0.055, 0.075, 0.06, 0.88)
@@ -19,6 +21,14 @@ corner_radius_top_right = 6
 corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 
+[sub_resource type="StyleBoxFlat" id="StyleBox_selection"]
+bg_color = Color(0.32, 0.78, 0.4, 0.12)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.48, 0.95, 0.55, 0.95)
+
 [node name="Main" type="Node"]
 
 [node name="World" type="Node2D" parent="."]
@@ -29,6 +39,8 @@ script = ExtResource("2_terrain")
 
 [node name="HoverHighlight" type="Node2D" parent="World"]
 script = ExtResource("3_hover")
+
+[node name="Effects" type="Node2D" parent="World"]
 
 [node name="Objects" type="Node2D" parent="World"]
 y_sort_enabled = true
@@ -42,11 +54,6 @@ script = ExtResource("5_object")
 Kind = 2
 GridPosition = Vector2(9, 9)
 
-[node name="SurvivorA" type="Node2D" parent="World/Objects"]
-script = ExtResource("5_object")
-Kind = 1
-GridPosition = Vector2(10, 11)
-
 [node name="ResourcePileA" type="Node2D" parent="World/Objects"]
 script = ExtResource("5_object")
 Kind = 3
@@ -55,11 +62,6 @@ GridPosition = Vector2(12, 9)
 [node name="TreeB" type="Node2D" parent="World/Objects"]
 script = ExtResource("5_object")
 GridPosition = Vector2(13, 13)
-
-[node name="SurvivorB" type="Node2D" parent="World/Objects"]
-script = ExtResource("5_object")
-Kind = 1
-GridPosition = Vector2(7, 13)
 
 [node name="BuildingB" type="Node2D" parent="World/Objects"]
 script = ExtResource("5_object")
@@ -79,10 +81,36 @@ GridPosition = Vector2(21, 12)
 script = ExtResource("5_object")
 GridPosition = Vector2(20, 21)
 
+[node name="SurvivorA" parent="World/Objects" instance=ExtResource("7_survivor")]
+SimulationPosition = Vector2(9.5, 11.5)
+
+[node name="SurvivorB" parent="World/Objects" instance=ExtResource("7_survivor")]
+SimulationPosition = Vector2(11, 12.5)
+
+[node name="SurvivorC" parent="World/Objects" instance=ExtResource("7_survivor")]
+SimulationPosition = Vector2(12.5, 11)
+
+[node name="SurvivorD" parent="World/Objects" instance=ExtResource("7_survivor")]
+SimulationPosition = Vector2(13.5, 13.5)
+
+[node name="SurvivorE" parent="World/Objects" instance=ExtResource("7_survivor")]
+SimulationPosition = Vector2(10.5, 14)
+
 [node name="StrategyCamera" type="Camera2D" parent="World"]
 position = Vector2(0, 720)
 position_smoothing_enabled = false
 script = ExtResource("4_camera")
+
+[node name="SelectionController" type="CanvasLayer" parent="."]
+layer = 10
+script = ExtResource("8_selection")
+
+[node name="SelectionMarquee" type="Panel" parent="SelectionController"]
+visible = false
+offset_right = 40.0
+offset_bottom = 40.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBox_selection")
 
 [node name="DebugHud" type="CanvasLayer" parent="."]
 script = ExtResource("6_hud")
@@ -91,7 +119,7 @@ script = ExtResource("6_hud")
 offset_left = 16.0
 offset_top = 16.0
 offset_right = 178.0
-offset_bottom = 112.0
+offset_bottom = 140.0
 theme_override_styles/panel = SubResource("StyleBox_debug")
 
 [node name="Margin" type="MarginContainer" parent="DebugHud/Panel"]
@@ -124,4 +152,11 @@ theme_override_colors/font_color = Color(0.66, 0.76, 0.63, 1)
 text = "FPS"
 
 [node name="FpsValue" type="Label" parent="DebugHud/Panel/Margin/Rows"]
+text = "0"
+
+[node name="SelectedLabel" type="Label" parent="DebugHud/Panel/Margin/Rows"]
+theme_override_colors/font_color = Color(0.66, 0.76, 0.63, 1)
+text = "SELECTED"
+
+[node name="SelectedValue" type="Label" parent="DebugHud/Panel/Margin/Rows"]
 text = "0"

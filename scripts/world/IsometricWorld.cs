@@ -15,6 +15,12 @@ public partial class IsometricWorld : Node2D
     public Vector2I HoveredCell { get; private set; } = new(-1, -1);
     public float CameraZoom => _camera.Zoom.X;
 
+    public Vector2 ScreenToGridPosition(Vector2 screenPosition)
+    {
+        Vector2 localWorldPosition = GetGlobalTransformWithCanvas().AffineInverse() * screenPosition;
+        return IsometricGrid.ScreenToGrid(localWorldPosition);
+    }
+
     public override void _Ready()
     {
         _terrain = GetNode<TerrainRenderer>("Terrain");
@@ -36,6 +42,11 @@ public partial class IsometricWorld : Node2D
     public static bool IsCellInBounds(Vector2I cell)
     {
         return cell.X >= 0 && cell.Y >= 0 && cell.X < MapWidth && cell.Y < MapHeight;
+    }
+
+    public static bool IsGridPositionInBounds(Vector2 position)
+    {
+        return position.X >= 0 && position.Y >= 0 && position.X < MapWidth && position.Y < MapHeight;
     }
 
     private Rect2 CalculateMapBounds()

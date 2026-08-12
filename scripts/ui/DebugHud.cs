@@ -1,3 +1,4 @@
+using AshwoodCounty.Systems;
 using AshwoodCounty.World;
 using Godot;
 
@@ -9,6 +10,8 @@ public partial class DebugHud : CanvasLayer
     private Label _gridValue = null!;
     private Label _zoomValue = null!;
     private Label _fpsValue = null!;
+    private Label _selectedValue = null!;
+    private SurvivorSelectionController _selection = null!;
 
     public override void _Ready()
     {
@@ -16,6 +19,8 @@ public partial class DebugHud : CanvasLayer
         _gridValue = GetNode<Label>("Panel/Margin/Rows/GridValue");
         _zoomValue = GetNode<Label>("Panel/Margin/Rows/ZoomValue");
         _fpsValue = GetNode<Label>("Panel/Margin/Rows/FpsValue");
+        _selectedValue = GetNode<Label>("Panel/Margin/Rows/SelectedValue");
+        _selection = GetNode<SurvivorSelectionController>("../SelectionController");
     }
 
     public override void _Process(double delta)
@@ -24,5 +29,6 @@ public partial class DebugHud : CanvasLayer
         _gridValue.Text = cell.X >= 0 ? $"{cell.X}, {cell.Y}" : "Outside map";
         _zoomValue.Text = $"{_world.CameraZoom:0.00}x";
         _fpsValue.Text = Engine.GetFramesPerSecond().ToString();
+        _selectedValue.Text = _selection.SelectedCount.ToString();
     }
 }

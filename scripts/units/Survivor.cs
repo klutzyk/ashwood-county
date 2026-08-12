@@ -1,0 +1,97 @@
+using AshwoodCounty.World;
+using Godot;
+
+namespace AshwoodCounty.Units;
+
+public partial class Survivor : Node2D
+{
+    public const string GroupName = "survivors";
+
+    [Export] public Vector2 SimulationPosition { get; set; }
+    [Export] public float MovementSpeed { get; set; } = 2.5f;
+    [Export] public float ArrivalThreshold { get; set; } = 0.05f;
+
+    private CanvasItem _selectionIndicator = null!;
+    private Vector2 _destination;
+
+    public bool IsSelected { get; private set; }
+    public bool HasMoveOrder { get; private set; }
+    public Vector2 Destination => _destination;
+
+    public override void _Ready()
+    {
+        AddToGroup(GroupName);
+        _selectionIndicator = GetNode<CanvasItem>("SelectionIndicator");
+        SetSelected(false);
+        UpdateRenderedPosition();
+    }
+
+    public override void _PhysicsProcess(double delta)
+    {
+        if (!HasMoveOrder)
+        {
+            return;
+        }
+
+        Vector2 toDestination = _destination - SimulationPosition;
+        float distance = toDestination.Length();
+        if (distance <= ArrivalThreshold)
+        {
+            SimulationPosition = _destination;
+            HasMoveOrder = false;
+            UpdateRenderedPosition();
+            return;
+        }
+
+        float travelDistance = Mathf.Min(MovementSpeed * (float)delta, distance);
+        SimulationPosition += toDestination / distance * travelDistance;
+        UpdateRenderedPosition();
+    }
+
+    public void SetSelected(bool selected)
+    {
+        IsSelected = selected;
+        if (IsInstanceValid(_selectionIndicator))
+        {
+            _selectionIndicator.Visible = selected;
+        }
+    }
+
+    public void IssueMoveOrder(Vector2 destination)
+    {
+        _destination = destination;
+        HasMoveOrder = SimulationPosition.DistanceTo(destination) > ArrivalThreshold;
+    }
+
+    public bool ContainsScreenPoint(Vector2 screenPoint)
+    {
+        Vector2 localPoint = GetGlobalTransformWithCanvas().AffineInverse() * screenPoint;
+        return GetLocalSelectionBounds().HasPoint(localPoint);
+    }
+
+    public Rect2 GetScreenSelectionBounds()
+    {
+        Rect2 localBounds = GetLocalSelectionBounds();
+        Transform2D toScreen = GetGlobalTransformWithCanvas();
+        Vector2 topLeft = toScreen * localBounds.Position;
+        Vector2 topRight = toScreen * new Vector2(localBounds.End.X, localBounds.Position.Y);
+        Vector2 bottomRight = toScreen * localBounds.End;
+        Vector2 bottomLeft = toScreen * new Vector2(localBounds.Position.X, localBounds.End.Y);
+
+        float minX = Mathf.Min(Mathf.Min(topLeft.X, topRight.X), Mathf.Min(bottomRight.X, bottomLeft.X));
+        float maxX = Mathf.Max(Mathf.Max(topLeft.X, topRight.X), Mathf.Max(bottomRight.X, bottomLeft.X));
+        float minY = Mathf.Min(Mathf.Min(topLeft.Y, topRight.Y), Mathf.Min(bottomRight.Y, bottomLeft.Y));
+        float maxY = Mathf.Max(Mathf.Max(topLeft.Y, topRight.Y), Mathf.Max(bottomRight.Y, bottomLeft.Y));
+        return new Rect2(minX, minY, maxX - minX, maxY - minY);
+    }
+
+    private static Rect2 GetLocalSelectionBounds()
+    {
+        return new Rect2(-22, -72, 44, 76);
+    }
+
+    private void UpdateRenderedPosition()
+    {
+        Position = IsometricGrid.GridToScreen(SimulationPosition);
+    }
+}
