@@ -5,6 +5,13 @@ namespace AshwoodCounty.Resources;
 [Tool]
 public partial class ResourceTreeVisual : Node2D
 {
+    private static readonly string[] TreeTextures =
+    [
+        "res://assets/art/environment/vegetation/oak_01.png",
+        "res://assets/art/environment/vegetation/pine_01.png",
+        "res://assets/art/environment/vegetation/young_tree_01.png"
+    ];
+    private const string StumpTexture = "res://assets/art/resources/stump_01.png";
     private HarvestableResource _resource = null!;
 
     public override void _Ready()
@@ -24,8 +31,6 @@ public partial class ResourceTreeVisual : Node2D
 
     public override void _Draw()
     {
-        DrawEllipse(new Vector2(0, -2), 24, 8, new Color(0.12f, 0.18f, 0.1f, 0.35f));
-
         bool depleted = !Engine.IsEditorHint() && _resource.IsDepleted;
         if (depleted)
         {
@@ -49,18 +54,21 @@ public partial class ResourceTreeVisual : Node2D
 
     private void DrawTree()
     {
-        DrawRect(new Rect2(-6, -55, 12, 55), new Color("#6c4931"));
-        DrawCircle(new Vector2(0, -68), 30, new Color("#28633b"));
-        DrawCircle(new Vector2(-18, -58), 22, new Color("#347848"));
-        DrawCircle(new Vector2(18, -57), 21, new Color("#3f8850"));
-        DrawCircle(new Vector2(0, -85), 22, new Color("#4a9856"));
+        int variation = Mathf.Abs(_resource.GetIndex()) % TreeTextures.Length;
+        float scale = variation == 2 ? 0.40f : 0.42f;
+        DrawGroundedTexture(TreeTextures[variation], scale);
     }
 
     private void DrawStump()
     {
-        DrawRect(new Rect2(-10, -18, 20, 18), new Color("#67452d"));
-        DrawEllipse(new Vector2(0, -18), 10, 4, new Color("#b17a45"));
-        DrawLine(new Vector2(-4, -18), new Vector2(4, -18), new Color("#6d472a"), 1.5f);
+        DrawGroundedTexture(StumpTexture, 0.34f);
+    }
+
+    private void DrawGroundedTexture(string path, float scale)
+    {
+        Texture2D texture = GD.Load<Texture2D>(path);
+        Vector2 size = texture.GetSize() * scale;
+        DrawTextureRect(texture, new Rect2(new Vector2(-size.X * 0.5f, -size.Y), size), false);
     }
 
     private void DrawTargetIndicator()
@@ -71,8 +79,8 @@ public partial class ResourceTreeVisual : Node2D
 
     private void DrawProgress(float progress)
     {
-        DrawRect(new Rect2(-28, -121, 56, 8), new Color(0.04f, 0.06f, 0.04f, 0.85f));
-        DrawRect(new Rect2(-26, -119, 52 * progress, 4), new Color("#efb74d"));
+        DrawRect(new Rect2(-28, -224, 56, 8), new Color(0.04f, 0.06f, 0.04f, 0.85f));
+        DrawRect(new Rect2(-26, -222, 52 * progress, 4), new Color("#efb74d"));
     }
 
     private void DrawEllipse(Vector2 center, float radiusX, float radiusY, Color color)

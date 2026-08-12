@@ -117,16 +117,10 @@ public partial class PlaceholderObject : Node2D, IGridOccupant
 
     private void DrawResourcePile()
     {
-        Color wood = new("#80542f");
-        for (int row = 0; row < 3; row++)
-        {
-            for (int item = 0; item < 4 - row; item++)
-            {
-                Vector2 start = new(-28 + item * 17 + row * 8, -6 - row * 10);
-                DrawLine(start, start + new Vector2(20, -10), wood, 7);
-                DrawCircle(start, 4, new Color("#c28b50"));
-            }
-        }
+        Texture2D texture = GD.Load<Texture2D>("res://assets/art/resources/wood_stack_02.png");
+        const float scale = 0.34f;
+        Vector2 size = texture.GetSize() * scale;
+        DrawTextureRect(texture, new Rect2(new Vector2(-size.X * 0.5f, -size.Y), size), false);
     }
 
     private void DrawEllipse(Vector2 center, float radiusX, float radiusY, Color color)

@@ -29,7 +29,7 @@ public partial class HarvestableResource : Node2D, IGridOccupant
     [Export] public int StartingAmount { get; set; } = 24;
     [Export] public float HarvestDuration { get; set; } = 1.5f;
     [Export] public float InteractionRadius { get; set; } = 0.9f;
-    [Export] public Rect2 SelectionBounds { get; set; } = new(-38, -108, 76, 112);
+    [Export] public Rect2 SelectionBounds { get; set; } = new(-72, -214, 144, 218);
 
     public int AvailableAmount { get; private set; }
     public bool IsDepleted => AvailableAmount <= 0;

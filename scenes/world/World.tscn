@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3]
+[gd_scene load_steps=25 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/IsometricWorld.cs" id="1_world"]
 [ext_resource type="Script" path="res://scripts/world/TerrainRenderer.cs" id="2_terrain"]
@@ -13,6 +13,14 @@
 [ext_resource type="Script" path="res://scripts/systems/resources/SettlementInventory.cs" id="11_inventory"]
 [ext_resource type="Script" path="res://scripts/world/GridOccupancy.cs" id="12_occupancy"]
 [ext_resource type="Script" path="res://scripts/buildings/BuildingPlacementController.cs" id="13_placement"]
+[ext_resource type="Script" path="res://scripts/world/ArtDecoration.cs" id="14_decoration"]
+[ext_resource type="Texture2D" path="res://assets/art/environment/vegetation/bush_01.png" id="15_bush"]
+[ext_resource type="Texture2D" path="res://assets/art/environment/vegetation/flowers_01.png" id="16_flowers"]
+[ext_resource type="Texture2D" path="res://assets/art/environment/vegetation/fern_01.png" id="17_fern"]
+[ext_resource type="Texture2D" path="res://assets/art/environment/rocks/mossy_rock_01.png" id="18_rock"]
+[ext_resource type="Texture2D" path="res://assets/art/resources/fallen_log_01.png" id="19_log"]
+[ext_resource type="Texture2D" path="res://assets/art/environment/props/fence_01.png" id="20_fence"]
+[ext_resource type="Texture2D" path="res://assets/art/environment/vegetation/grass_clump_01.png" id="21_grass"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_debug"]
 bg_color = Color(0.055, 0.075, 0.06, 0.88)
@@ -67,6 +75,48 @@ script = ExtResource("3_hover")
 
 [node name="Objects" type="Node2D" parent="World"]
 y_sort_enabled = true
+
+[node name="BushDressingA" type="Node2D" parent="World/Objects"]
+script = ExtResource("14_decoration")
+Texture = ExtResource("15_bush")
+VisualScale = 0.42
+GridPosition = Vector2(4.4, 12.8)
+
+[node name="FlowersDressingA" type="Node2D" parent="World/Objects"]
+script = ExtResource("14_decoration")
+Texture = ExtResource("16_flowers")
+VisualScale = 0.32
+GridPosition = Vector2(16.8, 7.4)
+
+[node name="FernDressingA" type="Node2D" parent="World/Objects"]
+script = ExtResource("14_decoration")
+Texture = ExtResource("17_fern")
+VisualScale = 0.34
+GridPosition = Vector2(23.2, 18.6)
+
+[node name="RockDressingA" type="Node2D" parent="World/Objects"]
+script = ExtResource("14_decoration")
+Texture = ExtResource("18_rock")
+VisualScale = 0.34
+GridPosition = Vector2(7.6, 20.2)
+
+[node name="FallenLogDressingA" type="Node2D" parent="World/Objects"]
+script = ExtResource("14_decoration")
+Texture = ExtResource("19_log")
+VisualScale = 0.36
+GridPosition = Vector2(24.6, 9.1)
+
+[node name="FenceDressingA" type="Node2D" parent="World/Objects"]
+script = ExtResource("14_decoration")
+Texture = ExtResource("20_fence")
+VisualScale = 0.32
+GridPosition = Vector2(3.1, 23.7)
+
+[node name="GrassDressingA" type="Node2D" parent="World/Objects"]
+script = ExtResource("14_decoration")
+Texture = ExtResource("21_grass")
+VisualScale = 0.28
+GridPosition = Vector2(19.6, 5.3)
 
 [node name="TreeA" parent="World/Objects" instance=ExtResource("9_tree")]
 GridPosition = Vector2(5, 7)

@@ -9,6 +9,8 @@ public partial class SettlementInventory : Node
 
     private readonly Dictionary<ResourceType, int> _amounts = [];
 
+    [Export] public bool DevUnlimitedResources { get; set; } = true;
+
     public override void _Ready()
     {
         AddToGroup(GroupName);
@@ -17,6 +19,11 @@ public partial class SettlementInventory : Node
     public int GetAmount(ResourceType resourceType)
     {
         return _amounts.GetValueOrDefault(resourceType);
+    }
+
+    public bool CanAfford(ResourceType resourceType, int amount)
+    {
+        return amount >= 0 && (DevUnlimitedResources || GetAmount(resourceType) >= amount);
     }
 
     public void Add(ResourceType resourceType, int amount)
@@ -31,9 +38,14 @@ public partial class SettlementInventory : Node
 
     public bool TrySpend(ResourceType resourceType, int amount)
     {
-        if (amount < 0 || GetAmount(resourceType) < amount)
+        if (!CanAfford(resourceType, amount))
         {
             return false;
+        }
+
+        if (DevUnlimitedResources)
+        {
+            return true;
         }
 
         _amounts[resourceType] = GetAmount(resourceType) - amount;

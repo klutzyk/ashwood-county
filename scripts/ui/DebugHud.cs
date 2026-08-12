@@ -35,6 +35,8 @@ public partial class DebugHud : CanvasLayer
         _zoomValue.Text = $"{_world.CameraZoom:0.00}x";
         _fpsValue.Text = Engine.GetFramesPerSecond().ToString();
         _selectedValue.Text = _selection.SelectedCount.ToString();
-        _woodValue.Text = _inventory.GetAmount(ResourceType.Wood).ToString();
+        _woodValue.Text = _inventory.DevUnlimitedResources
+            ? "Unlimited"
+            : _inventory.GetAmount(ResourceType.Wood).ToString();
     }
 }

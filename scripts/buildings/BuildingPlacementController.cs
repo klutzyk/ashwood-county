@@ -106,7 +106,7 @@ public partial class BuildingPlacementController : CanvasLayer
             IsCurrentPlacementValid = false;
             SetFeedback("Cannot place: occupied cells");
         }
-        else if (_inventory.GetAmount(_activeDefinition.CostResource) < _activeDefinition.ResourceCost)
+        else if (!_inventory.CanAfford(_activeDefinition.CostResource, _activeDefinition.ResourceCost))
         {
             IsCurrentPlacementValid = false;
             SetFeedback($"Need {_activeDefinition.ResourceCost} Wood");
