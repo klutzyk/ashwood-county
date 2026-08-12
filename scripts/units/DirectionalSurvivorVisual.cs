@@ -77,7 +77,11 @@ public partial class DirectionalSurvivorVisual : Node2D
             return fallback;
         }
 
-        float angle = Mathf.Atan2(movement.Y, movement.X);
+        // Direction names describe what the player sees on screen, while survivor
+        // movement is stored in logical grid space. Project the vector before
+        // quantizing so right=E, down-right=SE, and straight down=S.
+        Vector2 screenMovement = IsometricGrid.GridToScreen(movement);
+        float angle = Mathf.Atan2(screenMovement.Y, screenMovement.X);
         int octant = Mathf.PosMod(Mathf.RoundToInt(angle / (Mathf.Pi / 4.0f)), 8);
         return octant switch
         {
@@ -124,7 +128,7 @@ public partial class DirectionalSurvivorVisual : Node2D
         foreach (SurvivorDirection direction in new[] { SurvivorDirection.NE, SurvivorDirection.E, SurvivorDirection.SE })
         {
             string name = direction.ToString().ToLowerInvariant();
-            int frameCount = direction == SurvivorDirection.SE ? 8 : 6;
+            int frameCount = direction is SurvivorDirection.E or SurvivorDirection.SE ? 8 : 6;
             Texture2D[] frames = new Texture2D[frameCount];
             for (int index = 0; index < frames.Length; index++)
             {
