@@ -1,4 +1,4 @@
-[gd_scene load_steps=25 format=3]
+[gd_scene load_steps=29 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/IsometricWorld.cs" id="1_world"]
 [ext_resource type="Script" path="res://scripts/world/TerrainRenderer.cs" id="2_terrain"]
@@ -21,6 +21,9 @@
 [ext_resource type="Texture2D" path="res://assets/art/resources/fallen_log_01.png" id="19_log"]
 [ext_resource type="Texture2D" path="res://assets/art/environment/props/fence_01.png" id="20_fence"]
 [ext_resource type="Texture2D" path="res://assets/art/environment/vegetation/grass_clump_01.png" id="21_grass"]
+[ext_resource type="Script" path="res://scripts/systems/jobs/SettlementJobSystem.cs" id="22_jobs"]
+[ext_resource type="Script" path="res://scripts/systems/ChopDesignationController.cs" id="23_chop"]
+[ext_resource type="Texture2D" path="res://assets/art/environment/vegetation/dead_tree_01.png" id="24_dead_tree"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_debug"]
 bg_color = Color(0.055, 0.075, 0.06, 0.88)
@@ -54,6 +57,18 @@ corner_radius_top_right = 6
 corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 
+[sub_resource type="StyleBoxFlat" id="StyleBox_work"]
+bg_color = Color(0.055, 0.075, 0.06, 0.92)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.7, 0.48, 0.2, 0.9)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
 [node name="Main" type="Node"]
 
 [node name="SettlementInventory" type="Node" parent="."]
@@ -61,6 +76,9 @@ script = ExtResource("11_inventory")
 
 [node name="GridOccupancy" type="Node" parent="."]
 script = ExtResource("12_occupancy")
+
+[node name="SettlementJobSystem" type="Node" parent="."]
+script = ExtResource("22_jobs")
 
 [node name="World" type="Node2D" parent="."]
 script = ExtResource("1_world")
@@ -118,8 +136,32 @@ Texture = ExtResource("21_grass")
 VisualScale = 0.28
 GridPosition = Vector2(19.6, 5.3)
 
+[node name="BushDressingB" type="Node2D" parent="World/Objects"]
+script = ExtResource("14_decoration")
+Texture = ExtResource("15_bush")
+VisualScale = 0.38
+GridPosition = Vector2(25.7, 20.8)
+
+[node name="FlowersDressingB" type="Node2D" parent="World/Objects"]
+script = ExtResource("14_decoration")
+Texture = ExtResource("16_flowers")
+VisualScale = 0.27
+GridPosition = Vector2(5.9, 17.1)
+
+[node name="FernDressingB" type="Node2D" parent="World/Objects"]
+script = ExtResource("14_decoration")
+Texture = ExtResource("17_fern")
+VisualScale = 0.31
+GridPosition = Vector2(3.8, 8.5)
+
+[node name="DeadTreeDressing" type="Node2D" parent="World/Objects"]
+script = ExtResource("14_decoration")
+Texture = ExtResource("24_dead_tree")
+VisualScale = 0.34
+GridPosition = Vector2(27.0, 14.5)
+
 [node name="TreeA" parent="World/Objects" instance=ExtResource("9_tree")]
-GridPosition = Vector2(5, 7)
+GridPosition = Vector2(3.8, 5.4)
 StartingAmount = 20
 
 [node name="BuildingA" type="Node2D" parent="World/Objects"]
@@ -134,7 +176,7 @@ Kind = 3
 GridPosition = Vector2(12, 9)
 
 [node name="TreeB" parent="World/Objects" instance=ExtResource("9_tree")]
-GridPosition = Vector2(13, 13)
+GridPosition = Vector2(7.1, 4.6)
 StartingAmount = 24
 
 [node name="BuildingB" type="Node2D" parent="World/Objects"]
@@ -149,12 +191,36 @@ Kind = 3
 GridPosition = Vector2(18, 17)
 
 [node name="TreeC" parent="World/Objects" instance=ExtResource("9_tree")]
-GridPosition = Vector2(21, 12)
+GridPosition = Vector2(23.4, 5.2)
 StartingAmount = 18
 
 [node name="TreeD" parent="World/Objects" instance=ExtResource("9_tree")]
-GridPosition = Vector2(20, 21)
+GridPosition = Vector2(25.9, 8.1)
 StartingAmount = 30
+
+[node name="TreeE" parent="World/Objects" instance=ExtResource("9_tree")]
+GridPosition = Vector2(4.2, 22.8)
+StartingAmount = 22
+
+[node name="TreeF" parent="World/Objects" instance=ExtResource("9_tree")]
+GridPosition = Vector2(7.5, 25.1)
+StartingAmount = 26
+
+[node name="TreeG" parent="World/Objects" instance=ExtResource("9_tree")]
+GridPosition = Vector2(23.6, 24.4)
+StartingAmount = 24
+
+[node name="TreeH" parent="World/Objects" instance=ExtResource("9_tree")]
+GridPosition = Vector2(26.3, 21.7)
+StartingAmount = 20
+
+[node name="TreeI" parent="World/Objects" instance=ExtResource("9_tree")]
+GridPosition = Vector2(2.8, 12.6)
+StartingAmount = 18
+
+[node name="TreeJ" parent="World/Objects" instance=ExtResource("9_tree")]
+GridPosition = Vector2(27.1, 16.8)
+StartingAmount = 28
 
 [node name="Stockpile" parent="World/Objects" instance=ExtResource("10_stockpile")]
 GridPosition = Vector2(13, 17)
@@ -224,6 +290,35 @@ theme_override_colors/font_color = Color(0.78, 0.82, 0.74, 1)
 text = "Shelter • Cost: 30 Wood"
 autowrap_mode = 2
 
+[node name="ChopDesignationController" type="CanvasLayer" parent="."]
+layer = 20
+script = ExtResource("23_chop")
+
+[node name="Panel" type="PanelContainer" parent="ChopDesignationController"]
+offset_left = 16.0
+offset_top = 334.0
+offset_right = 286.0
+offset_bottom = 432.0
+theme_override_styles/panel = SubResource("StyleBox_work")
+
+[node name="Margin" type="MarginContainer" parent="ChopDesignationController/Panel"]
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 8
+
+[node name="Rows" type="VBoxContainer" parent="ChopDesignationController/Panel/Margin"]
+theme_override_constants/separation = 5
+
+[node name="ChopButton" type="Button" parent="ChopDesignationController/Panel/Margin/Rows"]
+toggle_mode = true
+text = "CHOP"
+
+[node name="Status" type="Label" parent="ChopDesignationController/Panel/Margin/Rows"]
+custom_minimum_size = Vector2(238, 28)
+text = "Designate harvestable trees"
+autowrap_mode = 2
+
 [node name="DebugHud" type="CanvasLayer" parent="."]
 script = ExtResource("6_hud")
 
@@ -279,3 +374,10 @@ text = "WOOD"
 
 [node name="WoodValue" type="Label" parent="DebugHud/Panel/Margin/Rows"]
 text = "0"
+
+[node name="ActivityLabel" type="Label" parent="DebugHud/Panel/Margin/Rows"]
+theme_override_colors/font_color = Color(0.66, 0.76, 0.63, 1)
+text = "ACTIVITY"
+
+[node name="ActivityValue" type="Label" parent="DebugHud/Panel/Margin/Rows"]
+text = "--"

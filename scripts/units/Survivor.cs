@@ -1,4 +1,5 @@
 using AshwoodCounty.Buildings;
+using AshwoodCounty.Jobs;
 using AshwoodCounty.Resources;
 using AshwoodCounty.Units.Orders;
 using AshwoodCounty.World;
@@ -35,6 +36,7 @@ public partial class Survivor : Node2D
     private CanvasItem _visual = null!;
     private Vector2 _destination;
     private ISurvivorOrder _currentOrder = null!;
+    private bool _isAutonomousOrder;
 
     public bool IsSelected { get; private set; }
     public bool HasMoveOrder => CurrentOrderType == SurvivorOrderType.Move;
@@ -45,6 +47,15 @@ public partial class Survivor : Node2D
     public ResourceType LastCarriedResourceType { get; private set; } = ResourceType.Wood;
     public Vector2 MovementVector { get; private set; }
     public bool IsMoving => MovementVector.LengthSquared() > 0.000001f;
+    public bool IsAutonomousOrder => _isAutonomousOrder && _currentOrder is not null;
+    public bool IsAvailableForAutonomousWork => _currentOrder is null;
+    public string Activity => CurrentOrderType switch
+    {
+        SurvivorOrderType.Move => "Moving",
+        SurvivorOrderType.HarvestResource => CarriedAmount > 0 ? "Carrying / Delivering" : "Chopping",
+        SurvivorOrderType.Build => "Building",
+        _ => "Idle"
+    };
 
     public override void _Ready()
     {
@@ -77,6 +88,7 @@ public partial class Survivor : Node2D
         _currentOrder.Tick(this, delta);
         if (_currentOrder.IsComplete)
         {
+            ReleaseAutonomousClaim();
             _currentOrder = null!;
         }
     }
@@ -92,17 +104,27 @@ public partial class Survivor : Node2D
 
     public void IssueMoveOrder(Vector2 destination)
     {
-        AssignOrder(new MoveOrder(destination));
+        AssignOrder(new MoveOrder(destination), false);
     }
 
     public void IssueHarvestOrder(HarvestableResource target, Stockpile stockpile, Vector2 interactionPosition, Vector2 deliveryPosition)
     {
-        AssignOrder(new HarvestResourceOrder(target, stockpile, interactionPosition, deliveryPosition));
+        AssignOrder(new HarvestResourceOrder(target, stockpile, interactionPosition, deliveryPosition), false);
     }
 
     public void IssueBuildOrder(ConstructionSite target, Vector2 interactionPosition)
     {
-        AssignOrder(new BuildOrder(target, interactionPosition));
+        AssignOrder(new BuildOrder(target, interactionPosition), false);
+    }
+
+    public void IssueAutonomousHarvestOrder(HarvestableResource target, Stockpile stockpile, Vector2 interactionPosition, Vector2 deliveryPosition)
+    {
+        AssignOrder(new HarvestResourceOrder(target, stockpile, interactionPosition, deliveryPosition), true);
+    }
+
+    public void IssueAutonomousBuildOrder(ConstructionSite target, Vector2 interactionPosition)
+    {
+        AssignOrder(new BuildOrder(target, interactionPosition), true);
     }
 
     public bool MoveTowardsGridPosition(Vector2 destination, double delta)
@@ -191,15 +213,28 @@ public partial class Survivor : Node2D
         return new Rect2(-30, -118, 60, 122);
     }
 
-    private void AssignOrder(ISurvivorOrder order)
+    private void AssignOrder(ISurvivorOrder order, bool autonomous)
     {
+        ReleaseAutonomousClaim();
         _currentOrder?.Cancel(this);
         _currentOrder = order;
+        _isAutonomousOrder = autonomous;
         _currentOrder.Start(this);
         if (_currentOrder.IsComplete)
         {
+            ReleaseAutonomousClaim();
             _currentOrder = null!;
         }
+    }
+
+    private void ReleaseAutonomousClaim()
+    {
+        if (_isAutonomousOrder && IsInsideTree())
+        {
+            (GetTree().GetFirstNodeInGroup(SettlementJobSystem.GroupName) as SettlementJobSystem)?.ReleaseClaim(this);
+        }
+
+        _isAutonomousOrder = false;
     }
 
     private void RefreshVisual()

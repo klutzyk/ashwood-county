@@ -35,6 +35,7 @@ public partial class HarvestableResource : Node2D, IGridOccupant
     public bool IsDepleted => AvailableAmount <= 0;
     public bool IsHarvestable => !IsDepleted;
     public bool IsTargeted => _targetingWorkers.Count > 0;
+    public bool IsDesignatedForChop { get; private set; }
     public float DisplayedHarvestProgress => _workerProgress.Count == 0 ? 0 : _workerProgress.Values.Max();
     public Vector2 WorldPosition => GridPosition + new Vector2(0.5f, 0.5f);
     public WorldFootprint OccupancyFootprint => new(WorldPosition - Vector2.One * 0.4f, Vector2.One * 0.8f);
@@ -63,6 +64,10 @@ public partial class HarvestableResource : Node2D, IGridOccupant
 
         int harvested = Mathf.Min(requestedAmount, AvailableAmount);
         AvailableAmount -= harvested;
+        if (AvailableAmount <= 0)
+        {
+            IsDesignatedForChop = false;
+        }
         RefreshVisual();
         return harvested;
     }
@@ -115,6 +120,12 @@ public partial class HarvestableResource : Node2D, IGridOccupant
     {
         Vector2 localPoint = GetGlobalTransformWithCanvas().AffineInverse() * screenPoint;
         return SelectionBounds.HasPoint(localPoint);
+    }
+
+    public void SetChopDesignated(bool designated)
+    {
+        IsDesignatedForChop = designated && IsHarvestable;
+        RefreshVisual();
     }
 
     private void UpdateRenderedPosition()

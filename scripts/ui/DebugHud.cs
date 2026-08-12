@@ -15,6 +15,7 @@ public partial class DebugHud : CanvasLayer
     private SurvivorSelectionController _selection = null!;
     private SettlementInventory _inventory = null!;
     private Label _woodValue = null!;
+    private Label _activityValue = null!;
 
     public override void _Ready()
     {
@@ -26,6 +27,7 @@ public partial class DebugHud : CanvasLayer
         _selection = GetNode<SurvivorSelectionController>("../SelectionController");
         _inventory = GetNode<SettlementInventory>("../SettlementInventory");
         _woodValue = GetNode<Label>("Panel/Margin/Rows/WoodValue");
+        _activityValue = GetNode<Label>("Panel/Margin/Rows/ActivityValue");
     }
 
     public override void _Process(double delta)
@@ -38,5 +40,8 @@ public partial class DebugHud : CanvasLayer
         _woodValue.Text = _inventory.DevUnlimitedResources
             ? "Unlimited"
             : _inventory.GetAmount(ResourceType.Wood).ToString();
+        _activityValue.Text = _selection.SelectedCount == 1
+            ? _selection.SelectedSurvivors[0].Activity
+            : "--";
     }
 }

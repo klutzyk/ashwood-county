@@ -19,6 +19,7 @@ public partial class SurvivorSelectionController : CanvasLayer
     private Node2D _effects = null!;
     private Stockpile _stockpile = null!;
     private BuildingPlacementController _buildingPlacement = null!;
+    private ChopDesignationController _chopDesignation = null!;
     private Vector2 _dragStart;
     private bool _leftPressed;
     private bool _isBoxSelecting;
@@ -32,13 +33,14 @@ public partial class SurvivorSelectionController : CanvasLayer
         _effects = GetNode<Node2D>("../World/Effects");
         _stockpile = GetNode<Stockpile>("../World/Objects/Stockpile");
         _buildingPlacement = GetNode<BuildingPlacementController>("../BuildingPlacementController");
+        _chopDesignation = GetNode<ChopDesignationController>("../ChopDesignationController");
         _selectionMarquee = GetNode<Control>("SelectionMarquee");
         _selectionMarquee.Visible = false;
     }
 
     public override void _UnhandledInput(InputEvent inputEvent)
     {
-        if (_buildingPlacement.IsPlacementActive)
+        if (_buildingPlacement.IsPlacementActive || _chopDesignation.IsDesignationActive)
         {
             return;
         }

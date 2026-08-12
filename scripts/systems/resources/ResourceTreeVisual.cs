@@ -46,6 +46,11 @@ public partial class ResourceTreeVisual : Node2D
             DrawTargetIndicator();
         }
 
+        if (!Engine.IsEditorHint() && _resource.IsDesignatedForChop)
+        {
+            DrawDesignationIndicator();
+        }
+
         if (!Engine.IsEditorHint() && _resource.DisplayedHarvestProgress > 0)
         {
             DrawProgress(_resource.DisplayedHarvestProgress);
@@ -75,6 +80,15 @@ public partial class ResourceTreeVisual : Node2D
     {
         Vector2[] outline = CreateEllipsePoints(30, 11, 32, true);
         DrawPolyline(outline, new Color("#f4c95d"), 3, true);
+    }
+
+    private void DrawDesignationIndicator()
+    {
+        DrawCircle(new Vector2(0, -225), 9, new Color(0.95f, 0.68f, 0.22f, 0.92f));
+        DrawLine(new Vector2(-4, -229), new Vector2(4, -221), new Color("#4a2f17"), 2.5f);
+        DrawLine(new Vector2(4, -229), new Vector2(-4, -221), new Color("#4a2f17"), 2.5f);
+        Vector2[] outline = CreateEllipsePoints(32, 12, 32, true);
+        DrawPolyline(outline, new Color(0.95f, 0.68f, 0.22f, 0.78f), 2, true);
     }
 
     private void DrawProgress(float progress)
