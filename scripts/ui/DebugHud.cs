@@ -2,6 +2,8 @@ using AshwoodCounty.Systems;
 using AshwoodCounty.Resources;
 using AshwoodCounty.World;
 using Godot;
+using System.Linq;
+using AshwoodCounty.Threats;
 
 namespace AshwoodCounty.UI;
 
@@ -20,6 +22,8 @@ public partial class DebugHud : CanvasLayer
     private Label _hungerValue = null!;
     private Label _timeValue = null!;
     private Label _speedValue = null!;
+    private Label _healthValue = null!;
+    private Label _threatValue = null!;
     private Systems.GameClock _clock = null!;
     private Systems.SimulationController _simulation = null!;
 
@@ -38,6 +42,8 @@ public partial class DebugHud : CanvasLayer
         _hungerValue = GetNode<Label>("Panel/Margin/Rows/HungerValue");
         _timeValue = GetNode<Label>("Panel/Margin/Rows/TimeValue");
         _speedValue = GetNode<Label>("Panel/Margin/Rows/SpeedValue");
+        _healthValue = GetNode<Label>("Panel/Margin/Rows/HealthValue");
+        _threatValue = GetNode<Label>("Panel/Margin/Rows/ThreatValue");
         _clock = GetNode<Systems.GameClock>("../GameClock");
         _simulation = GetNode<Systems.SimulationController>("../SimulationController");
     }
@@ -59,5 +65,7 @@ public partial class DebugHud : CanvasLayer
         _hungerValue.Text = _selection.SelectedCount == 1 ? $"{_selection.SelectedSurvivors[0].Hunger:0}%" : "--";
         _timeValue.Text = _clock.DisplayTime;
         _speedValue.Text = _simulation.IsPaused ? "Paused" : $"{_simulation.Speed}x";
+        _healthValue.Text=_selection.SelectedCount==1?$"{_selection.SelectedSurvivors[0].Health:0}/{_selection.SelectedSurvivors[0].MaxHealth:0}":"--";
+        _threatValue.Text=GetTree().GetNodesInGroup(Zombie.GroupName).OfType<Zombie>().Count(z=>z.IsAlive).ToString();
     }
 }

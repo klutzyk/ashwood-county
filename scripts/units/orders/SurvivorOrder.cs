@@ -6,7 +6,8 @@ public enum SurvivorOrderType
     Move,
     HarvestResource,
     Build,
-    Eat
+    Eat,
+    AttackZombie
 }
 
 public interface ISurvivorOrder

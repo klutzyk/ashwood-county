@@ -1,4 +1,4 @@
-[gd_scene load_steps=41 format=3]
+[gd_scene load_steps=44 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/IsometricWorld.cs" id="1_world"]
 [ext_resource type="Script" path="res://scripts/world/TerrainRenderer.cs" id="2_terrain"]
@@ -33,6 +33,9 @@
 [ext_resource type="Script" path="res://scripts/systems/GameClock.cs" id="32_clock"]
 [ext_resource type="Script" path="res://scripts/ui/CountyMapController.cs" id="33_map"]
 [ext_resource type="Texture2D" path="res://docs/planning/design/maps/Game world concept map.png" id="34_map_texture"]
+[ext_resource type="PackedScene" path="res://scenes/units/Zombie.tscn" id="35_zombie"]
+[ext_resource type="Script" path="res://scripts/threats/ZombieThreatSystem.cs" id="36_threat"]
+[ext_resource type="Script" path="res://scripts/combat/NoiseSystem.cs" id="37_noise"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_debug"]
 bg_color = Color(0.055, 0.075, 0.06, 0.88)
@@ -94,6 +97,10 @@ script = ExtResource("31_sim")
 
 [node name="GameClock" type="Node" parent="."]
 script = ExtResource("32_clock")
+[node name="NoiseSystem" type="Node" parent="."]
+script = ExtResource("37_noise")
+[node name="ZombieThreatSystem" type="Node" parent="."]
+script = ExtResource("36_threat")
 
 [node name="World" type="Node2D" parent="."]
 script = ExtResource("1_world")
@@ -340,6 +347,19 @@ SimulationPosition = Vector2(23, 20.5)
 [node name="SurvivorE" parent="World/Objects" instance=ExtResource("7_survivor")]
 SimulationPosition = Vector2(19.5, 21.5)
 
+[node name="ZombieA" parent="World/Objects" instance=ExtResource("35_zombie")]
+SimulationPosition = Vector2(8, 8)
+[node name="ZombieB" parent="World/Objects" instance=ExtResource("35_zombie")]
+SimulationPosition = Vector2(34, 9)
+[node name="ZombieC" parent="World/Objects" instance=ExtResource("35_zombie")]
+SimulationPosition = Vector2(38, 27)
+[node name="ZombieD" parent="World/Objects" instance=ExtResource("35_zombie")]
+SimulationPosition = Vector2(29, 33)
+[node name="ZombieE" parent="World/Objects" instance=ExtResource("35_zombie")]
+SimulationPosition = Vector2(6, 29)
+[node name="ZombieF" parent="World/Objects" instance=ExtResource("35_zombie")]
+SimulationPosition = Vector2(31, 16)
+
 [node name="StrategyCamera" type="Camera2D" parent="World"]
 position = Vector2(0, 720)
 position_smoothing_enabled = false
@@ -362,9 +382,9 @@ script = ExtResource("13_placement")
 
 [node name="BuildPanel" type="PanelContainer" parent="BuildingPlacementController"]
 offset_left = 16.0
-offset_top = 266.0
+offset_top = 306.0
 offset_right = 286.0
-offset_bottom = 418.0
+offset_bottom = 458.0
 theme_override_styles/panel = SubResource("StyleBox_build")
 
 [node name="Margin" type="MarginContainer" parent="BuildingPlacementController/BuildPanel"]
@@ -399,9 +419,9 @@ script = ExtResource("23_chop")
 
 [node name="Panel" type="PanelContainer" parent="ChopDesignationController"]
 offset_left = 16.0
-offset_top = 430.0
+offset_top = 470.0
 offset_right = 286.0
-offset_bottom = 550.0
+offset_bottom = 590.0
 theme_override_styles/panel = SubResource("StyleBox_work")
 
 [node name="Margin" type="MarginContainer" parent="ChopDesignationController/Panel"]
@@ -433,7 +453,7 @@ script = ExtResource("6_hud")
 offset_left = 16.0
 offset_top = 16.0
 offset_right = 178.0
-offset_bottom = 248.0
+offset_bottom = 288.0
 theme_override_styles/panel = SubResource("StyleBox_debug")
 
 [node name="Margin" type="MarginContainer" parent="DebugHud/Panel"]
@@ -505,6 +525,14 @@ text = "Day 1  08:00"
 text = "SPEED"
 [node name="SpeedValue" type="Label" parent="DebugHud/Panel/Margin/Rows"]
 text = "1x"
+[node name="HealthLabel" type="Label" parent="DebugHud/Panel/Margin/Rows"]
+text = "HEALTH"
+[node name="HealthValue" type="Label" parent="DebugHud/Panel/Margin/Rows"]
+text = "--"
+[node name="ThreatLabel" type="Label" parent="DebugHud/Panel/Margin/Rows"]
+text = "ZOMBIES"
+[node name="ThreatValue" type="Label" parent="DebugHud/Panel/Margin/Rows"]
+text = "0"
 
 [node name="CountyMap" type="CanvasLayer" parent="."]
 layer = 50

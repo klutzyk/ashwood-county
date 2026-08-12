@@ -4,6 +4,7 @@ using AshwoodCounty.Buildings;
 using AshwoodCounty.Resources;
 using AshwoodCounty.Units;
 using AshwoodCounty.World;
+using AshwoodCounty.Threats;
 using Godot;
 
 namespace AshwoodCounty.Systems;
@@ -158,6 +159,8 @@ public partial class SurvivorSelectionController : CanvasLayer
 
     private void IssueContextOrder(Vector2 screenPosition, bool shiftPressed)
     {
+        Zombie zombie=GetTree().GetNodesInGroup(Zombie.GroupName).OfType<Zombie>().Where(z=>z.IsAlive&&z.ContainsScreenPoint(screenPosition)).OrderBy(z=>z.Position.Y).LastOrDefault();
+        if(zombie is not null&&_selectedSurvivors.Count>0){foreach(Survivor survivor in _selectedSurvivors.Where(s=>s.IsAlive))survivor.IssueAttackOrder(zombie);return;}
         ConstructionSite constructionSite = GetConstructionSites()
             .Where(site => site.IsAvailableForBuilding && site.ContainsScreenPoint(screenPosition))
             .OrderBy(site => site.Position.Y)

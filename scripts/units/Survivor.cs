@@ -1,9 +1,11 @@
+using System.Linq;
 using AshwoodCounty.Buildings;
 using AshwoodCounty.Jobs;
 using AshwoodCounty.Resources;
 using AshwoodCounty.Units.Orders;
 using AshwoodCounty.World;
 using Godot;
+using AshwoodCounty.Threats;
 
 namespace AshwoodCounty.Units;
 
@@ -37,12 +39,18 @@ public partial class Survivor : Node2D
     [Export] public float HungryThreshold { get; set; } = 55.0f;
     [Export] public float CriticalHungerThreshold { get; set; } = 25.0f;
     [Export] public float MealRestoration { get; set; } = 48.0f;
+    [Export] public float MaxHealth { get; set; } = 100.0f;
+    [Export] public float MeleeDamage { get; set; } = 18.0f;
+    [Export] public float AutoDefenseRange { get; set; } = 2.2f;
 
     private CanvasItem _selectionIndicator = null!;
     private CanvasItem _visual = null!;
     private Vector2 _destination;
     private ISurvivorOrder _currentOrder = null!;
     private bool _isAutonomousOrder;
+    private float _health;
+    private bool _dead;
+    private float _defenseScanElapsed;
 
     public bool IsSelected { get; private set; }
     public bool HasMoveOrder => CurrentOrderType == SurvivorOrderType.Move;
@@ -55,6 +63,8 @@ public partial class Survivor : Node2D
     public bool IsMoving => MovementVector.LengthSquared() > 0.000001f;
     public bool IsAutonomousOrder => _isAutonomousOrder && _currentOrder is not null;
     public bool IsAvailableForAutonomousWork => _currentOrder is null;
+    public bool IsAlive => !_dead;
+    public float Health => _health;
     public bool NeedsMeal => Hunger <= HungryThreshold;
     public bool IsCriticallyHungry => Hunger <= CriticalHungerThreshold;
     public float WorkSpeedMultiplier => IsCriticallyHungry ? .65f : NeedsMeal ? .85f : 1.0f;
@@ -64,6 +74,8 @@ public partial class Survivor : Node2D
         SurvivorOrderType.HarvestResource => CarriedAmount > 0 ? "Carrying / Delivering" : "Chopping",
         SurvivorOrderType.Build => "Building",
         SurvivorOrderType.Eat => "Eating",
+        SurvivorOrderType.AttackZombie => "Fighting",
+        _ when _dead => "Dead",
         _ => NeedsMeal ? "Idle • Hungry" : "Idle"
     };
 
@@ -77,6 +89,7 @@ public partial class Survivor : Node2D
         }
 
         AddToGroup(GroupName);
+        _health = MaxHealth;
         _selectionIndicator = GetNode<CanvasItem>("SelectionIndicator");
         _visual = GetNode<CanvasItem>("Visual");
         SetSelected(false);
@@ -91,6 +104,9 @@ public partial class Survivor : Node2D
         }
 
         Hunger = Mathf.Max(0, Hunger - HungerDepletionPerSecond * (float)delta);
+        if(_dead)return;
+        _defenseScanElapsed-=(float)delta;
+        if(_defenseScanElapsed<=0){_defenseScanElapsed=.3f;TryAutoDefend();}
         if (_currentOrder is null)
         {
             return;
@@ -127,6 +143,13 @@ public partial class Survivor : Node2D
     {
         AssignOrder(new BuildOrder(target, interactionPosition), false);
     }
+    public void IssueAttackOrder(Zombie target) => AssignOrder(new AttackZombieOrder(target), false);
+    public void IssueAutonomousAttackOrder(Zombie target) => AssignOrder(new AttackZombieOrder(target), true);
+    public void TakeDamage(float amount,Zombie attacker)
+    {
+        if(_dead||amount<=0)return;_health=Mathf.Max(0,_health-amount);RefreshVisual();if(_health<=0){_dead=true;_currentOrder?.Cancel(this);_currentOrder=null!;MovementVector=Vector2.Zero;SetSelected(false);RemoveFromGroup(GroupName);}else if(_currentOrder is null||_isAutonomousOrder)IssueAutonomousAttackOrder(attacker);
+    }
+    public void StopMovement(){MovementVector=Vector2.Zero;}
 
     public void IssueAutonomousHarvestOrder(HarvestableResource target, Stockpile stockpile, Vector2 interactionPosition, Vector2 deliveryPosition)
     {
@@ -237,6 +260,7 @@ public partial class Survivor : Node2D
 
     private void AssignOrder(ISurvivorOrder order, bool autonomous)
     {
+        if(_dead)return;
         ReleaseAutonomousClaim();
         _currentOrder?.Cancel(this);
         _currentOrder = order;
@@ -247,6 +271,12 @@ public partial class Survivor : Node2D
             ReleaseAutonomousClaim();
             _currentOrder = null!;
         }
+    }
+    private void TryAutoDefend()
+    {
+        if(_currentOrder is not null&&!_isAutonomousOrder)return;
+        Zombie nearest=GetTree().GetNodesInGroup(Zombie.GroupName).OfType<Zombie>().Where(z=>z.IsAlive&&z.SimulationPosition.DistanceSquaredTo(SimulationPosition)<=AutoDefenseRange*AutoDefenseRange).MinBy(z=>z.SimulationPosition.DistanceSquaredTo(SimulationPosition));
+        if(nearest is not null&&(_currentOrder is null||CurrentOrderType!=SurvivorOrderType.AttackZombie))IssueAutonomousAttackOrder(nearest);
     }
 
     private void ReleaseAutonomousClaim()
