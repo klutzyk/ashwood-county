@@ -123,7 +123,8 @@ public partial class DirectionalSurvivorVisual : Node2D
         foreach (SurvivorDirection direction in new[] { SurvivorDirection.NE, SurvivorDirection.E, SurvivorDirection.SE })
         {
             string name = direction.ToString().ToLowerInvariant();
-            Texture2D[] frames = new Texture2D[6];
+            int frameCount = direction == SurvivorDirection.SE ? 8 : 6;
+            Texture2D[] frames = new Texture2D[frameCount];
             for (int index = 0; index < frames.Length; index++)
             {
                 frames[index] = GD.Load<Texture2D>($"{AssetRoot}/walk_{name}_{index:00}.png");
