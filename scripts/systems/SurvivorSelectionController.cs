@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using AshwoodCounty.Resources;
 using AshwoodCounty.Units;
 using AshwoodCounty.World;
 using Godot;
@@ -15,6 +16,7 @@ public partial class SurvivorSelectionController : CanvasLayer
     private IsometricWorld _world = null!;
     private Control _selectionMarquee = null!;
     private Node2D _effects = null!;
+    private Stockpile _stockpile = null!;
     private Vector2 _dragStart;
     private bool _leftPressed;
     private bool _isBoxSelecting;
@@ -26,6 +28,7 @@ public partial class SurvivorSelectionController : CanvasLayer
     {
         _world = GetNode<IsometricWorld>("../World");
         _effects = GetNode<Node2D>("../World/Effects");
+        _stockpile = GetNode<Stockpile>("../World/Objects/Stockpile");
         _selectionMarquee = GetNode<Control>("SelectionMarquee");
         _selectionMarquee.Visible = false;
     }
@@ -74,7 +77,7 @@ public partial class SurvivorSelectionController : CanvasLayer
         }
         else if (mouseButton.ButtonIndex == MouseButton.Right && mouseButton.Pressed)
         {
-            IssueMoveOrder(mouseButton.Position);
+            IssueContextOrder(mouseButton.Position);
             GetViewport().SetInputAsHandled();
         }
     }
@@ -143,10 +146,20 @@ public partial class SurvivorSelectionController : CanvasLayer
         }
     }
 
-    private void IssueMoveOrder(Vector2 screenPosition)
+    private void IssueContextOrder(Vector2 screenPosition)
     {
         if (_selectedSurvivors.Count == 0)
         {
+            return;
+        }
+
+        HarvestableResource harvestTarget = GetHarvestableResources()
+            .Where(resource => resource.IsHarvestable && resource.ContainsScreenPoint(screenPosition))
+            .OrderBy(resource => resource.Position.Y)
+            .LastOrDefault();
+        if (harvestTarget is not null)
+        {
+            IssueHarvestOrder(harvestTarget);
             return;
         }
 
@@ -168,6 +181,18 @@ public partial class SurvivorSelectionController : CanvasLayer
         MoveCommandMarker marker = new();
         _effects.AddChild(marker);
         marker.Initialize(target);
+    }
+
+    private void IssueHarvestOrder(HarvestableResource target)
+    {
+        int workerCount = _selectedSurvivors.Count;
+        for (int index = 0; index < workerCount; index++)
+        {
+            Survivor survivor = _selectedSurvivors[index];
+            Vector2 interactionPosition = target.GetInteractionPosition(index, workerCount);
+            Vector2 deliveryPosition = _stockpile.GetInteractionPosition(index, workerCount);
+            survivor.IssueHarvestOrder(target, _stockpile, interactionPosition, deliveryPosition);
+        }
     }
 
     private static List<Vector2> CreateFormationDestinations(Vector2 center, int count)
@@ -226,6 +251,17 @@ public partial class SurvivorSelectionController : CanvasLayer
             if (node is Survivor survivor)
             {
                 yield return survivor;
+            }
+        }
+    }
+
+    private IEnumerable<HarvestableResource> GetHarvestableResources()
+    {
+        foreach (Node node in GetTree().GetNodesInGroup(HarvestableResource.GroupName))
+        {
+            if (node is HarvestableResource resource)
+            {
+                yield return resource;
             }
         }
     }

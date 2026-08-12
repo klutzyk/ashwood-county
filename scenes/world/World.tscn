@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/IsometricWorld.cs" id="1_world"]
 [ext_resource type="Script" path="res://scripts/world/TerrainRenderer.cs" id="2_terrain"]
@@ -8,6 +8,9 @@
 [ext_resource type="Script" path="res://scripts/ui/DebugHud.cs" id="6_hud"]
 [ext_resource type="PackedScene" path="res://scenes/units/Survivor.tscn" id="7_survivor"]
 [ext_resource type="Script" path="res://scripts/systems/SurvivorSelectionController.cs" id="8_selection"]
+[ext_resource type="PackedScene" path="res://scenes/world/ResourceTree.tscn" id="9_tree"]
+[ext_resource type="PackedScene" path="res://scenes/buildings/Stockpile.tscn" id="10_stockpile"]
+[ext_resource type="Script" path="res://scripts/systems/resources/SettlementInventory.cs" id="11_inventory"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_debug"]
 bg_color = Color(0.055, 0.075, 0.06, 0.88)
@@ -31,6 +34,9 @@ border_color = Color(0.48, 0.95, 0.55, 0.95)
 
 [node name="Main" type="Node"]
 
+[node name="SettlementInventory" type="Node" parent="."]
+script = ExtResource("11_inventory")
+
 [node name="World" type="Node2D" parent="."]
 script = ExtResource("1_world")
 
@@ -45,9 +51,9 @@ script = ExtResource("3_hover")
 [node name="Objects" type="Node2D" parent="World"]
 y_sort_enabled = true
 
-[node name="TreeA" type="Node2D" parent="World/Objects"]
-script = ExtResource("5_object")
+[node name="TreeA" parent="World/Objects" instance=ExtResource("9_tree")]
 GridPosition = Vector2(5, 7)
+StartingAmount = 20
 
 [node name="BuildingA" type="Node2D" parent="World/Objects"]
 script = ExtResource("5_object")
@@ -59,9 +65,9 @@ script = ExtResource("5_object")
 Kind = 3
 GridPosition = Vector2(12, 9)
 
-[node name="TreeB" type="Node2D" parent="World/Objects"]
-script = ExtResource("5_object")
+[node name="TreeB" parent="World/Objects" instance=ExtResource("9_tree")]
 GridPosition = Vector2(13, 13)
+StartingAmount = 24
 
 [node name="BuildingB" type="Node2D" parent="World/Objects"]
 script = ExtResource("5_object")
@@ -73,13 +79,16 @@ script = ExtResource("5_object")
 Kind = 3
 GridPosition = Vector2(18, 17)
 
-[node name="TreeC" type="Node2D" parent="World/Objects"]
-script = ExtResource("5_object")
+[node name="TreeC" parent="World/Objects" instance=ExtResource("9_tree")]
 GridPosition = Vector2(21, 12)
+StartingAmount = 18
 
-[node name="TreeD" type="Node2D" parent="World/Objects"]
-script = ExtResource("5_object")
+[node name="TreeD" parent="World/Objects" instance=ExtResource("9_tree")]
 GridPosition = Vector2(20, 21)
+StartingAmount = 30
+
+[node name="Stockpile" parent="World/Objects" instance=ExtResource("10_stockpile")]
+GridPosition = Vector2(13, 17)
 
 [node name="SurvivorA" parent="World/Objects" instance=ExtResource("7_survivor")]
 SimulationPosition = Vector2(9.5, 11.5)
@@ -119,7 +128,7 @@ script = ExtResource("6_hud")
 offset_left = 16.0
 offset_top = 16.0
 offset_right = 178.0
-offset_bottom = 140.0
+offset_bottom = 168.0
 theme_override_styles/panel = SubResource("StyleBox_debug")
 
 [node name="Margin" type="MarginContainer" parent="DebugHud/Panel"]
@@ -159,4 +168,11 @@ theme_override_colors/font_color = Color(0.66, 0.76, 0.63, 1)
 text = "SELECTED"
 
 [node name="SelectedValue" type="Label" parent="DebugHud/Panel/Margin/Rows"]
+text = "0"
+
+[node name="WoodLabel" type="Label" parent="DebugHud/Panel/Margin/Rows"]
+theme_override_colors/font_color = Color(0.66, 0.76, 0.63, 1)
+text = "WOOD"
+
+[node name="WoodValue" type="Label" parent="DebugHud/Panel/Margin/Rows"]
 text = "0"

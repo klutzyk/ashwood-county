@@ -1,0 +1,10 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/systems/resources/Stockpile.cs" id="1_stockpile"]
+[ext_resource type="Script" path="res://scripts/systems/resources/StockpilePlaceholderVisual.cs" id="2_visual"]
+
+[node name="Stockpile" type="Node2D"]
+script = ExtResource("1_stockpile")
+
+[node name="Visual" type="Node2D" parent="."]
+script = ExtResource("2_visual")

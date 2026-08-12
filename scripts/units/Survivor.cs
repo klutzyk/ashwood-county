@@ -1,3 +1,5 @@
+using AshwoodCounty.Resources;
+using AshwoodCounty.Units.Orders;
 using AshwoodCounty.World;
 using Godot;
 
@@ -26,13 +28,20 @@ public partial class Survivor : Node2D
 
     [Export] public float MovementSpeed { get; set; } = 2.5f;
     [Export] public float ArrivalThreshold { get; set; } = 0.05f;
+    [Export] public int CarryCapacityWood { get; set; } = 10;
 
     private CanvasItem _selectionIndicator = null!;
+    private CanvasItem _visual = null!;
     private Vector2 _destination;
+    private ISurvivorOrder _currentOrder = null!;
 
     public bool IsSelected { get; private set; }
-    public bool HasMoveOrder { get; private set; }
+    public bool HasMoveOrder => CurrentOrderType == SurvivorOrderType.Move;
     public Vector2 Destination => _destination;
+    public SurvivorOrderType CurrentOrderType => _currentOrder?.Type ?? SurvivorOrderType.None;
+    public int CarriedAmount { get; private set; }
+    public ResourceType CarriedResourceType { get; private set; } = ResourceType.Wood;
+    public ResourceType LastCarriedResourceType { get; private set; } = ResourceType.Wood;
 
     public override void _Ready()
     {
@@ -45,6 +54,7 @@ public partial class Survivor : Node2D
 
         AddToGroup(GroupName);
         _selectionIndicator = GetNode<CanvasItem>("SelectionIndicator");
+        _visual = GetNode<CanvasItem>("Visual");
         SetSelected(false);
         UpdateRenderedPosition();
     }
@@ -56,24 +66,16 @@ public partial class Survivor : Node2D
             return;
         }
 
-        if (!HasMoveOrder)
+        if (_currentOrder is null)
         {
             return;
         }
 
-        Vector2 toDestination = _destination - SimulationPosition;
-        float distance = toDestination.Length();
-        if (distance <= ArrivalThreshold)
+        _currentOrder.Tick(this, delta);
+        if (_currentOrder.IsComplete)
         {
-            SimulationPosition = _destination;
-            HasMoveOrder = false;
-            UpdateRenderedPosition();
-            return;
+            _currentOrder = null!;
         }
-
-        float travelDistance = Mathf.Min(MovementSpeed * (float)delta, distance);
-        SimulationPosition += toDestination / distance * travelDistance;
-        UpdateRenderedPosition();
     }
 
     public void SetSelected(bool selected)
@@ -87,8 +89,63 @@ public partial class Survivor : Node2D
 
     public void IssueMoveOrder(Vector2 destination)
     {
+        AssignOrder(new MoveOrder(destination));
+    }
+
+    public void IssueHarvestOrder(HarvestableResource target, Stockpile stockpile, Vector2 interactionPosition, Vector2 deliveryPosition)
+    {
+        AssignOrder(new HarvestResourceOrder(target, stockpile, interactionPosition, deliveryPosition));
+    }
+
+    public bool MoveTowardsGridPosition(Vector2 destination, double delta)
+    {
         _destination = destination;
-        HasMoveOrder = SimulationPosition.DistanceTo(destination) > ArrivalThreshold;
+        Vector2 toDestination = destination - SimulationPosition;
+        float distance = toDestination.Length();
+        if (distance <= ArrivalThreshold)
+        {
+            SimulationPosition = destination;
+            UpdateRenderedPosition();
+            return true;
+        }
+
+        float travelDistance = Mathf.Min(MovementSpeed * (float)delta, distance);
+        SimulationPosition += toDestination / distance * travelDistance;
+        UpdateRenderedPosition();
+        return travelDistance >= distance;
+    }
+
+    public int GetRemainingCarryCapacity(ResourceType resourceType)
+    {
+        if (CarriedAmount > 0 && CarriedResourceType != resourceType)
+        {
+            return 0;
+        }
+
+        return resourceType == ResourceType.Wood ? Mathf.Max(0, CarryCapacityWood - CarriedAmount) : 0;
+    }
+
+    public bool TryAddCarriedResource(ResourceType resourceType, int amount)
+    {
+        if (amount <= 0 || amount > GetRemainingCarryCapacity(resourceType))
+        {
+            return false;
+        }
+
+        CarriedResourceType = resourceType;
+        LastCarriedResourceType = resourceType;
+        CarriedAmount += amount;
+        RefreshVisual();
+        return true;
+    }
+
+    public int RemoveCarriedResource()
+    {
+        int amount = CarriedAmount;
+        LastCarriedResourceType = CarriedResourceType;
+        CarriedAmount = 0;
+        RefreshVisual();
+        return amount;
     }
 
     public bool ContainsScreenPoint(Vector2 screenPoint)
@@ -116,6 +173,25 @@ public partial class Survivor : Node2D
     private static Rect2 GetLocalSelectionBounds()
     {
         return new Rect2(-22, -72, 44, 76);
+    }
+
+    private void AssignOrder(ISurvivorOrder order)
+    {
+        _currentOrder?.Cancel(this);
+        _currentOrder = order;
+        _currentOrder.Start(this);
+        if (_currentOrder.IsComplete)
+        {
+            _currentOrder = null!;
+        }
+    }
+
+    private void RefreshVisual()
+    {
+        if (IsInstanceValid(_visual))
+        {
+            _visual.QueueRedraw();
+        }
     }
 
     private void UpdateRenderedPosition()

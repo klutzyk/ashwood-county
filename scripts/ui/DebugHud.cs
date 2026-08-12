@@ -1,4 +1,5 @@
 using AshwoodCounty.Systems;
+using AshwoodCounty.Resources;
 using AshwoodCounty.World;
 using Godot;
 
@@ -12,6 +13,8 @@ public partial class DebugHud : CanvasLayer
     private Label _fpsValue = null!;
     private Label _selectedValue = null!;
     private SurvivorSelectionController _selection = null!;
+    private SettlementInventory _inventory = null!;
+    private Label _woodValue = null!;
 
     public override void _Ready()
     {
@@ -21,6 +24,8 @@ public partial class DebugHud : CanvasLayer
         _fpsValue = GetNode<Label>("Panel/Margin/Rows/FpsValue");
         _selectedValue = GetNode<Label>("Panel/Margin/Rows/SelectedValue");
         _selection = GetNode<SurvivorSelectionController>("../SelectionController");
+        _inventory = GetNode<SettlementInventory>("../SettlementInventory");
+        _woodValue = GetNode<Label>("Panel/Margin/Rows/WoodValue");
     }
 
     public override void _Process(double delta)
@@ -30,5 +35,6 @@ public partial class DebugHud : CanvasLayer
         _zoomValue.Text = $"{_world.CameraZoom:0.00}x";
         _fpsValue.Text = Engine.GetFramesPerSecond().ToString();
         _selectedValue.Text = _selection.SelectedCount.ToString();
+        _woodValue.Text = _inventory.GetAmount(ResourceType.Wood).ToString();
     }
 }
