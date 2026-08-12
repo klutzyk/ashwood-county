@@ -25,8 +25,7 @@ public partial class Stockpile : Node2D, IGridOccupant
     [Export] public float InteractionRadius { get; set; } = 1.0f;
     [Export] public Vector2I Footprint { get; set; } = new(2, 2);
     public Vector2 WorldPosition => GridPosition + new Vector2(0.5f, 0.5f);
-    public Vector2I OccupancyOrigin => new(Mathf.FloorToInt(GridPosition.X), Mathf.FloorToInt(GridPosition.Y));
-    public Vector2I OccupancyFootprint => Footprint;
+    public WorldFootprint OccupancyFootprint => new(GridPosition, new Vector2(Footprint.X, Footprint.Y));
 
     public override void _Ready()
     {

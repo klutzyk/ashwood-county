@@ -39,6 +39,16 @@ public partial class IsometricWorld : Node2D
         _hover.SetHoveredCell(HoveredCell);
     }
 
+    public override void _UnhandledInput(InputEvent inputEvent)
+    {
+        if (inputEvent is InputEventKey keyEvent && keyEvent.Pressed && !keyEvent.Echo
+            && keyEvent.Keycode == Key.G)
+        {
+            _terrain.ToggleRuntimeGrid();
+            GetViewport().SetInputAsHandled();
+        }
+    }
+
     public static bool IsCellInBounds(Vector2I cell)
     {
         return cell.X >= 0 && cell.Y >= 0 && cell.X < MapWidth && cell.Y < MapHeight;

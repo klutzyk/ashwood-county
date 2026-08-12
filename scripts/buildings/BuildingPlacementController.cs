@@ -17,7 +17,7 @@ public partial class BuildingPlacementController : CanvasLayer
     private BuildingDefinition _activeDefinition = null!;
 
     public bool IsPlacementActive { get; private set; }
-    public Vector2I CurrentOrigin { get; private set; }
+    public Vector2 CurrentPosition { get; private set; }
     public bool IsCurrentPlacementValid { get; private set; }
     public string CurrentFeedback { get; private set; } = string.Empty;
 
@@ -41,8 +41,7 @@ public partial class BuildingPlacementController : CanvasLayer
             return;
         }
 
-        Vector2 gridPosition = _world.ScreenToGridPosition(GetViewport().GetMousePosition());
-        UpdatePlacement(new Vector2I(Mathf.FloorToInt(gridPosition.X), Mathf.FloorToInt(gridPosition.Y)));
+        UpdatePlacement(_world.ScreenToGridPosition(GetViewport().GetMousePosition()));
     }
 
     public override void _UnhandledInput(InputEvent inputEvent)
@@ -84,18 +83,19 @@ public partial class BuildingPlacementController : CanvasLayer
         IsPlacementActive = true;
         _preview = new BuildingPlacementPreview();
         _effects.AddChild(_preview);
-        UpdatePlacement(CurrentOrigin);
+        UpdatePlacement(CurrentPosition);
     }
 
-    public void UpdatePlacement(Vector2I origin)
+    public void UpdatePlacement(Vector2 position)
     {
         if (!IsPlacementActive)
         {
             return;
         }
 
-        CurrentOrigin = origin;
-        PlacementFailure failure = _occupancy.Validate(origin, _activeDefinition.Footprint);
+        CurrentPosition = position;
+        WorldFootprint footprint = new(position, _activeDefinition.FootprintSize);
+        PlacementFailure failure = _occupancy.Validate(footprint);
         if (failure == PlacementFailure.OutsideMap)
         {
             IsCurrentPlacementValid = false;
@@ -117,7 +117,7 @@ public partial class BuildingPlacementController : CanvasLayer
             SetFeedback("Valid placement • Left-click to build");
         }
 
-        _preview.UpdatePreview(_activeDefinition, origin, IsCurrentPlacementValid);
+        _preview.UpdatePreview(_activeDefinition, position, IsCurrentPlacementValid);
     }
 
     public bool TryConfirmPlacement()
@@ -127,7 +127,7 @@ public partial class BuildingPlacementController : CanvasLayer
             return false;
         }
 
-        UpdatePlacement(CurrentOrigin);
+        UpdatePlacement(CurrentPosition);
         if (!IsCurrentPlacementValid || !_inventory.TrySpend(_activeDefinition.CostResource, _activeDefinition.ResourceCost))
         {
             return false;
@@ -135,12 +135,12 @@ public partial class BuildingPlacementController : CanvasLayer
 
         PackedScene packedScene = GD.Load<PackedScene>(_activeDefinition.ConstructionSiteScenePath);
         ConstructionSite site = packedScene.Instantiate<ConstructionSite>();
-        site.Initialize(_activeDefinition, CurrentOrigin, _occupancy, _inventory);
-        if (!_occupancy.TryOccupy(site, CurrentOrigin, _activeDefinition.Footprint))
+        site.Initialize(_activeDefinition, CurrentPosition, _occupancy, _inventory);
+        if (!_occupancy.TryOccupy(site, site.OccupancyFootprint))
         {
             _inventory.Add(_activeDefinition.CostResource, _activeDefinition.ResourceCost);
             site.QueueFree();
-            UpdatePlacement(CurrentOrigin);
+            UpdatePlacement(CurrentPosition);
             return false;
         }
 

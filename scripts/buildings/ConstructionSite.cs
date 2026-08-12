@@ -11,32 +11,32 @@ public partial class ConstructionSite : Node2D, IGridOccupant
     public const string GroupName = "construction_sites";
 
     private readonly HashSet<ulong> _activeBuilders = [];
-    private Vector2I _gridOrigin;
-    private Vector2I _footprint = new(3, 2);
+    private Vector2 _buildingPosition;
+    private Vector2 _footprintSize = new(3, 2);
     private BuildingDefinition _definition = BuildingCatalog.Shelter;
     private GridOccupancy _occupancy = null!;
     private SettlementInventory _inventory = null!;
     private bool _resourcesPaid;
 
     [Export]
-    public Vector2I GridOrigin
+    public Vector2 BuildingPosition
     {
-        get => _gridOrigin;
+        get => _buildingPosition;
         set
         {
-            _gridOrigin = value;
+            _buildingPosition = value;
             UpdateRenderedPosition();
             RefreshVisual();
         }
     }
 
     [Export]
-    public Vector2I Footprint
+    public Vector2 FootprintSize
     {
-        get => _footprint;
+        get => _footprintSize;
         set
         {
-            _footprint = value;
+            _footprintSize = value;
             UpdateRenderedPosition();
             RefreshVisual();
         }
@@ -44,8 +44,7 @@ public partial class ConstructionSite : Node2D, IGridOccupant
 
     [Export] public float RequiredWork { get; set; } = 6.0f;
 
-    public Vector2I OccupancyOrigin => GridOrigin;
-    public Vector2I OccupancyFootprint => Footprint;
+    public WorldFootprint OccupancyFootprint => new(BuildingPosition, FootprintSize);
     public float CurrentWork { get; private set; }
     public float Progress => RequiredWork <= 0 ? 1 : Mathf.Clamp(CurrentWork / RequiredWork, 0, 1);
     public bool IsCompleted { get; private set; }
@@ -64,11 +63,11 @@ public partial class ConstructionSite : Node2D, IGridOccupant
         AddToGroup(GroupName);
     }
 
-    public void Initialize(BuildingDefinition definition, Vector2I origin, GridOccupancy occupancy, SettlementInventory inventory)
+    public void Initialize(BuildingDefinition definition, Vector2 position, GridOccupancy occupancy, SettlementInventory inventory)
     {
         _definition = definition;
-        GridOrigin = origin;
-        Footprint = definition.Footprint;
+        BuildingPosition = position;
+        FootprintSize = definition.FootprintSize;
         RequiredWork = definition.RequiredConstructionWork;
         _occupancy = occupancy;
         _inventory = inventory;
@@ -138,8 +137,8 @@ public partial class ConstructionSite : Node2D, IGridOccupant
     public bool ContainsScreenPoint(Vector2 screenPoint)
     {
         Vector2 localPoint = GetGlobalTransformWithCanvas().AffineInverse() * screenPoint;
-        float halfWidth = (Footprint.X + Footprint.Y) * IsometricGrid.TileWidth * 0.28f;
-        float height = (Footprint.X + Footprint.Y) * IsometricGrid.TileHeight * 0.5f + 75;
+        float halfWidth = (FootprintSize.X + FootprintSize.Y) * IsometricGrid.TileWidth * 0.28f;
+        float height = (FootprintSize.X + FootprintSize.Y) * IsometricGrid.TileHeight * 0.5f + 75;
         return new Rect2(-halfWidth, -height, halfWidth * 2, height + 10).HasPoint(localPoint);
     }
 
@@ -156,7 +155,7 @@ public partial class ConstructionSite : Node2D, IGridOccupant
 
         PackedScene scene = GD.Load<PackedScene>(_definition.CompletedBuildingScenePath);
         CompletedBuilding completedBuilding = scene.Instantiate<CompletedBuilding>();
-        completedBuilding.Initialize(_definition, GridOrigin);
+        completedBuilding.Initialize(_definition, BuildingPosition);
         GetParent().AddChild(completedBuilding);
         if (!_occupancy.Transfer(this, completedBuilding))
         {
@@ -169,21 +168,25 @@ public partial class ConstructionSite : Node2D, IGridOccupant
     private List<Vector2> CreatePerimeterPositions()
     {
         List<Vector2> positions = [];
-        for (int x = 0; x < Footprint.X; x++)
+        int horizontalSlots = Mathf.Max(1, Mathf.CeilToInt(FootprintSize.X));
+        int verticalSlots = Mathf.Max(1, Mathf.CeilToInt(FootprintSize.Y));
+        for (int x = 0; x < horizontalSlots; x++)
         {
-            AddIfInside(positions, new Vector2(GridOrigin.X + x + 0.5f, GridOrigin.Y - 0.35f));
-            AddIfInside(positions, new Vector2(GridOrigin.X + x + 0.5f, GridOrigin.Y + Footprint.Y + 0.35f));
+            float offset = FootprintSize.X * (x + 0.5f) / horizontalSlots;
+            AddIfInside(positions, new Vector2(BuildingPosition.X + offset, BuildingPosition.Y - 0.35f));
+            AddIfInside(positions, new Vector2(BuildingPosition.X + offset, BuildingPosition.Y + FootprintSize.Y + 0.35f));
         }
 
-        for (int y = 0; y < Footprint.Y; y++)
+        for (int y = 0; y < verticalSlots; y++)
         {
-            AddIfInside(positions, new Vector2(GridOrigin.X - 0.35f, GridOrigin.Y + y + 0.5f));
-            AddIfInside(positions, new Vector2(GridOrigin.X + Footprint.X + 0.35f, GridOrigin.Y + y + 0.5f));
+            float offset = FootprintSize.Y * (y + 0.5f) / verticalSlots;
+            AddIfInside(positions, new Vector2(BuildingPosition.X - 0.35f, BuildingPosition.Y + offset));
+            AddIfInside(positions, new Vector2(BuildingPosition.X + FootprintSize.X + 0.35f, BuildingPosition.Y + offset));
         }
 
         if (positions.Count == 0)
         {
-            positions.Add(BuildingGridProjection.GetFootprintCenter(GridOrigin, Footprint));
+            positions.Add(BuildingGridProjection.GetFootprintCenter(BuildingPosition, FootprintSize));
         }
 
         return positions;
@@ -199,7 +202,7 @@ public partial class ConstructionSite : Node2D, IGridOccupant
 
     private void UpdateRenderedPosition()
     {
-        Vector2 projectedPosition = BuildingGridProjection.GetRenderAnchor(GridOrigin, Footprint);
+        Vector2 projectedPosition = BuildingGridProjection.GetRenderAnchor(BuildingPosition, FootprintSize);
         if (!Position.IsEqualApprox(projectedPosition))
         {
             Position = projectedPosition;

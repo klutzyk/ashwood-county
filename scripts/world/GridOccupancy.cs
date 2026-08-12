@@ -12,34 +12,45 @@ public enum PlacementFailure
 
 public interface IGridOccupant
 {
-    Vector2I OccupancyOrigin { get; }
-    Vector2I OccupancyFootprint { get; }
+    WorldFootprint OccupancyFootprint { get; }
 }
 
 public partial class GridOccupancy : Node
 {
     public const string OccupantGroup = "grid_occupants";
 
-    private readonly Dictionary<Vector2I, GodotObject> _occupantsByCell = [];
-    private readonly Dictionary<ulong, List<Vector2I>> _cellsByOccupant = [];
+    private sealed record OccupancyEntry(GodotObject Occupant, WorldFootprint Footprint, List<Vector2I> Cells);
+
+    private readonly Dictionary<Vector2I, HashSet<ulong>> _occupantsByCell = [];
+    private readonly Dictionary<ulong, OccupancyEntry> _occupants = [];
 
     public override void _Ready()
     {
         Callable.From(RegisterInitialOccupants).CallDeferred();
     }
 
-    public PlacementFailure Validate(Vector2I origin, Vector2I footprint)
+    public PlacementFailure Validate(WorldFootprint footprint)
     {
-        if (origin.X < 0 || origin.Y < 0 || footprint.X <= 0 || footprint.Y <= 0
-            || origin.X + footprint.X > IsometricWorld.MapWidth
-            || origin.Y + footprint.Y > IsometricWorld.MapHeight)
+        Rect2 bounds = footprint.Bounds;
+        if (!footprint.IsValid || bounds.Position.X < 0 || bounds.Position.Y < 0
+            || bounds.End.X > IsometricWorld.MapWidth || bounds.End.Y > IsometricWorld.MapHeight)
         {
             return PlacementFailure.OutsideMap;
         }
 
-        foreach (Vector2I cell in EnumerateCells(origin, footprint))
+        HashSet<ulong> candidates = [];
+        foreach (Vector2I cell in EnumerateCells(bounds))
         {
-            if (_occupantsByCell.ContainsKey(cell))
+            if (_occupantsByCell.TryGetValue(cell, out HashSet<ulong> occupants))
+            {
+                candidates.UnionWith(occupants);
+            }
+        }
+
+        foreach (ulong candidateId in candidates)
+        {
+            if (_occupants.TryGetValue(candidateId, out OccupancyEntry entry)
+                && footprint.Overlaps(entry.Footprint))
             {
                 return PlacementFailure.Occupied;
             }
@@ -48,18 +59,26 @@ public partial class GridOccupancy : Node
         return PlacementFailure.None;
     }
 
-    public bool TryOccupy(GodotObject occupant, Vector2I origin, Vector2I footprint)
+    public bool TryOccupy(GodotObject occupant, WorldFootprint footprint)
     {
-        if (occupant is null || Validate(origin, footprint) != PlacementFailure.None)
+        if (occupant is null || _occupants.ContainsKey(occupant.GetInstanceId())
+            || Validate(footprint) != PlacementFailure.None)
         {
             return false;
         }
 
-        List<Vector2I> cells = [.. EnumerateCells(origin, footprint)];
-        _cellsByOccupant[occupant.GetInstanceId()] = cells;
+        ulong occupantId = occupant.GetInstanceId();
+        List<Vector2I> cells = [.. EnumerateCells(footprint.Bounds)];
+        _occupants[occupantId] = new OccupancyEntry(occupant, footprint, cells);
         foreach (Vector2I cell in cells)
         {
-            _occupantsByCell[cell] = occupant;
+            if (!_occupantsByCell.TryGetValue(cell, out HashSet<ulong> occupants))
+            {
+                occupants = [];
+                _occupantsByCell[cell] = occupants;
+            }
+
+            occupants.Add(occupantId);
         }
 
         return true;
@@ -67,14 +86,14 @@ public partial class GridOccupancy : Node
 
     public bool Release(GodotObject occupant)
     {
-        if (occupant is null || !_cellsByOccupant.Remove(occupant.GetInstanceId(), out List<Vector2I> cells))
+        if (occupant is null || !_occupants.Remove(occupant.GetInstanceId(), out OccupancyEntry entry))
         {
             return false;
         }
 
-        foreach (Vector2I cell in cells)
+        foreach (Vector2I cell in entry.Cells)
         {
-            _occupantsByCell.Remove(cell);
+            RemoveCellOccupant(cell, occupant.GetInstanceId());
         }
 
         return true;
@@ -83,15 +102,25 @@ public partial class GridOccupancy : Node
     public bool Transfer(GodotObject previousOccupant, GodotObject newOccupant)
     {
         if (previousOccupant is null || newOccupant is null
-            || !_cellsByOccupant.Remove(previousOccupant.GetInstanceId(), out List<Vector2I> cells))
+            || _occupants.ContainsKey(newOccupant.GetInstanceId())
+            || !_occupants.Remove(previousOccupant.GetInstanceId(), out OccupancyEntry entry))
         {
             return false;
         }
 
-        _cellsByOccupant[newOccupant.GetInstanceId()] = cells;
-        foreach (Vector2I cell in cells)
+        ulong previousId = previousOccupant.GetInstanceId();
+        ulong newId = newOccupant.GetInstanceId();
+        _occupants[newId] = new OccupancyEntry(newOccupant, entry.Footprint, entry.Cells);
+        foreach (Vector2I cell in entry.Cells)
         {
-            _occupantsByCell[cell] = newOccupant;
+            RemoveCellOccupant(cell, previousId);
+            if (!_occupantsByCell.TryGetValue(cell, out HashSet<ulong> occupants))
+            {
+                occupants = [];
+                _occupantsByCell[cell] = occupants;
+            }
+
+            occupants.Add(newId);
         }
 
         return true;
@@ -99,7 +128,7 @@ public partial class GridOccupancy : Node
 
     public bool IsOccupied(Vector2I cell)
     {
-        return _occupantsByCell.ContainsKey(cell);
+        return _occupantsByCell.TryGetValue(cell, out HashSet<ulong> occupants) && occupants.Count > 0;
     }
 
     private void RegisterInitialOccupants()
@@ -107,9 +136,9 @@ public partial class GridOccupancy : Node
         foreach (Node node in GetTree().GetNodesInGroup(OccupantGroup))
         {
             if (node is GodotObject occupant && node is IGridOccupant gridOccupant
-                && !_cellsByOccupant.ContainsKey(occupant.GetInstanceId()))
+                && !_occupants.ContainsKey(occupant.GetInstanceId()))
             {
-                if (!TryOccupy(occupant, gridOccupant.OccupancyOrigin, gridOccupant.OccupancyFootprint))
+                if (!TryOccupy(occupant, gridOccupant.OccupancyFootprint))
                 {
                     GD.PushWarning($"Could not register grid occupancy for {node.GetPath()}.");
                 }
@@ -117,13 +146,31 @@ public partial class GridOccupancy : Node
         }
     }
 
-    private static IEnumerable<Vector2I> EnumerateCells(Vector2I origin, Vector2I footprint)
+    private void RemoveCellOccupant(Vector2I cell, ulong occupantId)
     {
-        for (int y = 0; y < footprint.Y; y++)
+        if (!_occupantsByCell.TryGetValue(cell, out HashSet<ulong> occupants))
         {
-            for (int x = 0; x < footprint.X; x++)
+            return;
+        }
+
+        occupants.Remove(occupantId);
+        if (occupants.Count == 0)
+        {
+            _occupantsByCell.Remove(cell);
+        }
+    }
+
+    private static IEnumerable<Vector2I> EnumerateCells(Rect2 bounds)
+    {
+        int startX = Mathf.FloorToInt(bounds.Position.X);
+        int startY = Mathf.FloorToInt(bounds.Position.Y);
+        int endX = Mathf.CeilToInt(bounds.End.X);
+        int endY = Mathf.CeilToInt(bounds.End.Y);
+        for (int y = startY; y < endY; y++)
+        {
+            for (int x = startX; x < endX; x++)
             {
-                yield return origin + new Vector2I(x, y);
+                yield return new Vector2I(x, y);
             }
         }
     }

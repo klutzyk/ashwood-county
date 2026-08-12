@@ -11,7 +11,7 @@ public enum BuildingType
 public sealed record BuildingDefinition(
     BuildingType Type,
     string DisplayName,
-    Vector2I Footprint,
+    Vector2 FootprintSize,
     ResourceType CostResource,
     int ResourceCost,
     float RequiredConstructionWork,
@@ -23,7 +23,7 @@ public static class BuildingCatalog
     public static readonly BuildingDefinition Shelter = new(
         BuildingType.Shelter,
         "Shelter",
-        new Vector2I(3, 2),
+        new Vector2(3, 2),
         ResourceType.Wood,
         30,
         6.0f,

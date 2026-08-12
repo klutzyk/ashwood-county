@@ -6,34 +6,35 @@ namespace AshwoodCounty.Buildings;
 [Tool]
 public partial class CompletedBuilding : Node2D, IGridOccupant
 {
-    private Vector2I _gridOrigin;
-    private Vector2I _footprint = new(3, 2);
+    private Vector2 _buildingPosition;
+    private Vector2 _footprintSize = new(3, 2);
 
     [Export]
-    public Vector2I GridOrigin
+    public Vector2 BuildingPosition
     {
-        get => _gridOrigin;
+        get => _buildingPosition;
         set
         {
-            _gridOrigin = value;
+            _buildingPosition = value;
             UpdateRenderedPosition();
+            QueueRedraw();
         }
     }
 
     [Export]
-    public Vector2I Footprint
+    public Vector2 FootprintSize
     {
-        get => _footprint;
+        get => _footprintSize;
         set
         {
-            _footprint = value;
+            _footprintSize = value;
             UpdateRenderedPosition();
+            QueueRedraw();
         }
     }
 
     [Export] public BuildingType BuildingType { get; set; } = BuildingType.Shelter;
-    public Vector2I OccupancyOrigin => GridOrigin;
-    public Vector2I OccupancyFootprint => Footprint;
+    public WorldFootprint OccupancyFootprint => new(BuildingPosition, FootprintSize);
 
     public override void _Ready()
     {
@@ -44,16 +45,34 @@ public partial class CompletedBuilding : Node2D, IGridOccupant
         }
     }
 
-    public void Initialize(BuildingDefinition definition, Vector2I origin)
+    public void Initialize(BuildingDefinition definition, Vector2 position)
     {
         BuildingType = definition.Type;
-        GridOrigin = origin;
-        Footprint = definition.Footprint;
+        BuildingPosition = position;
+        FootprintSize = definition.FootprintSize;
+    }
+
+    public override void _Draw()
+    {
+        if (!Engine.IsEditorHint())
+        {
+            return;
+        }
+
+        Vector2 anchor = BuildingGridProjection.GetRenderAnchor(BuildingPosition, FootprintSize);
+        Vector2[] footprint = IsometricGrid.ProjectRectangle(BuildingPosition, FootprintSize);
+        for (int index = 0; index < footprint.Length; index++)
+        {
+            footprint[index] -= anchor;
+        }
+
+        DrawColoredPolygon(footprint, new Color(0.35f, 0.8f, 0.48f, 0.18f));
+        DrawPolyline([footprint[0], footprint[1], footprint[2], footprint[3], footprint[0]], new Color("#69d77d"), 2, true);
     }
 
     private void UpdateRenderedPosition()
     {
-        Vector2 projectedPosition = BuildingGridProjection.GetRenderAnchor(GridOrigin, Footprint);
+        Vector2 projectedPosition = BuildingGridProjection.GetRenderAnchor(BuildingPosition, FootprintSize);
         if (!Position.IsEqualApprox(projectedPosition))
         {
             Position = projectedPosition;

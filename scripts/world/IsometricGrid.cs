@@ -39,4 +39,15 @@ public static class IsometricGrid
         Vector2 left = GridToScreen(cell + Vector2I.Down);
         return [top, right, bottom, left];
     }
+
+    public static Vector2[] ProjectRectangle(Vector2 position, Vector2 size)
+    {
+        return
+        [
+            GridToScreen(position),
+            GridToScreen(position + new Vector2(size.X, 0)),
+            GridToScreen(position + size),
+            GridToScreen(position + new Vector2(0, size.Y))
+        ];
+    }
 }

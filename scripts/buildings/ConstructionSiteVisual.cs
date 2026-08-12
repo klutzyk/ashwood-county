@@ -16,21 +16,15 @@ public partial class ConstructionSiteVisual : Node2D
 
     public override void _Draw()
     {
-        Vector2 anchor = BuildingGridProjection.GetRenderAnchor(_site.GridOrigin, _site.Footprint);
-        for (int y = 0; y < _site.Footprint.Y; y++)
+        Vector2 anchor = BuildingGridProjection.GetRenderAnchor(_site.BuildingPosition, _site.FootprintSize);
+        Vector2[] footprint = IsometricGrid.ProjectRectangle(_site.BuildingPosition, _site.FootprintSize);
+        for (int index = 0; index < footprint.Length; index++)
         {
-            for (int x = 0; x < _site.Footprint.X; x++)
-            {
-                Vector2[] diamond = IsometricGrid.CellDiamond(_site.GridOrigin + new Vector2I(x, y));
-                for (int index = 0; index < diamond.Length; index++)
-                {
-                    diamond[index] -= anchor;
-                }
-
-                DrawColoredPolygon(diamond, new Color("#9a7a55"));
-                DrawPolyline([diamond[0], diamond[1], diamond[2], diamond[3], diamond[0]], new Color("#654c35"), 2, true);
-            }
+            footprint[index] -= anchor;
         }
+
+        DrawColoredPolygon(footprint, new Color("#9a7a55"));
+        DrawPolyline([footprint[0], footprint[1], footprint[2], footprint[3], footprint[0]], new Color("#654c35"), 2, true);
 
         float progress = Engine.IsEditorHint() ? 0.35f : _site.Progress;
         float frameHeight = Mathf.Lerp(20, 76, progress);
