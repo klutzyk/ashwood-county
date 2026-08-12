@@ -14,10 +14,11 @@ public partial class SettlementJobSystem : Node
     private const int MaximumAutomaticBuildersPerSite = 3;
 
     private readonly Dictionary<ulong, SettlementJob> _claimsBySurvivor = [];
-    private readonly Dictionary<ulong, ulong> _treeClaims = [];
+    private readonly Dictionary<ulong, ulong> _resourceClaims = [];
     private readonly Dictionary<ulong, HashSet<ulong>> _siteClaims = [];
     private double _assignmentElapsed;
     private Stockpile _stockpile = null!;
+    private SettlementInventory _inventory = null!;
 
     public override void _Ready()
     {
@@ -46,9 +47,9 @@ public partial class SettlementJobSystem : Node
         }
 
         ulong survivorId = survivor.GetInstanceId();
-        if (job.Type == SettlementJobType.ChopTree && GodotObject.IsInstanceValid(job.Target))
+        if (job.Type == SettlementJobType.HarvestResource && GodotObject.IsInstanceValid(job.Target))
         {
-            _treeClaims.Remove(job.Target.GetInstanceId());
+            _resourceClaims.Remove(job.Target.GetInstanceId());
         }
         else if (job.Type == SettlementJobType.BuildConstruction && GodotObject.IsInstanceValid(job.Target)
             && _siteClaims.TryGetValue(job.Target.GetInstanceId(), out HashSet<ulong> builders))
@@ -76,7 +77,7 @@ public partial class SettlementJobSystem : Node
     {
         foreach (Survivor survivor in GetSurvivors().Where(unit => unit.IsAvailableForAutonomousWork))
         {
-            if (TryAssignConstruction(survivor) || TryAssignTree(survivor))
+            if (TryAssignEating(survivor) || TryAssignConstruction(survivor) || TryAssignResource(survivor))
             {
                 continue;
             }
@@ -107,13 +108,23 @@ public partial class SettlementJobSystem : Node
         return true;
     }
 
-    private bool TryAssignTree(Survivor survivor)
+    private bool TryAssignEating(Survivor survivor)
+    {
+        ResolveStockpile();
+        if (!survivor.NeedsMeal || _stockpile is null || _inventory is null
+            || !_inventory.CanAfford(ResourceType.Food, 1)) return false;
+        _claimsBySurvivor[survivor.GetInstanceId()] = new SettlementJob(SettlementJobType.Eat, _stockpile);
+        survivor.IssueAutonomousEatOrder(_inventory, _stockpile, _stockpile.GetInteractionPosition(0, 1));
+        return true;
+    }
+
+    private bool TryAssignResource(Survivor survivor)
     {
         ResolveStockpile();
         HarvestableResource tree = GetTree().GetNodesInGroup(HarvestableResource.GroupName)
             .OfType<HarvestableResource>()
-            .Where(resource => resource.IsDesignatedForChop && resource.IsHarvestable
-                && !_treeClaims.ContainsKey(resource.GetInstanceId()))
+            .Where(resource => resource.IsDesignatedForHarvest && resource.IsHarvestable
+                && !_resourceClaims.ContainsKey(resource.GetInstanceId()))
             .MinBy(resource => survivor.SimulationPosition.DistanceSquaredTo(resource.WorldPosition));
         if (tree is null || _stockpile is null)
         {
@@ -121,8 +132,8 @@ public partial class SettlementJobSystem : Node
         }
 
         ulong survivorId = survivor.GetInstanceId();
-        _treeClaims[tree.GetInstanceId()] = survivorId;
-        _claimsBySurvivor[survivorId] = new SettlementJob(SettlementJobType.ChopTree, tree);
+        _resourceClaims[tree.GetInstanceId()] = survivorId;
+        _claimsBySurvivor[survivorId] = new SettlementJob(SettlementJobType.HarvestResource, tree);
         survivor.IssueAutonomousHarvestOrder(tree, _stockpile, tree.GetInteractionPosition(0, 1), _stockpile.GetInteractionPosition(0, 1));
         return true;
     }
@@ -130,6 +141,7 @@ public partial class SettlementJobSystem : Node
     private void ResolveStockpile()
     {
         _stockpile ??= GetTree().GetFirstNodeInGroup(Stockpile.GroupName) as Stockpile;
+        _inventory ??= GetTree().GetFirstNodeInGroup(SettlementInventory.GroupName) as SettlementInventory;
     }
 
     private int GetBuilderCount(ConstructionSite site)

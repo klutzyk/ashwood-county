@@ -16,6 +16,12 @@ public partial class DebugHud : CanvasLayer
     private SettlementInventory _inventory = null!;
     private Label _woodValue = null!;
     private Label _activityValue = null!;
+    private Label _foodValue = null!;
+    private Label _hungerValue = null!;
+    private Label _timeValue = null!;
+    private Label _speedValue = null!;
+    private Systems.GameClock _clock = null!;
+    private Systems.SimulationController _simulation = null!;
 
     public override void _Ready()
     {
@@ -28,6 +34,12 @@ public partial class DebugHud : CanvasLayer
         _inventory = GetNode<SettlementInventory>("../SettlementInventory");
         _woodValue = GetNode<Label>("Panel/Margin/Rows/WoodValue");
         _activityValue = GetNode<Label>("Panel/Margin/Rows/ActivityValue");
+        _foodValue = GetNode<Label>("Panel/Margin/Rows/FoodValue");
+        _hungerValue = GetNode<Label>("Panel/Margin/Rows/HungerValue");
+        _timeValue = GetNode<Label>("Panel/Margin/Rows/TimeValue");
+        _speedValue = GetNode<Label>("Panel/Margin/Rows/SpeedValue");
+        _clock = GetNode<Systems.GameClock>("../GameClock");
+        _simulation = GetNode<Systems.SimulationController>("../SimulationController");
     }
 
     public override void _Process(double delta)
@@ -43,5 +55,9 @@ public partial class DebugHud : CanvasLayer
         _activityValue.Text = _selection.SelectedCount == 1
             ? _selection.SelectedSurvivors[0].Activity
             : "--";
+        _foodValue.Text = _inventory.DevUnlimitedResources ? "Unlimited" : _inventory.GetAmount(ResourceType.Food).ToString();
+        _hungerValue.Text = _selection.SelectedCount == 1 ? $"{_selection.SelectedSurvivors[0].Hunger:0}%" : "--";
+        _timeValue.Text = _clock.DisplayTime;
+        _speedValue.Text = _simulation.IsPaused ? "Paused" : $"{_simulation.Speed}x";
     }
 }

@@ -31,6 +31,12 @@ public partial class Survivor : Node2D
     [Export] public float MovementSpeed { get; set; } = 2.5f;
     [Export] public float ArrivalThreshold { get; set; } = 0.05f;
     [Export] public int CarryCapacityWood { get; set; } = 10;
+    [Export] public int CarryCapacityFood { get; set; } = 6;
+    [Export] public float Hunger { get; set; } = 82.0f;
+    [Export] public float HungerDepletionPerSecond { get; set; } = 0.22f;
+    [Export] public float HungryThreshold { get; set; } = 55.0f;
+    [Export] public float CriticalHungerThreshold { get; set; } = 25.0f;
+    [Export] public float MealRestoration { get; set; } = 48.0f;
 
     private CanvasItem _selectionIndicator = null!;
     private CanvasItem _visual = null!;
@@ -49,12 +55,16 @@ public partial class Survivor : Node2D
     public bool IsMoving => MovementVector.LengthSquared() > 0.000001f;
     public bool IsAutonomousOrder => _isAutonomousOrder && _currentOrder is not null;
     public bool IsAvailableForAutonomousWork => _currentOrder is null;
+    public bool NeedsMeal => Hunger <= HungryThreshold;
+    public bool IsCriticallyHungry => Hunger <= CriticalHungerThreshold;
+    public float WorkSpeedMultiplier => IsCriticallyHungry ? .65f : NeedsMeal ? .85f : 1.0f;
     public string Activity => CurrentOrderType switch
     {
         SurvivorOrderType.Move => "Moving",
         SurvivorOrderType.HarvestResource => CarriedAmount > 0 ? "Carrying / Delivering" : "Chopping",
         SurvivorOrderType.Build => "Building",
-        _ => "Idle"
+        SurvivorOrderType.Eat => "Eating",
+        _ => NeedsMeal ? "Idle • Hungry" : "Idle"
     };
 
     public override void _Ready()
@@ -80,6 +90,7 @@ public partial class Survivor : Node2D
             return;
         }
 
+        Hunger = Mathf.Max(0, Hunger - HungerDepletionPerSecond * (float)delta);
         if (_currentOrder is null)
         {
             return;
@@ -160,7 +171,18 @@ public partial class Survivor : Node2D
             return 0;
         }
 
-        return resourceType == ResourceType.Wood ? Mathf.Max(0, CarryCapacityWood - CarriedAmount) : 0;
+        int capacity = resourceType == ResourceType.Wood ? CarryCapacityWood : CarryCapacityFood;
+        return Mathf.Max(0, capacity - CarriedAmount);
+    }
+
+    public void EatMeal()
+    {
+        Hunger = Mathf.Min(100, Hunger + MealRestoration);
+    }
+
+    public void IssueAutonomousEatOrder(SettlementInventory inventory, Stockpile stockpile, Vector2 interactionPosition)
+    {
+        AssignOrder(new EatOrder(inventory, stockpile, interactionPosition), true);
     }
 
     public bool TryAddCarriedResource(ResourceType resourceType, int amount)

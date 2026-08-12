@@ -1,0 +1,9 @@
+[gd_scene load_steps=3 format=3]
+[ext_resource type="Script" path="res://scripts/buildings/CompletedBuilding.cs" id="1"]
+[ext_resource type="Script" path="res://scripts/buildings/ProvisionsShedVisual.cs" id="2"]
+[node name="ProvisionsShed" type="Node2D"]
+script = ExtResource("1")
+BuildingType = 1
+FootprintSize = Vector2(2, 2)
+[node name="Visual" type="Node2D" parent="."]
+script = ExtResource("2")

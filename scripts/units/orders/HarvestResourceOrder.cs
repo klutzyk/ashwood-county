@@ -97,7 +97,7 @@ public sealed class HarvestResourceOrder(
             return;
         }
 
-        _harvestElapsed += (float)delta;
+        _harvestElapsed += (float)delta * survivor.WorkSpeedMultiplier;
         _target.ReportHarvestProgress(_workerId, _harvestElapsed / _target.HarvestDuration);
         if (_harvestElapsed < _target.HarvestDuration)
         {

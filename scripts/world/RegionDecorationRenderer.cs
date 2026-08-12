@@ -49,7 +49,7 @@ public partial class RegionDecorationRenderer : Node2D
     {
         foreach (Decoration decoration in Decorations)
         {
-            Texture2D texture = GD.Load<Texture2D>(decoration.Texture);
+            Texture2D texture = TextureRegistry.Get(decoration.Texture);
             Vector2 size = texture.GetSize() * decoration.Scale;
             Vector2 at = IsometricGrid.GridToScreen(decoration.GridPosition);
             DrawTextureRect(texture, new Rect2(at - new Vector2(size.X * .5f, size.Y), size), false, decoration.Tint);

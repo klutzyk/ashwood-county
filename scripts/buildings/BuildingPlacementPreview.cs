@@ -45,5 +45,6 @@ public partial class BuildingPlacementPreview : Node2D
         _ghost.Position = BuildingGridProjection.GetRenderAnchor(_position, _definition.FootprintSize);
         _ghost.Modulate = _isValid ? new Color(0.55f, 1, 0.62f, 0.72f) : new Color(1, 0.4f, 0.36f, 0.72f);
         _ghost.QueueRedraw();
+        _ghost.Visible = _definition.Type == BuildingType.Shelter;
     }
 }

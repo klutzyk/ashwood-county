@@ -5,7 +5,8 @@ namespace AshwoodCounty.Buildings;
 
 public enum BuildingType
 {
-    Shelter
+    Shelter,
+    ProvisionsShed
 }
 
 public sealed record BuildingDefinition(
@@ -29,4 +30,7 @@ public static class BuildingCatalog
         6.0f,
         "res://scenes/buildings/ConstructionSite.tscn",
         "res://scenes/buildings/Shelter.tscn");
+    public static readonly BuildingDefinition ProvisionsShed = new(
+        BuildingType.ProvisionsShed, "Provisions Shed", new Vector2(2, 2), ResourceType.Wood, 20, 4.5f,
+        "res://scenes/buildings/ConstructionSite.tscn", "res://scenes/buildings/ProvisionsShed.tscn");
 }

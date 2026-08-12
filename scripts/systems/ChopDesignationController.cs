@@ -6,72 +6,66 @@ namespace AshwoodCounty.Systems;
 
 public partial class ChopDesignationController : CanvasLayer
 {
-    private Button _button = null!;
+    private Button _chopButton = null!;
+    private Button _forageButton = null!;
     private Label _status = null!;
     public bool IsDesignationActive { get; private set; }
+    public ResourceType DesignatedResourceType { get; private set; } = ResourceType.Wood;
 
     public override void _Ready()
     {
-        _button = GetNode<Button>("Panel/Margin/Rows/ChopButton");
+        _chopButton = GetNode<Button>("Panel/Margin/Rows/ChopButton");
+        _forageButton = GetNode<Button>("Panel/Margin/Rows/ForageButton");
         _status = GetNode<Label>("Panel/Margin/Rows/Status");
-        _button.Pressed += ToggleDesignation;
+        _chopButton.Pressed += () => ToggleMode(ResourceType.Wood);
+        _forageButton.Pressed += () => ToggleMode(ResourceType.Food);
     }
 
     public override void _UnhandledInput(InputEvent inputEvent)
     {
-        if (!IsDesignationActive)
-        {
-            return;
-        }
-
+        if (!IsDesignationActive) return;
         if (inputEvent is InputEventKey key && key.Pressed && !key.Echo && key.Keycode == Key.Escape)
-        {
-            EndDesignation();
-            GetViewport().SetInputAsHandled();
-        }
+        { EndDesignation(); GetViewport().SetInputAsHandled(); }
         else if (inputEvent is InputEventMouseButton mouse && mouse.Pressed)
         {
-            if (mouse.ButtonIndex == MouseButton.Right)
-            {
-                EndDesignation();
-            }
-            else if (mouse.ButtonIndex == MouseButton.Left)
-            {
-                ToggleTreeAt(mouse.Position);
-            }
-
+            if (mouse.ButtonIndex == MouseButton.Right) EndDesignation();
+            else if (mouse.ButtonIndex == MouseButton.Left) ToggleResourceAt(mouse.Position);
             GetViewport().SetInputAsHandled();
         }
     }
 
-    public void ToggleDesignation()
+    public void ToggleDesignation() => ToggleMode(ResourceType.Wood);
+    public void ToggleForageDesignation() => ToggleMode(ResourceType.Food);
+
+    private void ToggleMode(ResourceType resourceType)
     {
-        IsDesignationActive = !IsDesignationActive;
-        _button.ButtonPressed = IsDesignationActive;
-        _status.Text = IsDesignationActive ? "Click trees to designate • Esc/right-click exits" : "Designate harvestable trees";
+        bool turnOff = IsDesignationActive && DesignatedResourceType == resourceType;
+        IsDesignationActive = !turnOff;
+        DesignatedResourceType = resourceType;
+        _chopButton.ButtonPressed = IsDesignationActive && resourceType == ResourceType.Wood;
+        _forageButton.ButtonPressed = IsDesignationActive && resourceType == ResourceType.Food;
+        string noun = resourceType == ResourceType.Wood ? "trees" : "food bushes";
+        _status.Text = IsDesignationActive ? $"Click {noun} to designate • Esc/right-click exits" : "Designate settlement work";
     }
 
-    public bool ToggleTreeAt(Vector2 screenPosition)
+    public bool ToggleTreeAt(Vector2 screenPosition) => ToggleResourceAt(screenPosition);
+    public bool ToggleResourceAt(Vector2 screenPosition)
     {
-        HarvestableResource tree = GetTree().GetNodesInGroup(HarvestableResource.GroupName)
-            .OfType<HarvestableResource>()
-            .Where(resource => resource.IsHarvestable && resource.ContainsScreenPoint(screenPosition))
-            .OrderBy(resource => resource.Position.Y)
-            .LastOrDefault();
-        if (tree is null)
-        {
-            return false;
-        }
-
-        tree.SetChopDesignated(!tree.IsDesignatedForChop);
-        _status.Text = tree.IsDesignatedForChop ? "Tree designated for chopping" : "Tree designation removed";
+        HarvestableResource resource = GetTree().GetNodesInGroup(HarvestableResource.GroupName).OfType<HarvestableResource>()
+            .Where(item => item.ResourceType == DesignatedResourceType && item.IsHarvestable && item.ContainsScreenPoint(screenPosition))
+            .OrderBy(item => item.Position.Y).LastOrDefault();
+        if (resource is null) return false;
+        resource.SetHarvestDesignated(!resource.IsDesignatedForHarvest);
+        string action = DesignatedResourceType == ResourceType.Wood ? "chopping" : "foraging";
+        _status.Text = resource.IsDesignatedForHarvest ? $"Resource designated for {action}" : "Resource designation removed";
         return true;
     }
 
     public void EndDesignation()
     {
         IsDesignationActive = false;
-        _button.ButtonPressed = false;
-        _status.Text = "Designate harvestable trees";
+        _chopButton.ButtonPressed = false;
+        _forageButton.ButtonPressed = false;
+        _status.Text = "Designate settlement work";
     }
 }

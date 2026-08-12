@@ -12,6 +12,7 @@ public partial class BuildingPlacementController : CanvasLayer
     private Node2D _objects = null!;
     private Node2D _effects = null!;
     private Button _shelterButton = null!;
+    private Button _provisionsButton = null!;
     private Label _feedbackLabel = null!;
     private BuildingPlacementPreview _preview = null!;
     private BuildingDefinition _activeDefinition = null!;
@@ -29,8 +30,10 @@ public partial class BuildingPlacementController : CanvasLayer
         _objects = GetNode<Node2D>("../World/Objects");
         _effects = GetNode<Node2D>("../World/Effects");
         _shelterButton = GetNode<Button>("BuildPanel/Margin/Rows/ShelterButton");
+        _provisionsButton = GetNode<Button>("BuildPanel/Margin/Rows/ProvisionsButton");
         _feedbackLabel = GetNode<Label>("BuildPanel/Margin/Rows/FeedbackLabel");
         _shelterButton.Pressed += BeginShelterPlacement;
+        _provisionsButton.Pressed += () => BeginPlacement(BuildingCatalog.ProvisionsShed);
         SetFeedback("Shelter • Cost: 30 Wood");
     }
 
@@ -109,7 +112,7 @@ public partial class BuildingPlacementController : CanvasLayer
         else if (!_inventory.CanAfford(_activeDefinition.CostResource, _activeDefinition.ResourceCost))
         {
             IsCurrentPlacementValid = false;
-            SetFeedback($"Need {_activeDefinition.ResourceCost} Wood");
+            SetFeedback($"Need {_activeDefinition.ResourceCost} {_activeDefinition.CostResource}");
         }
         else
         {
@@ -146,7 +149,7 @@ public partial class BuildingPlacementController : CanvasLayer
 
         _objects.AddChild(site);
         CancelPlacement(false);
-        SetFeedback("Shelter site placed • Right-click with survivors to build");
+        SetFeedback($"{_activeDefinition.DisplayName} site placed • Survivors will construct it");
         return true;
     }
 

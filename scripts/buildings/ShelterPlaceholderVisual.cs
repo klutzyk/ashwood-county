@@ -1,4 +1,5 @@
 using Godot;
+using AshwoodCounty.World;
 
 namespace AshwoodCounty.Buildings;
 
@@ -11,7 +12,7 @@ public partial class ShelterPlaceholderVisual : Node2D
 
     public override void _Draw()
     {
-        Texture2D texture = GD.Load<Texture2D>(TexturePath);
+        Texture2D texture = TextureRegistry.Get(TexturePath);
         Vector2 size = texture.GetSize() * ArtScale;
         DrawTextureRect(texture, new Rect2(-GroundAnchor * ArtScale, size), false);
     }

@@ -117,7 +117,7 @@ public partial class PlaceholderObject : Node2D, IGridOccupant
 
     private void DrawResourcePile()
     {
-        Texture2D texture = GD.Load<Texture2D>("res://assets/art/resources/wood_stack_02.png");
+        Texture2D texture = TextureRegistry.Get("res://assets/art/resources/wood_stack_02.png");
         const float scale = 0.34f;
         Vector2 size = texture.GetSize() * scale;
         DrawTextureRect(texture, new Rect2(new Vector2(-size.X * 0.5f, -size.Y), size), false);

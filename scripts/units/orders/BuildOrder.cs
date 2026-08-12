@@ -58,7 +58,7 @@ public sealed class BuildOrder(ConstructionSite target, Vector2 interactionPosit
             return;
         }
 
-        _target.AddConstructionWork(_workerId, (float)delta);
+        _target.AddConstructionWork(_workerId, (float)delta * survivor.WorkSpeedMultiplier);
         if (!_target.IsAvailableForBuilding)
         {
             Complete();

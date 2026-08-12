@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Godot;
+using AshwoodCounty.World;
 
 namespace AshwoodCounty.Units;
 
@@ -65,7 +66,7 @@ public partial class DirectionalSurvivorVisual : Node2D
 
         if (!Engine.IsEditorHint() && _survivor is not null && _survivor.CarriedAmount > 0)
         {
-            DrawCarriedWood(_survivor.CarriedAmount);
+            DrawCarriedResource(_survivor.CarriedAmount, _survivor.CarriedResourceType);
         }
     }
 
@@ -117,7 +118,7 @@ public partial class DirectionalSurvivorVisual : Node2D
         foreach (SurvivorDirection direction in System.Enum.GetValues<SurvivorDirection>())
         {
             string name = direction.ToString().ToLowerInvariant();
-            _idleTextures[direction] = GD.Load<Texture2D>($"{AssetRoot}/idle_{name}.png");
+            _idleTextures[direction] = TextureRegistry.Get($"{AssetRoot}/idle_{name}.png");
         }
 
         foreach (SurvivorDirection direction in new[] { SurvivorDirection.NE, SurvivorDirection.E, SurvivorDirection.SE })
@@ -127,15 +128,23 @@ public partial class DirectionalSurvivorVisual : Node2D
             Texture2D[] frames = new Texture2D[frameCount];
             for (int index = 0; index < frames.Length; index++)
             {
-                frames[index] = GD.Load<Texture2D>($"{AssetRoot}/walk_{name}_{index:00}.png");
+                frames[index] = TextureRegistry.Get($"{AssetRoot}/walk_{name}_{index:00}.png");
             }
 
             _walkTextures[direction] = frames;
         }
     }
 
-    private void DrawCarriedWood(int amount)
+    private void DrawCarriedResource(int amount, Resources.ResourceType resourceType)
     {
+        if (resourceType == Resources.ResourceType.Food)
+        {
+            DrawCircle(new Vector2(20, -38), 11, new Color("#704c35"));
+            DrawCircle(new Vector2(17, -42), 3, new Color("#c83f45"));
+            DrawCircle(new Vector2(23, -39), 3, new Color("#aa2639"));
+            DrawString(ThemeDB.FallbackFont, new Vector2(25, -27), amount.ToString(), HorizontalAlignment.Left, -1, 11, Colors.White);
+            return;
+        }
         DrawCircle(new Vector2(20, -38), 10, new Color(0.12f, 0.1f, 0.07f, 0.62f));
         Color wood = new("#a66d35");
         for (int index = 0; index < 3; index++)

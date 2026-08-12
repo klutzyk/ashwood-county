@@ -1,4 +1,5 @@
 using Godot;
+using AshwoodCounty.World;
 
 namespace AshwoodCounty.Resources;
 
@@ -7,7 +8,7 @@ public partial class StockpilePlaceholderVisual : Node2D
 {
     public override void _Draw()
     {
-        Texture2D texture = GD.Load<Texture2D>("res://assets/art/environment/props/stockpile_01.png");
+        Texture2D texture = TextureRegistry.Get("res://assets/art/environment/props/stockpile_01.png");
         const float scale = 0.36f;
         Vector2 size = texture.GetSize() * scale;
         DrawTextureRect(texture, new Rect2(new Vector2(-size.X * 0.5f, -size.Y), size), false);

@@ -1,4 +1,5 @@
 using Godot;
+using AshwoodCounty.World;
 
 namespace AshwoodCounty.Resources;
 
@@ -46,7 +47,7 @@ public partial class ResourceTreeVisual : Node2D
             DrawTargetIndicator();
         }
 
-        if (!Engine.IsEditorHint() && _resource.IsDesignatedForChop)
+        if (!Engine.IsEditorHint() && _resource.IsDesignatedForHarvest)
         {
             DrawDesignationIndicator();
         }
@@ -71,7 +72,7 @@ public partial class ResourceTreeVisual : Node2D
 
     private void DrawGroundedTexture(string path, float scale)
     {
-        Texture2D texture = GD.Load<Texture2D>(path);
+        Texture2D texture = TextureRegistry.Get(path);
         Vector2 size = texture.GetSize() * scale;
         DrawTextureRect(texture, new Rect2(new Vector2(-size.X * 0.5f, -size.Y), size), false);
     }

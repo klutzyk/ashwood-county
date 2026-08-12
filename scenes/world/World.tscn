@@ -1,4 +1,4 @@
-[gd_scene load_steps=33 format=3]
+[gd_scene load_steps=41 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/IsometricWorld.cs" id="1_world"]
 [ext_resource type="Script" path="res://scripts/world/TerrainRenderer.cs" id="2_terrain"]
@@ -28,6 +28,11 @@
 [ext_resource type="Texture2D" path="res://assets/art/environment/vegetation/oak_01.png" id="27_oak"]
 [ext_resource type="Texture2D" path="res://assets/art/environment/vegetation/pine_01.png" id="28_pine"]
 [ext_resource type="Texture2D" path="res://assets/art/environment/vegetation/young_tree_01.png" id="29_young"]
+[ext_resource type="PackedScene" path="res://scenes/world/ForageResource.tscn" id="30_forage"]
+[ext_resource type="Script" path="res://scripts/systems/SimulationController.cs" id="31_sim"]
+[ext_resource type="Script" path="res://scripts/systems/GameClock.cs" id="32_clock"]
+[ext_resource type="Script" path="res://scripts/ui/CountyMapController.cs" id="33_map"]
+[ext_resource type="Texture2D" path="res://docs/planning/design/maps/Game world concept map.png" id="34_map_texture"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_debug"]
 bg_color = Color(0.055, 0.075, 0.06, 0.88)
@@ -83,6 +88,12 @@ script = ExtResource("12_occupancy")
 
 [node name="SettlementJobSystem" type="Node" parent="."]
 script = ExtResource("22_jobs")
+
+[node name="SimulationController" type="Node" parent="."]
+script = ExtResource("31_sim")
+
+[node name="GameClock" type="Node" parent="."]
+script = ExtResource("32_clock")
 
 [node name="World" type="Node2D" parent="."]
 script = ExtResource("1_world")
@@ -302,6 +313,15 @@ StartingAmount = 22
 GridPosition = Vector2(34.5, 27.8)
 StartingAmount = 28
 
+[node name="ForageA" parent="World/Objects" instance=ExtResource("30_forage")]
+GridPosition = Vector2(14.5, 14.5)
+[node name="ForageB" parent="World/Objects" instance=ExtResource("30_forage")]
+GridPosition = Vector2(27.5, 15.5)
+[node name="ForageC" parent="World/Objects" instance=ExtResource("30_forage")]
+GridPosition = Vector2(30.5, 28.5)
+[node name="ForageD" parent="World/Objects" instance=ExtResource("30_forage")]
+GridPosition = Vector2(10.5, 27.5)
+
 [node name="Stockpile" parent="World/Objects" instance=ExtResource("10_stockpile")]
 GridPosition = Vector2(21.5, 21.8)
 
@@ -342,9 +362,9 @@ script = ExtResource("13_placement")
 
 [node name="BuildPanel" type="PanelContainer" parent="BuildingPlacementController"]
 offset_left = 16.0
-offset_top = 186.0
+offset_top = 266.0
 offset_right = 286.0
-offset_bottom = 322.0
+offset_bottom = 418.0
 theme_override_styles/panel = SubResource("StyleBox_build")
 
 [node name="Margin" type="MarginContainer" parent="BuildingPlacementController/BuildPanel"]
@@ -364,6 +384,9 @@ text = "BUILD"
 mouse_default_cursor_shape = 2
 text = "Shelter — 30 Wood"
 
+[node name="ProvisionsButton" type="Button" parent="BuildingPlacementController/BuildPanel/Margin/Rows"]
+text = "Provisions Shed — 20 Wood"
+
 [node name="FeedbackLabel" type="Label" parent="BuildingPlacementController/BuildPanel/Margin/Rows"]
 custom_minimum_size = Vector2(238, 34)
 theme_override_colors/font_color = Color(0.78, 0.82, 0.74, 1)
@@ -376,9 +399,9 @@ script = ExtResource("23_chop")
 
 [node name="Panel" type="PanelContainer" parent="ChopDesignationController"]
 offset_left = 16.0
-offset_top = 334.0
+offset_top = 430.0
 offset_right = 286.0
-offset_bottom = 432.0
+offset_bottom = 550.0
 theme_override_styles/panel = SubResource("StyleBox_work")
 
 [node name="Margin" type="MarginContainer" parent="ChopDesignationController/Panel"]
@@ -394,6 +417,10 @@ theme_override_constants/separation = 5
 toggle_mode = true
 text = "CHOP"
 
+[node name="ForageButton" type="Button" parent="ChopDesignationController/Panel/Margin/Rows"]
+toggle_mode = true
+text = "FORAGE"
+
 [node name="Status" type="Label" parent="ChopDesignationController/Panel/Margin/Rows"]
 custom_minimum_size = Vector2(238, 28)
 text = "Designate harvestable trees"
@@ -406,7 +433,7 @@ script = ExtResource("6_hud")
 offset_left = 16.0
 offset_top = 16.0
 offset_right = 178.0
-offset_bottom = 168.0
+offset_bottom = 248.0
 theme_override_styles/panel = SubResource("StyleBox_debug")
 
 [node name="Margin" type="MarginContainer" parent="DebugHud/Panel"]
@@ -461,3 +488,72 @@ text = "ACTIVITY"
 
 [node name="ActivityValue" type="Label" parent="DebugHud/Panel/Margin/Rows"]
 text = "--"
+
+[node name="FoodLabel" type="Label" parent="DebugHud/Panel/Margin/Rows"]
+text = "FOOD"
+[node name="FoodValue" type="Label" parent="DebugHud/Panel/Margin/Rows"]
+text = "0"
+[node name="HungerLabel" type="Label" parent="DebugHud/Panel/Margin/Rows"]
+text = "HUNGER"
+[node name="HungerValue" type="Label" parent="DebugHud/Panel/Margin/Rows"]
+text = "--"
+[node name="TimeLabel" type="Label" parent="DebugHud/Panel/Margin/Rows"]
+text = "TIME"
+[node name="TimeValue" type="Label" parent="DebugHud/Panel/Margin/Rows"]
+text = "Day 1  08:00"
+[node name="SpeedLabel" type="Label" parent="DebugHud/Panel/Margin/Rows"]
+text = "SPEED"
+[node name="SpeedValue" type="Label" parent="DebugHud/Panel/Margin/Rows"]
+text = "1x"
+
+[node name="CountyMap" type="CanvasLayer" parent="."]
+layer = 50
+script = ExtResource("33_map")
+[node name="Panel" type="ColorRect" parent="CountyMap"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.02,0.03,0.02,0.94)
+[node name="MapFrame" type="Panel" parent="CountyMap/Panel"]
+offset_left = 120.0
+offset_top = 50.0
+offset_right = 1160.0
+offset_bottom = 670.0
+[node name="Map" type="TextureRect" parent="CountyMap/Panel/MapFrame"]
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 730.0
+offset_bottom = 600.0
+texture = ExtResource("34_map_texture")
+expand_mode = 1
+stretch_mode = 6
+[node name="Outskirts" type="Button" parent="CountyMap/Panel/MapFrame"]
+offset_left = 385.0
+offset_top = 285.0
+offset_right = 535.0
+offset_bottom = 325.0
+text = "● OUTSKIRTS"
+[node name="Farm" type="Button" parent="CountyMap/Panel/MapFrame"]
+offset_left = 180.0
+offset_top = 295.0
+offset_right = 330.0
+offset_bottom = 335.0
+text = "FARM DISTRICT"
+[node name="Mill" type="Button" parent="CountyMap/Panel/MapFrame"]
+offset_left = 170.0
+offset_top = 420.0
+offset_right = 330.0
+offset_bottom = 460.0
+text = "MILL CREEK"
+[node name="Detail" type="Label" parent="CountyMap/Panel/MapFrame"]
+offset_left = 750.0
+offset_top = 90.0
+offset_right = 1015.0
+offset_bottom = 430.0
+autowrap_mode = 2
+[node name="Close" type="Button" parent="CountyMap/Panel/MapFrame"]
+offset_left = 835.0
+offset_top = 520.0
+offset_right = 985.0
+offset_bottom = 565.0
+text = "Close  [M]"

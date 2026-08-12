@@ -10,6 +10,7 @@ public partial class TerrainRenderer : Node2D
     private int _width = IsometricWorld.MapWidth;
     private int _height = IsometricWorld.MapHeight;
     private bool _runtimeGridVisible;
+    private Texture2D _regionGround = null!;
 
     private readonly (string Path, Vector2 Position, float Scale, Color Tint)[] _groundPatches =
     [
@@ -47,6 +48,7 @@ public partial class TerrainRenderer : Node2D
     {
         _width = width;
         _height = height;
+        _regionGround ??= TextureRegistry.Get("res://assets/art/terrain/ashwood_outskirts_ground.png");
         QueueRedraw();
     }
 
@@ -54,6 +56,11 @@ public partial class TerrainRenderer : Node2D
     {
         Vector2[] terrain = IsometricGrid.ProjectRectangle(Vector2.Zero, new Vector2(_width, _height));
         DrawColoredPolygon(terrain, Grass);
+        _regionGround ??= TextureRegistry.Get("res://assets/art/terrain/ashwood_outskirts_ground.png");
+        if (_regionGround is not null)
+        {
+            DrawTexture(_regionGround, new Vector2(-_regionGround.GetWidth() * .5f, 0));
+        }
         DrawBroadVariations();
         DrawAccessRoad();
         DrawGroundPatches();
@@ -133,7 +140,7 @@ public partial class TerrainRenderer : Node2D
     {
         foreach ((string path, Vector2 gridPosition, float scale, Color tint) in _groundPatches)
         {
-            Texture2D texture = GD.Load<Texture2D>(path);
+            Texture2D texture = TextureRegistry.Get(path);
             Vector2 size = texture.GetSize() * scale;
             Vector2 position = IsometricGrid.GridToScreen(gridPosition);
             DrawTextureRect(texture, new Rect2(position - size * 0.5f, size), false, tint);

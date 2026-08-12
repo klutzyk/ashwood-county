@@ -4,8 +4,9 @@ namespace AshwoodCounty.Jobs;
 
 public enum SettlementJobType
 {
-    ChopTree,
-    BuildConstruction
+    HarvestResource,
+    BuildConstruction,
+    Eat
 }
 
 public sealed class SettlementJob(SettlementJobType type, GodotObject target)
