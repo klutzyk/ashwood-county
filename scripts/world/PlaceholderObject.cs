@@ -2,6 +2,7 @@ using Godot;
 
 namespace AshwoodCounty.World;
 
+[Tool]
 public partial class PlaceholderObject : Node2D
 {
     public enum PlaceholderKind
@@ -12,14 +13,45 @@ public partial class PlaceholderObject : Node2D
         ResourcePile
     }
 
-    [Export] public PlaceholderKind Kind { get; set; }
-    [Export] public Vector2 GridPosition { get; set; }
+    private PlaceholderKind _kind;
+    private Vector2 _gridPosition;
+
+    [Export]
+    public PlaceholderKind Kind
+    {
+        get => _kind;
+        set
+        {
+            _kind = value;
+            QueueRedraw();
+        }
+    }
+
+    [Export]
+    public Vector2 GridPosition
+    {
+        get => _gridPosition;
+        set
+        {
+            _gridPosition = value;
+            UpdateRenderedPosition();
+        }
+    }
 
     public override void _Ready()
     {
-        Position = IsometricGrid.GridToScreen(GridPosition + new Vector2(0.5f, 0.5f));
+        UpdateRenderedPosition();
         YSortEnabled = true;
         QueueRedraw();
+    }
+
+    private void UpdateRenderedPosition()
+    {
+        Vector2 projectedPosition = IsometricGrid.GridToScreen(GridPosition + new Vector2(0.5f, 0.5f));
+        if (!Position.IsEqualApprox(projectedPosition))
+        {
+            Position = projectedPosition;
+        }
     }
 
     public override void _Draw()

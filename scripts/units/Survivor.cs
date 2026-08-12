@@ -3,11 +3,27 @@ using Godot;
 
 namespace AshwoodCounty.Units;
 
+[Tool]
 public partial class Survivor : Node2D
 {
     public const string GroupName = "survivors";
 
-    [Export] public Vector2 SimulationPosition { get; set; }
+    private Vector2 _simulationPosition;
+
+    [Export]
+    public Vector2 SimulationPosition
+    {
+        get => _simulationPosition;
+        set
+        {
+            _simulationPosition = value;
+            if (Engine.IsEditorHint())
+            {
+                UpdateRenderedPosition();
+            }
+        }
+    }
+
     [Export] public float MovementSpeed { get; set; } = 2.5f;
     [Export] public float ArrivalThreshold { get; set; } = 0.05f;
 
@@ -20,6 +36,13 @@ public partial class Survivor : Node2D
 
     public override void _Ready()
     {
+        if (Engine.IsEditorHint())
+        {
+            SetPhysicsProcess(false);
+            UpdateRenderedPosition();
+            return;
+        }
+
         AddToGroup(GroupName);
         _selectionIndicator = GetNode<CanvasItem>("SelectionIndicator");
         SetSelected(false);
@@ -28,6 +51,11 @@ public partial class Survivor : Node2D
 
     public override void _PhysicsProcess(double delta)
     {
+        if (Engine.IsEditorHint())
+        {
+            return;
+        }
+
         if (!HasMoveOrder)
         {
             return;
@@ -92,6 +120,10 @@ public partial class Survivor : Node2D
 
     private void UpdateRenderedPosition()
     {
-        Position = IsometricGrid.GridToScreen(SimulationPosition);
+        Vector2 projectedPosition = IsometricGrid.GridToScreen(SimulationPosition);
+        if (!Position.IsEqualApprox(projectedPosition))
+        {
+            Position = projectedPosition;
+        }
     }
 }

@@ -2,9 +2,21 @@ using Godot;
 
 namespace AshwoodCounty.Units;
 
+[Tool]
 public partial class SurvivorPlaceholderVisual : Node2D
 {
-    [Export] public Color ShirtColor { get; set; } = new("#d8873e");
+    private Color _shirtColor = new("#d8873e");
+
+    [Export]
+    public Color ShirtColor
+    {
+        get => _shirtColor;
+        set
+        {
+            _shirtColor = value;
+            QueueRedraw();
+        }
+    }
 
     public override void _Draw()
     {

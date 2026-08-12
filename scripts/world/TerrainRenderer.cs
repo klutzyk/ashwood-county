@@ -2,13 +2,14 @@ using Godot;
 
 namespace AshwoodCounty.World;
 
+[Tool]
 public partial class TerrainRenderer : Node2D
 {
     private static readonly Color GrassA = new("#78a857");
     private static readonly Color GrassB = new("#82b45e");
     private static readonly Color GrassEdge = new("#567b3d");
-    private int _width;
-    private int _height;
+    private int _width = IsometricWorld.MapWidth;
+    private int _height = IsometricWorld.MapHeight;
 
     public void Configure(int width, int height)
     {
