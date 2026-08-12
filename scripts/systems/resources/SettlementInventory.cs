@@ -28,4 +28,15 @@ public partial class SettlementInventory : Node
 
         _amounts[resourceType] = GetAmount(resourceType) + amount;
     }
+
+    public bool TrySpend(ResourceType resourceType, int amount)
+    {
+        if (amount < 0 || GetAmount(resourceType) < amount)
+        {
+            return false;
+        }
+
+        _amounts[resourceType] = GetAmount(resourceType) - amount;
+        return true;
+    }
 }

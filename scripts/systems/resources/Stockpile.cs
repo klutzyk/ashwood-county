@@ -4,7 +4,7 @@ using Godot;
 namespace AshwoodCounty.Resources;
 
 [Tool]
-public partial class Stockpile : Node2D
+public partial class Stockpile : Node2D, IGridOccupant
 {
     public const string GroupName = "settlement_stockpile";
 
@@ -23,7 +23,10 @@ public partial class Stockpile : Node2D
     }
 
     [Export] public float InteractionRadius { get; set; } = 1.0f;
+    [Export] public Vector2I Footprint { get; set; } = new(2, 2);
     public Vector2 WorldPosition => GridPosition + new Vector2(0.5f, 0.5f);
+    public Vector2I OccupancyOrigin => new(Mathf.FloorToInt(GridPosition.X), Mathf.FloorToInt(GridPosition.Y));
+    public Vector2I OccupancyFootprint => Footprint;
 
     public override void _Ready()
     {
@@ -34,6 +37,7 @@ public partial class Stockpile : Node2D
         }
 
         AddToGroup(GroupName);
+        AddToGroup(GridOccupancy.OccupantGroup);
         _inventory = GetTree().GetFirstNodeInGroup(SettlementInventory.GroupName) as SettlementInventory;
     }
 

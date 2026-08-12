@@ -3,7 +3,7 @@ using Godot;
 namespace AshwoodCounty.World;
 
 [Tool]
-public partial class PlaceholderObject : Node2D
+public partial class PlaceholderObject : Node2D, IGridOccupant
 {
     public enum PlaceholderKind
     {
@@ -38,11 +38,19 @@ public partial class PlaceholderObject : Node2D
         }
     }
 
+    [Export] public Vector2I Footprint { get; set; } = Vector2I.One;
+    public Vector2I OccupancyOrigin => new(Mathf.FloorToInt(GridPosition.X), Mathf.FloorToInt(GridPosition.Y));
+    public Vector2I OccupancyFootprint => Footprint;
+
     public override void _Ready()
     {
         UpdateRenderedPosition();
         YSortEnabled = true;
         QueueRedraw();
+        if (!Engine.IsEditorHint() && Kind != PlaceholderKind.Survivor)
+        {
+            AddToGroup(GridOccupancy.OccupantGroup);
+        }
     }
 
     private void UpdateRenderedPosition()

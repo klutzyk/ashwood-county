@@ -1,3 +1,4 @@
+using AshwoodCounty.Buildings;
 using AshwoodCounty.Resources;
 using AshwoodCounty.Units.Orders;
 using AshwoodCounty.World;
@@ -95,6 +96,11 @@ public partial class Survivor : Node2D
     public void IssueHarvestOrder(HarvestableResource target, Stockpile stockpile, Vector2 interactionPosition, Vector2 deliveryPosition)
     {
         AssignOrder(new HarvestResourceOrder(target, stockpile, interactionPosition, deliveryPosition));
+    }
+
+    public void IssueBuildOrder(ConstructionSite target, Vector2 interactionPosition)
+    {
+        AssignOrder(new BuildOrder(target, interactionPosition));
     }
 
     public bool MoveTowardsGridPosition(Vector2 destination, double delta)

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using AshwoodCounty.Buildings;
 using AshwoodCounty.Resources;
 using AshwoodCounty.Units;
 using AshwoodCounty.World;
@@ -17,6 +18,7 @@ public partial class SurvivorSelectionController : CanvasLayer
     private Control _selectionMarquee = null!;
     private Node2D _effects = null!;
     private Stockpile _stockpile = null!;
+    private BuildingPlacementController _buildingPlacement = null!;
     private Vector2 _dragStart;
     private bool _leftPressed;
     private bool _isBoxSelecting;
@@ -29,12 +31,18 @@ public partial class SurvivorSelectionController : CanvasLayer
         _world = GetNode<IsometricWorld>("../World");
         _effects = GetNode<Node2D>("../World/Effects");
         _stockpile = GetNode<Stockpile>("../World/Objects/Stockpile");
+        _buildingPlacement = GetNode<BuildingPlacementController>("../BuildingPlacementController");
         _selectionMarquee = GetNode<Control>("SelectionMarquee");
         _selectionMarquee.Visible = false;
     }
 
     public override void _UnhandledInput(InputEvent inputEvent)
     {
+        if (_buildingPlacement.IsPlacementActive)
+        {
+            return;
+        }
+
         if (inputEvent is InputEventMouseButton mouseButton)
         {
             HandleMouseButton(mouseButton);
@@ -77,7 +85,7 @@ public partial class SurvivorSelectionController : CanvasLayer
         }
         else if (mouseButton.ButtonIndex == MouseButton.Right && mouseButton.Pressed)
         {
-            IssueContextOrder(mouseButton.Position);
+            IssueContextOrder(mouseButton.Position, mouseButton.ShiftPressed);
             GetViewport().SetInputAsHandled();
         }
     }
@@ -146,8 +154,29 @@ public partial class SurvivorSelectionController : CanvasLayer
         }
     }
 
-    private void IssueContextOrder(Vector2 screenPosition)
+    private void IssueContextOrder(Vector2 screenPosition, bool shiftPressed)
     {
+        ConstructionSite constructionSite = GetConstructionSites()
+            .Where(site => site.IsAvailableForBuilding && site.ContainsScreenPoint(screenPosition))
+            .OrderBy(site => site.Position.Y)
+            .LastOrDefault();
+        if (constructionSite is not null)
+        {
+            if (shiftPressed)
+            {
+                if (constructionSite.CancelConstruction())
+                {
+                    _buildingPlacement.ShowStatus("Construction cancelled • 30 Wood refunded");
+                }
+            }
+            else if (_selectedSurvivors.Count > 0)
+            {
+                IssueBuildOrder(constructionSite);
+            }
+
+            return;
+        }
+
         if (_selectedSurvivors.Count == 0)
         {
             return;
@@ -192,6 +221,16 @@ public partial class SurvivorSelectionController : CanvasLayer
             Vector2 interactionPosition = target.GetInteractionPosition(index, workerCount);
             Vector2 deliveryPosition = _stockpile.GetInteractionPosition(index, workerCount);
             survivor.IssueHarvestOrder(target, _stockpile, interactionPosition, deliveryPosition);
+        }
+    }
+
+    private void IssueBuildOrder(ConstructionSite target)
+    {
+        int workerCount = _selectedSurvivors.Count;
+        for (int index = 0; index < workerCount; index++)
+        {
+            Survivor survivor = _selectedSurvivors[index];
+            survivor.IssueBuildOrder(target, target.GetInteractionPosition(index, workerCount));
         }
     }
 
@@ -262,6 +301,17 @@ public partial class SurvivorSelectionController : CanvasLayer
             if (node is HarvestableResource resource)
             {
                 yield return resource;
+            }
+        }
+    }
+
+    private IEnumerable<ConstructionSite> GetConstructionSites()
+    {
+        foreach (Node node in GetTree().GetNodesInGroup(ConstructionSite.GroupName))
+        {
+            if (node is ConstructionSite site)
+            {
+                yield return site;
             }
         }
     }

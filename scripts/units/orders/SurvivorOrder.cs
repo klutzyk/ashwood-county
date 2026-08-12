@@ -4,7 +4,8 @@ public enum SurvivorOrderType
 {
     None,
     Move,
-    HarvestResource
+    HarvestResource,
+    Build
 }
 
 public interface ISurvivorOrder

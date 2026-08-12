@@ -6,7 +6,7 @@ using Godot;
 namespace AshwoodCounty.Resources;
 
 [Tool]
-public partial class HarvestableResource : Node2D
+public partial class HarvestableResource : Node2D, IGridOccupant
 {
     public const string GroupName = "harvestable_resources";
 
@@ -37,6 +37,8 @@ public partial class HarvestableResource : Node2D
     public bool IsTargeted => _targetingWorkers.Count > 0;
     public float DisplayedHarvestProgress => _workerProgress.Count == 0 ? 0 : _workerProgress.Values.Max();
     public Vector2 WorldPosition => GridPosition + new Vector2(0.5f, 0.5f);
+    public Vector2I OccupancyOrigin => new(Mathf.FloorToInt(GridPosition.X), Mathf.FloorToInt(GridPosition.Y));
+    public Vector2I OccupancyFootprint => Vector2I.One;
 
     public override void _Ready()
     {
@@ -49,6 +51,7 @@ public partial class HarvestableResource : Node2D
 
         AvailableAmount = Mathf.Max(0, StartingAmount);
         AddToGroup(GroupName);
+        AddToGroup(GridOccupancy.OccupantGroup);
         RefreshVisual();
     }
 

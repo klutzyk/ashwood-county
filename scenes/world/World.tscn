@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3]
+[gd_scene load_steps=17 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/IsometricWorld.cs" id="1_world"]
 [ext_resource type="Script" path="res://scripts/world/TerrainRenderer.cs" id="2_terrain"]
@@ -11,6 +11,8 @@
 [ext_resource type="PackedScene" path="res://scenes/world/ResourceTree.tscn" id="9_tree"]
 [ext_resource type="PackedScene" path="res://scenes/buildings/Stockpile.tscn" id="10_stockpile"]
 [ext_resource type="Script" path="res://scripts/systems/resources/SettlementInventory.cs" id="11_inventory"]
+[ext_resource type="Script" path="res://scripts/world/GridOccupancy.cs" id="12_occupancy"]
+[ext_resource type="Script" path="res://scripts/buildings/BuildingPlacementController.cs" id="13_placement"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_debug"]
 bg_color = Color(0.055, 0.075, 0.06, 0.88)
@@ -32,10 +34,25 @@ border_width_right = 2
 border_width_bottom = 2
 border_color = Color(0.48, 0.95, 0.55, 0.95)
 
+[sub_resource type="StyleBoxFlat" id="StyleBox_build"]
+bg_color = Color(0.055, 0.075, 0.06, 0.92)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.49, 0.62, 0.38, 0.9)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
 [node name="Main" type="Node"]
 
 [node name="SettlementInventory" type="Node" parent="."]
 script = ExtResource("11_inventory")
+
+[node name="GridOccupancy" type="Node" parent="."]
+script = ExtResource("12_occupancy")
 
 [node name="World" type="Node2D" parent="."]
 script = ExtResource("1_world")
@@ -59,6 +76,7 @@ StartingAmount = 20
 script = ExtResource("5_object")
 Kind = 2
 GridPosition = Vector2(9, 9)
+Footprint = Vector2i(2, 2)
 
 [node name="ResourcePileA" type="Node2D" parent="World/Objects"]
 script = ExtResource("5_object")
@@ -73,6 +91,7 @@ StartingAmount = 24
 script = ExtResource("5_object")
 Kind = 2
 GridPosition = Vector2(17, 14)
+Footprint = Vector2i(2, 2)
 
 [node name="ResourcePileB" type="Node2D" parent="World/Objects"]
 script = ExtResource("5_object")
@@ -120,6 +139,40 @@ offset_right = 40.0
 offset_bottom = 40.0
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBox_selection")
+
+[node name="BuildingPlacementController" type="CanvasLayer" parent="."]
+layer = 20
+script = ExtResource("13_placement")
+
+[node name="BuildPanel" type="PanelContainer" parent="BuildingPlacementController"]
+offset_left = 16.0
+offset_top = 186.0
+offset_right = 286.0
+offset_bottom = 322.0
+theme_override_styles/panel = SubResource("StyleBox_build")
+
+[node name="Margin" type="MarginContainer" parent="BuildingPlacementController/BuildPanel"]
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="Rows" type="VBoxContainer" parent="BuildingPlacementController/BuildPanel/Margin"]
+theme_override_constants/separation = 6
+
+[node name="Title" type="Label" parent="BuildingPlacementController/BuildPanel/Margin/Rows"]
+theme_override_colors/font_color = Color(0.72, 0.84, 0.64, 1)
+text = "BUILD"
+
+[node name="ShelterButton" type="Button" parent="BuildingPlacementController/BuildPanel/Margin/Rows"]
+mouse_default_cursor_shape = 2
+text = "Shelter — 30 Wood"
+
+[node name="FeedbackLabel" type="Label" parent="BuildingPlacementController/BuildPanel/Margin/Rows"]
+custom_minimum_size = Vector2(238, 34)
+theme_override_colors/font_color = Color(0.78, 0.82, 0.74, 1)
+text = "Shelter • Cost: 30 Wood"
+autowrap_mode = 2
 
 [node name="DebugHud" type="CanvasLayer" parent="."]
 script = ExtResource("6_hud")
