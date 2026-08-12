@@ -1,4 +1,4 @@
-[gd_scene load_steps=29 format=3]
+[gd_scene load_steps=33 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/IsometricWorld.cs" id="1_world"]
 [ext_resource type="Script" path="res://scripts/world/TerrainRenderer.cs" id="2_terrain"]
@@ -24,6 +24,10 @@
 [ext_resource type="Script" path="res://scripts/systems/jobs/SettlementJobSystem.cs" id="22_jobs"]
 [ext_resource type="Script" path="res://scripts/systems/ChopDesignationController.cs" id="23_chop"]
 [ext_resource type="Texture2D" path="res://assets/art/environment/vegetation/dead_tree_01.png" id="24_dead_tree"]
+[ext_resource type="Script" path="res://scripts/world/RegionDecorationRenderer.cs" id="25_region_dressing"]
+[ext_resource type="Texture2D" path="res://assets/art/environment/vegetation/oak_01.png" id="27_oak"]
+[ext_resource type="Texture2D" path="res://assets/art/environment/vegetation/pine_01.png" id="28_pine"]
+[ext_resource type="Texture2D" path="res://assets/art/environment/vegetation/young_tree_01.png" id="29_young"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_debug"]
 bg_color = Color(0.055, 0.075, 0.06, 0.88)
@@ -94,151 +98,227 @@ script = ExtResource("3_hover")
 [node name="Objects" type="Node2D" parent="World"]
 y_sort_enabled = true
 
-[node name="BushDressingA" type="Node2D" parent="World/Objects"]
-script = ExtResource("14_decoration")
-Texture = ExtResource("15_bush")
-VisualScale = 0.42
-GridPosition = Vector2(4.4, 12.8)
+[node name="RegionDressing" type="Node2D" parent="World/Objects"]
+show_behind_parent = true
+script = ExtResource("25_region_dressing")
 
-[node name="FlowersDressingA" type="Node2D" parent="World/Objects"]
+[node name="WoodlandOak01" type="Node2D" parent="World/Objects"]
 script = ExtResource("14_decoration")
-Texture = ExtResource("16_flowers")
-VisualScale = 0.32
-GridPosition = Vector2(16.8, 7.4)
-
-[node name="FernDressingA" type="Node2D" parent="World/Objects"]
-script = ExtResource("14_decoration")
-Texture = ExtResource("17_fern")
-VisualScale = 0.34
-GridPosition = Vector2(23.2, 18.6)
-
-[node name="RockDressingA" type="Node2D" parent="World/Objects"]
-script = ExtResource("14_decoration")
-Texture = ExtResource("18_rock")
-VisualScale = 0.34
-GridPosition = Vector2(7.6, 20.2)
-
-[node name="FallenLogDressingA" type="Node2D" parent="World/Objects"]
-script = ExtResource("14_decoration")
-Texture = ExtResource("19_log")
-VisualScale = 0.36
-GridPosition = Vector2(24.6, 9.1)
-
-[node name="FenceDressingA" type="Node2D" parent="World/Objects"]
-script = ExtResource("14_decoration")
-Texture = ExtResource("20_fence")
-VisualScale = 0.32
-GridPosition = Vector2(3.1, 23.7)
-
-[node name="GrassDressingA" type="Node2D" parent="World/Objects"]
-script = ExtResource("14_decoration")
-Texture = ExtResource("21_grass")
-VisualScale = 0.28
-GridPosition = Vector2(19.6, 5.3)
-
-[node name="BushDressingB" type="Node2D" parent="World/Objects"]
-script = ExtResource("14_decoration")
-Texture = ExtResource("15_bush")
+Texture = ExtResource("27_oak")
 VisualScale = 0.38
-GridPosition = Vector2(25.7, 20.8)
+GridPosition = Vector2(1.5, 8)
 
-[node name="FlowersDressingB" type="Node2D" parent="World/Objects"]
+[node name="WoodlandPine01" type="Node2D" parent="World/Objects"]
 script = ExtResource("14_decoration")
-Texture = ExtResource("16_flowers")
-VisualScale = 0.27
-GridPosition = Vector2(5.9, 17.1)
+Texture = ExtResource("28_pine")
+VisualScale = 0.39
+GridPosition = Vector2(4.8, 10.5)
 
-[node name="FernDressingB" type="Node2D" parent="World/Objects"]
+[node name="WoodlandYoung01" type="Node2D" parent="World/Objects"]
 script = ExtResource("14_decoration")
-Texture = ExtResource("17_fern")
-VisualScale = 0.31
-GridPosition = Vector2(3.8, 8.5)
+Texture = ExtResource("29_young")
+VisualScale = 0.36
+GridPosition = Vector2(9, 3)
 
-[node name="DeadTreeDressing" type="Node2D" parent="World/Objects"]
+[node name="WoodlandOak02" type="Node2D" parent="World/Objects"]
 script = ExtResource("14_decoration")
-Texture = ExtResource("24_dead_tree")
-VisualScale = 0.34
-GridPosition = Vector2(27.0, 14.5)
+Texture = ExtResource("27_oak")
+VisualScale = 0.4
+GridPosition = Vector2(15, 2.5)
+
+[node name="WoodlandPine02" type="Node2D" parent="World/Objects"]
+script = ExtResource("14_decoration")
+Texture = ExtResource("28_pine")
+VisualScale = 0.41
+GridPosition = Vector2(21.5, 2.8)
+
+[node name="WoodlandOak03" type="Node2D" parent="World/Objects"]
+script = ExtResource("14_decoration")
+Texture = ExtResource("27_oak")
+VisualScale = 0.39
+GridPosition = Vector2(29.5, 2.5)
+
+[node name="WoodlandPine03" type="Node2D" parent="World/Objects"]
+script = ExtResource("14_decoration")
+Texture = ExtResource("28_pine")
+VisualScale = 0.4
+GridPosition = Vector2(37, 4)
+
+[node name="WoodlandYoung02" type="Node2D" parent="World/Objects"]
+script = ExtResource("14_decoration")
+Texture = ExtResource("29_young")
+VisualScale = 0.36
+GridPosition = Vector2(40, 14)
+
+[node name="WoodlandOak04" type="Node2D" parent="World/Objects"]
+script = ExtResource("14_decoration")
+Texture = ExtResource("27_oak")
+VisualScale = 0.4
+GridPosition = Vector2(40, 21)
+
+[node name="WoodlandPine04" type="Node2D" parent="World/Objects"]
+script = ExtResource("14_decoration")
+Texture = ExtResource("28_pine")
+VisualScale = 0.39
+GridPosition = Vector2(40, 29)
+
+[node name="WoodlandOak05" type="Node2D" parent="World/Objects"]
+script = ExtResource("14_decoration")
+Texture = ExtResource("27_oak")
+VisualScale = 0.4
+GridPosition = Vector2(39, 36)
+
+[node name="WoodlandYoung03" type="Node2D" parent="World/Objects"]
+script = ExtResource("14_decoration")
+Texture = ExtResource("29_young")
+VisualScale = 0.36
+GridPosition = Vector2(27, 36.5)
+
+[node name="WoodlandPine05" type="Node2D" parent="World/Objects"]
+script = ExtResource("14_decoration")
+Texture = ExtResource("28_pine")
+VisualScale = 0.4
+GridPosition = Vector2(19, 36.2)
+
+[node name="WoodlandOak06" type="Node2D" parent="World/Objects"]
+script = ExtResource("14_decoration")
+Texture = ExtResource("27_oak")
+VisualScale = 0.39
+GridPosition = Vector2(10.5, 36)
+
+[node name="WoodlandPine06" type="Node2D" parent="World/Objects"]
+script = ExtResource("14_decoration")
+Texture = ExtResource("28_pine")
+VisualScale = 0.4
+GridPosition = Vector2(2.5, 34)
+
+[node name="WoodlandYoung04" type="Node2D" parent="World/Objects"]
+script = ExtResource("14_decoration")
+Texture = ExtResource("29_young")
+VisualScale = 0.36
+GridPosition = Vector2(1.2, 22)
+
+[node name="WoodlandOak07" type="Node2D" parent="World/Objects"]
+script = ExtResource("14_decoration")
+Texture = ExtResource("27_oak")
+VisualScale = 0.38
+GridPosition = Vector2(11, 8)
+
+[node name="WoodlandPine07" type="Node2D" parent="World/Objects"]
+script = ExtResource("14_decoration")
+Texture = ExtResource("28_pine")
+VisualScale = 0.38
+GridPosition = Vector2(34, 9)
+
+[node name="WoodlandOak08" type="Node2D" parent="World/Objects"]
+script = ExtResource("14_decoration")
+Texture = ExtResource("27_oak")
+VisualScale = 0.38
+GridPosition = Vector2(34.5, 32)
+
+[node name="WoodlandPine08" type="Node2D" parent="World/Objects"]
+script = ExtResource("14_decoration")
+Texture = ExtResource("28_pine")
+VisualScale = 0.38
+GridPosition = Vector2(8, 31)
 
 [node name="TreeA" parent="World/Objects" instance=ExtResource("9_tree")]
-GridPosition = Vector2(3.8, 5.4)
+GridPosition = Vector2(3.8, 4.8)
 StartingAmount = 20
 
-[node name="BuildingA" type="Node2D" parent="World/Objects"]
-script = ExtResource("5_object")
-Kind = 2
-GridPosition = Vector2(9, 9)
-Footprint = Vector2i(2, 2)
-
-[node name="ResourcePileA" type="Node2D" parent="World/Objects"]
-script = ExtResource("5_object")
-Kind = 3
-GridPosition = Vector2(12, 9)
-
 [node name="TreeB" parent="World/Objects" instance=ExtResource("9_tree")]
-GridPosition = Vector2(7.1, 4.6)
+GridPosition = Vector2(6.8, 5.7)
 StartingAmount = 24
 
-[node name="BuildingB" type="Node2D" parent="World/Objects"]
-script = ExtResource("5_object")
-Kind = 2
-GridPosition = Vector2(17, 14)
-Footprint = Vector2i(2, 2)
-
-[node name="ResourcePileB" type="Node2D" parent="World/Objects"]
-script = ExtResource("5_object")
-Kind = 3
-GridPosition = Vector2(18, 17)
-
 [node name="TreeC" parent="World/Objects" instance=ExtResource("9_tree")]
-GridPosition = Vector2(23.4, 5.2)
+GridPosition = Vector2(12.2, 3.8)
 StartingAmount = 18
 
 [node name="TreeD" parent="World/Objects" instance=ExtResource("9_tree")]
-GridPosition = Vector2(25.9, 8.1)
+GridPosition = Vector2(18.0, 4.6)
 StartingAmount = 30
 
 [node name="TreeE" parent="World/Objects" instance=ExtResource("9_tree")]
-GridPosition = Vector2(4.2, 22.8)
+GridPosition = Vector2(26.5, 4.4)
 StartingAmount = 22
 
 [node name="TreeF" parent="World/Objects" instance=ExtResource("9_tree")]
-GridPosition = Vector2(7.5, 25.1)
+GridPosition = Vector2(33.5, 5.8)
 StartingAmount = 26
 
 [node name="TreeG" parent="World/Objects" instance=ExtResource("9_tree")]
-GridPosition = Vector2(23.6, 24.4)
+GridPosition = Vector2(38.5, 9.0)
 StartingAmount = 24
 
 [node name="TreeH" parent="World/Objects" instance=ExtResource("9_tree")]
-GridPosition = Vector2(26.3, 21.7)
+GridPosition = Vector2(39.2, 25.0)
 StartingAmount = 20
 
 [node name="TreeI" parent="World/Objects" instance=ExtResource("9_tree")]
-GridPosition = Vector2(2.8, 12.6)
+GridPosition = Vector2(37.0, 31.0)
 StartingAmount = 18
 
 [node name="TreeJ" parent="World/Objects" instance=ExtResource("9_tree")]
-GridPosition = Vector2(27.1, 16.8)
+GridPosition = Vector2(32.5, 34.0)
+StartingAmount = 28
+
+[node name="TreeK" parent="World/Objects" instance=ExtResource("9_tree")]
+GridPosition = Vector2(23.5, 35.0)
+StartingAmount = 26
+
+[node name="TreeL" parent="World/Objects" instance=ExtResource("9_tree")]
+GridPosition = Vector2(14.0, 34.2)
+StartingAmount = 24
+
+[node name="TreeM" parent="World/Objects" instance=ExtResource("9_tree")]
+GridPosition = Vector2(7.0, 33.0)
+StartingAmount = 22
+
+[node name="TreeN" parent="World/Objects" instance=ExtResource("9_tree")]
+GridPosition = Vector2(3.0, 28.5)
+StartingAmount = 20
+
+[node name="TreeO" parent="World/Objects" instance=ExtResource("9_tree")]
+GridPosition = Vector2(3.2, 16.0)
+StartingAmount = 24
+
+[node name="TreeP" parent="World/Objects" instance=ExtResource("9_tree")]
+GridPosition = Vector2(9.5, 12.0)
+StartingAmount = 24
+
+[node name="TreeQ" parent="World/Objects" instance=ExtResource("9_tree")]
+GridPosition = Vector2(13.2, 10.0)
+StartingAmount = 20
+
+[node name="TreeR" parent="World/Objects" instance=ExtResource("9_tree")]
+GridPosition = Vector2(30.5, 10.2)
+StartingAmount = 26
+
+[node name="TreeS" parent="World/Objects" instance=ExtResource("9_tree")]
+GridPosition = Vector2(35.0, 12.0)
+StartingAmount = 22
+
+[node name="TreeT" parent="World/Objects" instance=ExtResource("9_tree")]
+GridPosition = Vector2(34.5, 27.8)
 StartingAmount = 28
 
 [node name="Stockpile" parent="World/Objects" instance=ExtResource("10_stockpile")]
-GridPosition = Vector2(13, 17)
+GridPosition = Vector2(21.5, 21.8)
 
 [node name="SurvivorA" parent="World/Objects" instance=ExtResource("7_survivor")]
-SimulationPosition = Vector2(9.5, 11.5)
+SimulationPosition = Vector2(18.5, 18.5)
 
 [node name="SurvivorB" parent="World/Objects" instance=ExtResource("7_survivor")]
-SimulationPosition = Vector2(11, 12.5)
+SimulationPosition = Vector2(20, 19.5)
 
 [node name="SurvivorC" parent="World/Objects" instance=ExtResource("7_survivor")]
-SimulationPosition = Vector2(12.5, 11)
+SimulationPosition = Vector2(21.5, 18)
 
 [node name="SurvivorD" parent="World/Objects" instance=ExtResource("7_survivor")]
-SimulationPosition = Vector2(13.5, 13.5)
+SimulationPosition = Vector2(23, 20.5)
 
 [node name="SurvivorE" parent="World/Objects" instance=ExtResource("7_survivor")]
-SimulationPosition = Vector2(10.5, 14)
+SimulationPosition = Vector2(19.5, 21.5)
 
 [node name="StrategyCamera" type="Camera2D" parent="World"]
 position = Vector2(0, 720)

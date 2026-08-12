@@ -5,8 +5,8 @@ namespace AshwoodCounty.World;
 
 public partial class IsometricWorld : Node2D
 {
-    public const int MapWidth = 30;
-    public const int MapHeight = 30;
+    public const int MapWidth = 42;
+    public const int MapHeight = 38;
 
     private TerrainRenderer _terrain = null!;
     private HoverHighlight _hover = null!;

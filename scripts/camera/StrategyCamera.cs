@@ -7,7 +7,7 @@ public partial class StrategyCamera : Camera2D
     [Export] public float MoveSpeed { get; set; } = 700.0f;
     [Export] public float MoveSmoothing { get; set; } = 12.0f;
     [Export] public float ZoomSmoothing { get; set; } = 14.0f;
-    [Export] public float MinZoom { get; set; } = 0.45f;
+    [Export] public float MinZoom { get; set; } = 0.38f;
     [Export] public float MaxZoom { get; set; } = 1.75f;
     [Export] public float ZoomStep { get; set; } = 0.15f;
     [Export] public float BoundsPadding { get; set; } = 220.0f;
