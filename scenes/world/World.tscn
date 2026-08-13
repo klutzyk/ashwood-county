@@ -1,4 +1,4 @@
-[gd_scene load_steps=44 format=3]
+[gd_scene load_steps=45 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/IsometricWorld.cs" id="1_world"]
 [ext_resource type="Script" path="res://scripts/world/TerrainRenderer.cs" id="2_terrain"]
@@ -36,6 +36,7 @@
 [ext_resource type="PackedScene" path="res://scenes/units/Zombie.tscn" id="35_zombie"]
 [ext_resource type="Script" path="res://scripts/threats/ZombieThreatSystem.cs" id="36_threat"]
 [ext_resource type="Script" path="res://scripts/combat/NoiseSystem.cs" id="37_noise"]
+[ext_resource type="Script" path="res://scripts/ui/GameHud.cs" id="38_game_hud"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_debug"]
 bg_color = Color(0.055, 0.075, 0.06, 0.88)
@@ -448,6 +449,10 @@ autowrap_mode = 2
 
 [node name="DebugHud" type="CanvasLayer" parent="."]
 script = ExtResource("6_hud")
+
+[node name="GameHud" type="CanvasLayer" parent="."]
+layer = 10
+script = ExtResource("38_game_hud")
 
 [node name="Panel" type="PanelContainer" parent="DebugHud"]
 offset_left = 16.0

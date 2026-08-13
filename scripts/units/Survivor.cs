@@ -34,6 +34,8 @@ public partial class Survivor : Node2D
     [Export] public float ArrivalThreshold { get; set; } = 0.05f;
     [Export] public int CarryCapacityWood { get; set; } = 10;
     [Export] public int CarryCapacityFood { get; set; } = 6;
+    [Export] public int CarryCapacityMaterials { get; set; } = 8;
+    [Export] public int CarryCapacityMedicine { get; set; } = 4;
     [Export] public float Hunger { get; set; } = 82.0f;
     [Export] public float HungerDepletionPerSecond { get; set; } = 0.22f;
     [Export] public float HungryThreshold { get; set; } = 55.0f;
@@ -42,6 +44,8 @@ public partial class Survivor : Node2D
     [Export] public float MaxHealth { get; set; } = 100.0f;
     [Export] public float MeleeDamage { get; set; } = 18.0f;
     [Export] public float AutoDefenseRange { get; set; } = 2.2f;
+    [Export] public float Energy { get; set; } = 100.0f;
+    [Export] public float Morale { get; set; } = 72.0f;
 
     private CanvasItem _selectionIndicator = null!;
     private CanvasItem _visual = null!;
@@ -65,9 +69,10 @@ public partial class Survivor : Node2D
     public bool IsAvailableForAutonomousWork => _currentOrder is null;
     public bool IsAlive => !_dead;
     public float Health => _health;
+    public SurvivorProfile Profile { get; private set; } = new();
     public bool NeedsMeal => Hunger <= HungryThreshold;
     public bool IsCriticallyHungry => Hunger <= CriticalHungerThreshold;
-    public float WorkSpeedMultiplier => IsCriticallyHungry ? .65f : NeedsMeal ? .85f : 1.0f;
+    public float WorkSpeedMultiplier => (IsCriticallyHungry ? .65f : NeedsMeal ? .85f : 1.0f) * Mathf.Lerp(.65f, 1.05f, Energy / 100f);
     public string Activity => CurrentOrderType switch
     {
         SurvivorOrderType.Move => "Moving",
@@ -89,6 +94,8 @@ public partial class Survivor : Node2D
         }
 
         AddToGroup(GroupName);
+        int profileIndex = int.TryParse(new string(Name.ToString().Where(char.IsDigit).ToArray()), out int parsed) ? Mathf.Max(0, parsed - 1) : GetIndex();
+        Profile = SurvivorProfile.ForIndex(profileIndex);
         _health = MaxHealth;
         _selectionIndicator = GetNode<CanvasItem>("SelectionIndicator");
         _visual = GetNode<CanvasItem>("Visual");
@@ -104,6 +111,9 @@ public partial class Survivor : Node2D
         }
 
         Hunger = Mathf.Max(0, Hunger - HungerDepletionPerSecond * (float)delta);
+        bool working = _currentOrder is not null && CurrentOrderType is not SurvivorOrderType.Eat;
+        Energy = Mathf.Clamp(Energy + (working ? -0.32f : 0.20f) * (float)delta, 0, 100);
+        Morale = Mathf.Clamp(Morale + (Hunger < 25 ? -0.08f : Hunger > 60 ? 0.015f : 0) * (float)delta, 0, 100);
         if(_dead)return;
         _defenseScanElapsed-=(float)delta;
         if(_defenseScanElapsed<=0){_defenseScanElapsed=.3f;TryAutoDefend();}
@@ -194,9 +204,13 @@ public partial class Survivor : Node2D
             return 0;
         }
 
-        int capacity = resourceType == ResourceType.Wood ? CarryCapacityWood : CarryCapacityFood;
+        int capacity = resourceType switch { ResourceType.Wood => CarryCapacityWood, ResourceType.Food => CarryCapacityFood, ResourceType.Materials => CarryCapacityMaterials, ResourceType.Medicine => CarryCapacityMedicine, _ => 0 };
         return Mathf.Max(0, capacity - CarriedAmount);
     }
+
+    public bool AllowsWork(WorkCategory category) => Profile.Priority(category) != WorkPriority.Disabled;
+    public float SkillMultiplier(SurvivorSkill skill) => 1f + (Profile.Skill(skill) - 1) * .06f;
+    public void GainSkillExperience(SurvivorSkill skill, float amount) => Profile.AddExperience(skill, amount);
 
     public void EatMeal()
     {

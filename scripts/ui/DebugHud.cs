@@ -29,6 +29,7 @@ public partial class DebugHud : CanvasLayer
 
     public override void _Ready()
     {
+        Visible = false;
         _world = GetNode<IsometricWorld>("../World");
         _gridValue = GetNode<Label>("Panel/Margin/Rows/GridValue");
         _zoomValue = GetNode<Label>("Panel/Margin/Rows/ZoomValue");
@@ -46,6 +47,15 @@ public partial class DebugHud : CanvasLayer
         _threatValue = GetNode<Label>("Panel/Margin/Rows/ThreatValue");
         _clock = GetNode<Systems.GameClock>("../GameClock");
         _simulation = GetNode<Systems.SimulationController>("../SimulationController");
+    }
+
+    public override void _UnhandledInput(InputEvent inputEvent)
+    {
+        if (inputEvent is InputEventKey key && key.Pressed && !key.Echo && key.Keycode == Key.F3)
+        {
+            Visible = !Visible;
+            GetViewport().SetInputAsHandled();
+        }
     }
 
     public override void _Process(double delta)
