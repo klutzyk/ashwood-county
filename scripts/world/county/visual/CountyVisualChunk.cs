@@ -29,6 +29,8 @@ public partial class CountyVisualChunk : Node2D
     private const string FarmPropsRoot = "res://assets/art/props/farm/";
     private const string LoggingPropsRoot = "res://assets/art/props/logging/";
     private const string RoadsidePropsRoot = "res://assets/art/props/roadside/";
+    private const string RailArtRoot = "res://assets/art/terrain/rail/";
+    private const string IndustrialPropsRoot = "res://assets/art/props/industrial/";
 
     private static readonly Vector2[] MillCreek =
     [
@@ -95,6 +97,21 @@ public partial class CountyVisualChunk : Node2D
         P(LoggingPropsRoot + "rotted_log_01.png", 139, 256, .38f),
         P(RoadsidePropsRoot + "mossy_boulder_02.png", 145, 264, .31f),
         P(RoadsidePropsRoot + "rock_formation_02.png", 161, 263, .34f)
+        ,P(Vegetation02Root + "pine_02.png", 132, 246, .25f)
+        ,P(Vegetation02Root + "pine_03.png", 143, 269, .30f)
+        ,P(Vegetation02Root + "deciduous_02.png", 170, 239, .28f)
+        ,P(Vegetation02Root + "dead_tree_02.png", 126, 258, .27f)
+        ,P(Vegetation02Root + "reeds_01.png", 157, 248, .30f)
+        ,P(FarmPropsRoot + "corn_rows_01.png", 145, 190, .43f)
+        ,P(FarmPropsRoot + "crop_rows_green_01.png", 177, 186, .46f)
+        ,P(FarmPropsRoot + "hay_bale_round_01.png", 181, 205, .31f)
+        ,P(RoadsidePropsRoot + "stop_sign_01.png", 229, 146, .27f)
+        ,P(RoadsidePropsRoot + "utility_pole_01.png", 216, 148, .28f)
+        ,P(IndustrialPropsRoot + "abandoned_pickup_01.png", 260, 157, .32f)
+        ,P(IndustrialPropsRoot + "scrap_pile_01.png", 151, 253, .27f)
+        ,P(IndustrialPropsRoot + "corrugated_shed_01.png", 145, 249, .30f)
+        ,P(IndustrialPropsRoot + "road_barrier_01.png", 272, 144, .30f)
+        ,P(IndustrialPropsRoot + "watchtower_01.png", 311, 54, .34f)
     ];
 
     private Vector2I _coordinate;
@@ -235,9 +252,10 @@ public partial class CountyVisualChunk : Node2D
         DrawPolylineRibbon(CountyMacroLayout.BlackwaterLake.Append(CountyMacroLayout.BlackwaterLake[0]).ToArray(), 3.4f, new Color("#635a43"), 3f);
         DrawLakeInterior();
 
-        DrawStreamBanks(CountyMacroLayout.BlackwaterRiver, 3.4f);
-        DrawStreamBanks(MillCreek, 2.7f);
+        DrawStreamBanks(CountyMacroLayout.BlackwaterRiver, .95f);
+        DrawStreamBanks(MillCreek, .60f);
         DrawShorelineDressing();
+        DrawWaterArtDetails();
     }
 
     private void DrawLakeInterior()
@@ -279,6 +297,18 @@ public partial class CountyVisualChunk : Node2D
                 }
             }
         }
+    }
+
+    private void DrawWaterArtDetails()
+    {
+        if (_gridBounds.HasPoint(new Vector2(151, 257)))
+            DrawGroundTexture("res://assets/art/terrain/water/creek_rapids_01.png", new Vector2(151, 257), .40f, new Color(1, 1, 1, .72f));
+        if (_gridBounds.HasPoint(new Vector2(283, 123)))
+            DrawGroundTexture("res://assets/art/terrain/water/river_rapids_rocks_01.png", new Vector2(283, 123), .45f, new Color(1, 1, 1, .78f));
+        if (_gridBounds.HasPoint(new Vector2(296, 101)))
+            DrawGroundTexture("res://assets/art/terrain/water/river_rapids_straight_01.png", new Vector2(296, 101), .43f, new Color(1, 1, 1, .82f));
+        if (_gridBounds.HasPoint(new Vector2(146, 242)))
+            DrawGroundTexture("res://assets/art/terrain/water/pond_reeds_01.png", new Vector2(146, 242), .38f, new Color(1, 1, 1, .78f));
     }
 
     private void DrawRoadNetwork()
@@ -365,6 +395,12 @@ public partial class CountyVisualChunk : Node2D
             Vector2 normal = new(-tangent.Y, tangent.X);
             DrawLine(P(point - normal * .85f), P(point + normal * .85f), new Color("#3c3023"), 3f, true);
         }
+
+        foreach ((Vector2 point, _, int index) in SamplesAlong(rail, 10f))
+        {
+            if (_gridBounds.HasPoint(point) && (index & 1) == 0)
+                DrawGroundTexture(RailArtRoot + "rail_straight_01.png", point, .38f, new Color(1, 1, 1, .72f));
+        }
     }
 
     private void DrawFarmComposition()
@@ -437,12 +473,20 @@ public partial class CountyVisualChunk : Node2D
 
         foreach ((Vector2 point, Biome biome, float value) in trees.OrderBy(tree => tree.Point.X + tree.Point.Y))
         {
-            string texture = biome is Biome.Mill or Biome.Forest
-                ? value > .78f ? "pine_01.png" : value > .57f ? "oak_01.png" : "young_tree_01.png"
-                : value > .85f ? "oak_01.png" : "young_tree_01.png";
-            float scale = texture.StartsWith("young", StringComparison.Ordinal) ? .27f : .31f + Hash01((int)point.X, (int)point.Y, 53) * .05f;
+            string texture;
+            if (biome is Biome.Mill or Biome.Forest)
+                texture = value > .88f ? Vegetation02Root + "pine_02.png"
+                    : value > .76f ? VegetationRoot + "pine_01.png"
+                    : value > .63f ? Vegetation02Root + "deciduous_02.png"
+                    : value > .54f ? VegetationRoot + "oak_01.png"
+                    : Vegetation02Root + "young_deciduous_02.png";
+            else
+                texture = value > .86f ? VegetationRoot + "oak_01.png"
+                    : value > .73f ? Vegetation02Root + "birch_01.png"
+                    : VegetationRoot + "young_tree_01.png";
+            float scale = texture.Contains("young", StringComparison.Ordinal) ? .27f : .29f + Hash01((int)point.X, (int)point.Y, 53) * .05f;
             Color tint = biome == Biome.Mill ? new Color(.82f, .90f, .82f, .96f) : Colors.White;
-            DrawAnchoredTexture(VegetationRoot + texture, point, scale, tint);
+            DrawAnchoredTexture(texture, point, scale, tint);
 
             if (Hash01((int)point.X, (int)point.Y, 59) > .66f)
             {

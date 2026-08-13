@@ -21,8 +21,8 @@ public partial class CountyWaterLayer : Node2D
         ZAsRelative = false;
         ZIndex = -88;
         BuildLake();
-        BuildFlow("BlackwaterRiver", CountyMacroLayout.BlackwaterRiver, 2.3f, WaterMaterialLibrary.River);
-        BuildFlow("MillCreek", MillCreek, 1.35f, WaterMaterialLibrary.Creek);
+        BuildFlow("BlackwaterRiver", CountyMacroLayout.BlackwaterRiver, .95f, WaterMaterialLibrary.River);
+        BuildFlow("MillCreek", MillCreek, .48f, WaterMaterialLibrary.Creek);
         BuildPonds();
     }
 
@@ -53,15 +53,17 @@ public partial class CountyWaterLayer : Node2D
             {
                 Vector2 a = start.Lerp(end, piece / (float)subdivisions);
                 Vector2 b = start.Lerp(end, (piece + 1f) / subdivisions);
-                Vector2 tangent = b - a;
+                Vector2 canvasA = IsometricGrid.GridToScreen(a);
+                Vector2 canvasB = IsometricGrid.GridToScreen(b);
+                Vector2 tangent = canvasB - canvasA;
                 if (tangent.IsZeroApprox()) continue;
                 Vector2 normal = new(-tangent.Y, tangent.X);
-                normal = normal.Normalized() * halfWidth;
+                normal = normal.Normalized() * halfWidth * IsometricGrid.TileHeight * .52f;
                 Polygon2D ribbon = new()
                 {
                     Polygon = [
-                        IsometricGrid.GridToScreen(a + normal), IsometricGrid.GridToScreen(b + normal),
-                        IsometricGrid.GridToScreen(b - normal), IsometricGrid.GridToScreen(a - normal)],
+                        canvasA + normal, canvasB + normal,
+                        canvasB - normal, canvasA - normal],
                     Color = Colors.White,
                     Material = material
                 };
