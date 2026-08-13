@@ -4,6 +4,7 @@ using AshwoodCounty.World;
 using Godot;
 using System.Linq;
 using AshwoodCounty.Threats;
+using AshwoodCounty.World.Fog;
 
 namespace AshwoodCounty.UI;
 
@@ -54,6 +55,8 @@ public partial class DebugHud : CanvasLayer
         if (inputEvent is InputEventKey key && key.Pressed && !key.Echo && key.Keycode == Key.F3)
         {
             Visible = !Visible;
+            CountyFogOfWar fog = GetNodeOrNull<CountyFogOfWar>("../World/CountyFog");
+            if (fog is not null) fog.DebugMode = Visible ? FogDebugMode.StateColors : FogDebugMode.Disabled;
             GetViewport().SetInputAsHandled();
         }
     }

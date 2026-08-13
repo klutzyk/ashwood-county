@@ -1,6 +1,7 @@
 using AshwoodCounty.World;
 using Godot;
 using AshwoodCounty.World.Regions;
+using AshwoodCounty.World.County;
 using System.Collections.Generic;
 
 namespace AshwoodCounty.Buildings;
@@ -50,8 +51,8 @@ public partial class CompletedBuilding : Node2D, IGridOccupant
         UpdateRenderedPosition();
         if (!Engine.IsEditorHint())
         {
-            RegionManager manager=GetTree().Root.FindChild("RegionManager",true,false) as RegionManager;
-            if(manager is not null)RegionId=manager.CurrentRegionId;
+            CountyWorld county=GetTree().Root.FindChild("CountyWorld",true,false) as CountyWorld;
+            if(county is not null)RegionId=county.GetRegionAt(BuildingPosition).Id;
             AddToGroup(GridOccupancy.OccupantGroup);
             AddToGroup(GroupName);
         }

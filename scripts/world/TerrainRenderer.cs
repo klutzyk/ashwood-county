@@ -54,6 +54,12 @@ public partial class TerrainRenderer : Node2D
 
     public override void _Draw()
     {
+        if (Engine.IsEditorHint())
+        {
+            DrawLightweightEditorPreview();
+            return;
+        }
+
         Vector2[] terrain = IsometricGrid.ProjectRectangle(Vector2.Zero, new Vector2(_width, _height));
         DrawColoredPolygon(terrain, Grass);
         _regionGround ??= TextureRegistry.Get("res://assets/art/terrain/ashwood_outskirts_ground.png");
@@ -79,6 +85,21 @@ public partial class TerrainRenderer : Node2D
                 DrawPolyline([diamond[0], diamond[1], diamond[2], diamond[3], diamond[0]], GrassEdge, 1.0f, true);
             }
         }
+    }
+
+    private void DrawLightweightEditorPreview()
+    {
+        // Never load/draw the 4032x1920 composite from a Tool CanvasItem.
+        // Godot 4.7.1's 2D editor caches that custom texture draw at enormous
+        // memory cost. This uses the same projection and preserves a useful
+        // terrain/road/grid preview with a tiny fixed command count.
+        Vector2[] terrain=IsometricGrid.ProjectRectangle(Vector2.Zero,new Vector2(_width,_height));
+        DrawColoredPolygon(terrain,Grass);
+        DrawBroadVariations();
+        DrawAccessRoad();
+        Color grid=new(GrassEdge,.55f);
+        for(int x=0;x<=_width;x++)DrawLine(IsometricGrid.GridToScreen(new Vector2(x,0)),IsometricGrid.GridToScreen(new Vector2(x,_height)),grid,1,true);
+        for(int y=0;y<=_height;y++)DrawLine(IsometricGrid.GridToScreen(new Vector2(0,y)),IsometricGrid.GridToScreen(new Vector2(_width,y)),grid,1,true);
     }
 
     private void DrawAccessRoad()

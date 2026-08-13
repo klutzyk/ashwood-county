@@ -1,4 +1,4 @@
-[gd_scene load_steps=48 format=3]
+[gd_scene load_steps=50 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/IsometricWorld.cs" id="1_world"]
 [ext_resource type="Script" path="res://scripts/world/TerrainRenderer.cs" id="2_terrain"]
@@ -37,9 +37,12 @@
 [ext_resource type="Script" path="res://scripts/threats/ZombieThreatSystem.cs" id="36_threat"]
 [ext_resource type="Script" path="res://scripts/combat/NoiseSystem.cs" id="37_noise"]
 [ext_resource type="Script" path="res://scripts/ui/GameHud.cs" id="38_game_hud"]
-[ext_resource type="Script" path="res://scripts/world/regions/RegionManager.cs" id="39_region_manager"]
 [ext_resource type="PackedScene" path="res://scenes/world/ScavengeSource.tscn" id="40_scavenge"]
-[ext_resource type="Script" path="res://scripts/ui/TravelPanel.cs" id="41_travel"]
+[ext_resource type="Script" path="res://scripts/world/county/CountyRuntimeBootstrap.cs" id="43_county_bootstrap"]
+[ext_resource type="Script" path="res://scripts/world/county/CountyProgress.cs" id="44_county_progress"]
+[ext_resource type="Script" path="res://scripts/world/county/ContinuousWorldValidation.cs" id="45_county_validation"]
+[ext_resource type="Script" path="res://scripts/world/regions/Landmark.cs" id="46_landmark"]
+[ext_resource type="Script" path="res://scripts/world/county/CountyCoordinateBootstrap.cs" id="47_coordinate_bootstrap"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_debug"]
 bg_color = Color(0.055, 0.075, 0.06, 0.88)
@@ -102,13 +105,18 @@ script = ExtResource("31_sim")
 [node name="GameClock" type="Node" parent="."]
 script = ExtResource("32_clock")
 
-[node name="RegionManager" type="Node" parent="."]
-script = ExtResource("39_region_manager")
-ContentHostPath = NodePath("../World/RegionContent")
+[node name="CountyRuntimeBootstrap" type="Node" parent="."]
+script = ExtResource("43_county_bootstrap")
 
-[node name="TravelPanel" type="CanvasLayer" parent="."]
-layer = 45
-script = ExtResource("41_travel")
+[node name="CountyCoordinateBootstrap" type="Node" parent="."]
+script = ExtResource("47_coordinate_bootstrap")
+
+[node name="CountyProgress" type="Node" parent="."]
+script = ExtResource("44_county_progress")
+
+[node name="ContinuousWorldValidation" type="Node" parent="."]
+script = ExtResource("45_county_validation")
+
 [node name="NoiseSystem" type="Node" parent="."]
 script = ExtResource("37_noise")
 [node name="ZombieThreatSystem" type="Node" parent="."]
@@ -128,8 +136,40 @@ script = ExtResource("3_hover")
 [node name="Objects" type="Node2D" parent="World"]
 y_sort_enabled = true
 
-[node name="RegionContent" type="Node2D" parent="World"]
-z_index = -1
+[node name="OldWoodcuttingSite" type="Node2D" parent="World"]
+script = ExtResource("46_landmark")
+LandmarkId = "old_woodcutting_site"
+DisplayName = "Old Woodcutting Site"
+DiscoveryText = "Weathered tools mark a forgotten timber route."
+GridPosition = Vector2(28, 33)
+
+[node name="DamagedBarn" type="Node2D" parent="World"]
+script = ExtResource("46_landmark")
+LandmarkId = "damaged_barn"
+DisplayName = "Damaged Barn"
+DiscoveryText = "The abandoned holding may contain useful farm salvage."
+GridPosition = Vector2(-15, 67)
+
+[node name="FarmSupplyShed" type="Node2D" parent="World"]
+script = ExtResource("46_landmark")
+LandmarkId = "farm_supply_shed"
+DisplayName = "Farm Supply Shed"
+DiscoveryText = "Faded signs point toward South Farmland."
+GridPosition = Vector2(-5, 53)
+
+[node name="OldMillTrace" type="Node2D" parent="World"]
+script = ExtResource("46_landmark")
+LandmarkId = "old_mill_trace"
+DisplayName = "Old Mill Trace"
+DiscoveryText = "Broken foundations mark Mill Creek's logging past."
+GridPosition = Vector2(-31, 113)
+
+[node name="WashedCrossing" type="Node2D" parent="World"]
+script = ExtResource("46_landmark")
+LandmarkId = "washed_crossing"
+DisplayName = "Washed-out Crossing"
+DiscoveryText = "The creek route remains passable on foot."
+GridPosition = Vector2(-25, 95)
 
 [node name="RegionDressing" type="Node2D" parent="World/Objects"]
 show_behind_parent = true
@@ -268,7 +308,7 @@ GridPosition = Vector2(12.2, 3.8)
 StartingAmount = 18
 
 [node name="TreeD" parent="World/Objects" instance=ExtResource("9_tree")]
-GridPosition = Vector2(18.0, 4.6)
+GridPosition = Vector2(18, 4.6)
 StartingAmount = 30
 
 [node name="TreeE" parent="World/Objects" instance=ExtResource("9_tree")]
@@ -280,47 +320,47 @@ GridPosition = Vector2(33.5, 5.8)
 StartingAmount = 26
 
 [node name="TreeG" parent="World/Objects" instance=ExtResource("9_tree")]
-GridPosition = Vector2(38.5, 9.0)
+GridPosition = Vector2(38.5, 9)
 StartingAmount = 24
 
 [node name="TreeH" parent="World/Objects" instance=ExtResource("9_tree")]
-GridPosition = Vector2(39.2, 25.0)
+GridPosition = Vector2(39.2, 25)
 StartingAmount = 20
 
 [node name="TreeI" parent="World/Objects" instance=ExtResource("9_tree")]
-GridPosition = Vector2(37.0, 31.0)
+GridPosition = Vector2(37, 31)
 StartingAmount = 18
 
 [node name="TreeJ" parent="World/Objects" instance=ExtResource("9_tree")]
-GridPosition = Vector2(32.5, 34.0)
+GridPosition = Vector2(32.5, 34)
 StartingAmount = 28
 
 [node name="TreeK" parent="World/Objects" instance=ExtResource("9_tree")]
-GridPosition = Vector2(23.5, 35.0)
+GridPosition = Vector2(23.5, 35)
 StartingAmount = 26
 
 [node name="TreeL" parent="World/Objects" instance=ExtResource("9_tree")]
-GridPosition = Vector2(14.0, 34.2)
+GridPosition = Vector2(14, 34.2)
 StartingAmount = 24
 
 [node name="TreeM" parent="World/Objects" instance=ExtResource("9_tree")]
-GridPosition = Vector2(7.0, 33.0)
+GridPosition = Vector2(7, 33)
 StartingAmount = 22
 
 [node name="TreeN" parent="World/Objects" instance=ExtResource("9_tree")]
-GridPosition = Vector2(3.0, 28.5)
+GridPosition = Vector2(3, 28.5)
 StartingAmount = 20
 
 [node name="TreeO" parent="World/Objects" instance=ExtResource("9_tree")]
-GridPosition = Vector2(3.2, 16.0)
+GridPosition = Vector2(3.2, 16)
 StartingAmount = 24
 
 [node name="TreeP" parent="World/Objects" instance=ExtResource("9_tree")]
-GridPosition = Vector2(9.5, 12.0)
+GridPosition = Vector2(9.5, 12)
 StartingAmount = 24
 
 [node name="TreeQ" parent="World/Objects" instance=ExtResource("9_tree")]
-GridPosition = Vector2(13.2, 10.0)
+GridPosition = Vector2(13.2, 10)
 StartingAmount = 20
 
 [node name="TreeR" parent="World/Objects" instance=ExtResource("9_tree")]
@@ -328,7 +368,7 @@ GridPosition = Vector2(30.5, 10.2)
 StartingAmount = 26
 
 [node name="TreeS" parent="World/Objects" instance=ExtResource("9_tree")]
-GridPosition = Vector2(35.0, 12.0)
+GridPosition = Vector2(35, 12)
 StartingAmount = 22
 
 [node name="TreeT" parent="World/Objects" instance=ExtResource("9_tree")]

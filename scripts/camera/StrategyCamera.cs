@@ -1,4 +1,5 @@
 using Godot;
+using AshwoodCounty.World;
 
 namespace AshwoodCounty.Camera;
 
@@ -7,7 +8,7 @@ public partial class StrategyCamera : Camera2D
     [Export] public float MoveSpeed { get; set; } = 700.0f;
     [Export] public float MoveSmoothing { get; set; } = 12.0f;
     [Export] public float ZoomSmoothing { get; set; } = 14.0f;
-    [Export] public float MinZoom { get; set; } = 0.38f;
+    [Export] public float MinZoom { get; set; } = 0.16f;
     [Export] public float MaxZoom { get; set; } = 1.75f;
     [Export] public float ZoomStep { get; set; } = 0.15f;
     [Export] public float BoundsPadding { get; set; } = 220.0f;
@@ -27,8 +28,14 @@ public partial class StrategyCamera : Camera2D
     public void ConfigureBounds(Rect2 bounds)
     {
         _mapBounds = bounds;
-        _targetPosition = bounds.GetCenter();
+        _targetPosition = IsometricGrid.GridToScreen(new Vector2(203, 157));
         Position = _targetPosition;
+    }
+
+    public void CenterOnGridPosition(Vector2 gridPosition)
+    {
+        _targetPosition = IsometricGrid.GridToScreen(gridPosition);
+        ClampTargetPosition();
     }
 
     public override void _UnhandledInput(InputEvent inputEvent)

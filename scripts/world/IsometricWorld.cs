@@ -3,10 +3,15 @@ using Godot;
 
 namespace AshwoodCounty.World;
 
+[Tool]
 public partial class IsometricWorld : Node2D
 {
-    public const int MapWidth = 42;
-    public const int MapHeight = 38;
+    // Finite county-space bounds. The original 42x38 Outskirts terrain remains
+    // the high-detail starting area inside this larger continuous coordinate space.
+    public const int MapWidth = 384;
+    public const int MapHeight = 320;
+    public const int StartingAreaWidth = 42;
+    public const int StartingAreaHeight = 38;
 
     private TerrainRenderer _terrain = null!;
     private HoverHighlight _hover = null!;
@@ -27,7 +32,12 @@ public partial class IsometricWorld : Node2D
         _hover = GetNode<HoverHighlight>("HoverHighlight");
         _camera = GetNode<StrategyCamera>("StrategyCamera");
 
-        _terrain.Configure(MapWidth, MapHeight);
+        _terrain.Configure(StartingAreaWidth, StartingAreaHeight);
+        if (Engine.IsEditorHint())
+        {
+            SetProcess(false);
+            return;
+        }
         _camera.ConfigureBounds(CalculateMapBounds());
     }
 
