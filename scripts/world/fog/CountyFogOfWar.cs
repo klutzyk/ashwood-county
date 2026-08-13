@@ -31,8 +31,9 @@ public sealed partial class CountyFogOfWar : Node2D
     [Export] public string SurvivorGroup { get; set; } = Survivor.GroupName;
 
     [ExportGroup("Appearance")]
-    [Export] public Color UnexploredColor { get; set; } = new("10130ff2");
-    [Export] public Color ExploredColor { get; set; } = new("11150fa0");
+    [Export] public Color UnexploredColor { get; set; } = new("11160fba");
+    [Export] public Color ExploredColor { get; set; } = new("26302745");
+    [Export(PropertyHint.Range, "1,3,1")] public int EdgeFeatherCells { get; set; } = 2;
     [Export] public FogDebugMode DebugMode { get; set; }
     [Export] public Color DebugUnexploredColor { get; set; } = new("8f2438b8");
     [Export] public Color DebugExploredColor { get; set; } = new("c08a32a0");
@@ -246,6 +247,58 @@ public sealed partial class CountyFogOfWar : Node2D
         };
     }
 
+    /// <summary>
+    /// Returns the blended fog color at a grid vertex. Drawing these shared
+    /// samples as per-vertex colors makes visibility boundaries soft without
+    /// adding translucent overlay nodes, shaders, or a county-sized texture.
+    /// </summary>
+    internal Color GetFeatheredDrawColor(Vector2I vertex)
+    {
+        int feather = Math.Clamp(EdgeFeatherCells, 1, 3);
+        float totalWeight = 0f;
+        float accumulatedAlpha = 0f;
+        float premultipliedRed = 0f;
+        float premultipliedGreen = 0f;
+        float premultipliedBlue = 0f;
+
+        // Sample cell centers around this shared vertex. A compact radial bell
+        // gives a two-cell transition by default while keeping redraw work local.
+        for (int y = vertex.Y - feather; y < vertex.Y + feather; y++)
+        {
+            for (int x = vertex.X - feather; x < vertex.X + feather; x++)
+            {
+                Vector2I cell = new(x, y);
+                Color sample = GetDrawColor(
+                    ContainsCell(cell) ? GetCellVisibility(cell) : FogCellVisibility.Unexplored,
+                    FogDebugMode.Disabled);
+                float dx = x + 0.5f - vertex.X;
+                float dy = y + 0.5f - vertex.Y;
+                float distanceSquared = dx * dx + dy * dy;
+                float weight = 1f / (0.45f + distanceSquared);
+                float weightedAlpha = sample.A * weight;
+
+                totalWeight += weight;
+                accumulatedAlpha += weightedAlpha;
+                premultipliedRed += sample.R * weightedAlpha;
+                premultipliedGreen += sample.G * weightedAlpha;
+                premultipliedBlue += sample.B * weightedAlpha;
+            }
+        }
+
+        if (totalWeight <= 0.001f)
+            return Colors.Transparent;
+
+        float alpha = accumulatedAlpha / totalWeight;
+        if (alpha <= 0.001f || accumulatedAlpha <= 0.001f)
+            return Colors.Transparent;
+
+        return new Color(
+            premultipliedRed / accumulatedAlpha,
+            premultipliedGreen / accumulatedAlpha,
+            premultipliedBlue / accumulatedAlpha,
+            alpha);
+    }
+
     private void BuildChunks()
     {
         foreach (CountyFogChunk chunk in _chunks.Values)
@@ -297,12 +350,19 @@ public sealed partial class CountyFogOfWar : Node2D
     {
         HashSet<Vector2I> dirtyChunks = new();
         int safeChunkSize = Math.Max(4, ChunkSize);
+        int feather = Math.Clamp(EdgeFeatherCells, 1, 3);
         foreach (Vector2I cell in changedCells)
         {
             if (!ContainsCell(cell)) continue;
-            dirtyChunks.Add(new Vector2I(
-                FloorDiv(cell.X - CountyOrigin.X, safeChunkSize),
-                FloorDiv(cell.Y - CountyOrigin.Y, safeChunkSize)));
+            int minChunkX = FloorDiv(cell.X - feather - CountyOrigin.X, safeChunkSize);
+            int maxChunkX = FloorDiv(cell.X + feather - CountyOrigin.X, safeChunkSize);
+            int minChunkY = FloorDiv(cell.Y - feather - CountyOrigin.Y, safeChunkSize);
+            int maxChunkY = FloorDiv(cell.Y + feather - CountyOrigin.Y, safeChunkSize);
+            for (int chunkY = minChunkY; chunkY <= maxChunkY; chunkY++)
+            {
+                for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++)
+                    dirtyChunks.Add(new Vector2I(chunkX, chunkY));
+            }
         }
 
         foreach (Vector2I coordinate in dirtyChunks)

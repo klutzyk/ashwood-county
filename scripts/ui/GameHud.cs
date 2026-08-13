@@ -87,23 +87,26 @@ public partial class GameHud : CanvasLayer
     private Control BuildTopBar()
     {
         CenterContainer center = Layout<CenterContainer>();
-        PanelContainer panel = Panel("HudTopPanel", new Vector2(840, 0));
+        PanelContainer panel = Panel("HudTopPanel", new Vector2(760, 0));
         center.AddChild(panel);
 
         HBoxContainer bar = Layout<HBoxContainer>();
         panel.AddChild(bar);
 
+        HBoxContainer identity = Layout<HBoxContainer>();
+        identity.CustomMinimumSize = new Vector2(140, 0);
+        identity.AddChild(Icon("county", 28));
         VBoxContainer brand = Layout<VBoxContainer>();
-        brand.CustomMinimumSize = new Vector2(150, 0);
-        brand.AddChild(Text("ASHWOOD COUNTY", "HudTitle"));
-        brand.AddChild(Text("COUNTY SETTLEMENT", "HudTiny"));
-        bar.AddChild(brand);
+        brand.AddChild(Text("ASHWOOD", "HudTitle"));
+        brand.AddChild(Text("COUNTY", "HudTiny"));
+        identity.AddChild(brand);
+        bar.AddChild(identity);
         bar.AddChild(Separator(true));
 
-        AddResourceReadout(bar, ResourceType.Wood, "WOOD");
-        AddResourceReadout(bar, ResourceType.Food, "FOOD");
-        AddResourceReadout(bar, ResourceType.Materials, "MATERIALS");
-        AddResourceReadout(bar, ResourceType.Medicine, "MEDICINE");
+        AddResourceReadout(bar, ResourceType.Wood, "WOOD", "wood");
+        AddResourceReadout(bar, ResourceType.Food, "FOOD", "food");
+        AddResourceReadout(bar, ResourceType.Materials, "MATERIALS", "materials");
+        AddResourceReadout(bar, ResourceType.Medicine, "MEDICINE", "medicine");
 
         Control stretch = new() { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, MouseFilter = Control.MouseFilterEnum.Ignore };
         bar.AddChild(stretch);
@@ -118,10 +121,10 @@ public partial class GameHud : CanvasLayer
         clock.AddChild(_simulationState);
         bar.AddChild(clock);
 
-        AddSpeedButton(bar, "||", 0, "Pause or resume [Space]");
-        AddSpeedButton(bar, ">", 1, "Normal speed [1]");
-        AddSpeedButton(bar, ">>", 2, "Fast speed [2]");
-        AddSpeedButton(bar, ">>>", 3, "Very fast speed [3]");
+        AddSpeedButton(bar, string.Empty, 0, "Pause or resume [Space]", "pause");
+        AddSpeedButton(bar, "1×", 1, "Normal speed [1]");
+        AddSpeedButton(bar, "2×", 2, "Fast speed [2]");
+        AddSpeedButton(bar, "3×", 3, "Very fast speed [3]");
         return center;
     }
 
@@ -131,13 +134,18 @@ public partial class GameHud : CanvasLayer
         row.Alignment = BoxContainer.AlignmentMode.End;
 
         VBoxContainer notificationColumn = Layout<VBoxContainer>();
-        notificationColumn.CustomMinimumSize = new Vector2(225, 0);
+        notificationColumn.CustomMinimumSize = new Vector2(326, 0);
         notificationColumn.SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin;
         _toastPanel = Panel("HudToastPanel");
+        _toastPanel.CustomMinimumSize = new Vector2(205, 0);
+        _toastPanel.SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin;
         _toastPanel.Visible = false;
+        HBoxContainer toastRow = Layout<HBoxContainer>();
+        toastRow.AddChild(Icon("county", 20));
         _toast = Text(string.Empty, "HudMuted");
         _toast.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-        _toastPanel.AddChild(_toast);
+        toastRow.AddChild(_toast);
+        _toastPanel.AddChild(toastRow);
         notificationColumn.AddChild(_toastPanel);
         row.AddChild(notificationColumn);
 
@@ -146,14 +154,17 @@ public partial class GameHud : CanvasLayer
         row.AddChild(BuildActionArea());
         Control rightStretch = new() { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, MouseFilter = Control.MouseFilterEnum.Ignore };
         row.AddChild(rightStretch);
-        row.AddChild(BuildSurvivorPanel());
+        VBoxContainer survivorColumn = Layout<VBoxContainer>();
+        survivorColumn.CustomMinimumSize = new Vector2(326, 0);
+        survivorColumn.AddChild(BuildSurvivorPanel());
+        row.AddChild(survivorColumn);
         return row;
     }
 
     private Control BuildActionArea()
     {
         VBoxContainer column = Layout<VBoxContainer>();
-        column.CustomMinimumSize = new Vector2(480, 0);
+        column.CustomMinimumSize = new Vector2(435, 0);
 
         _paletteHint = Text("Designate work in the world.", "HudMuted");
         _paletteHint.HorizontalAlignment = HorizontalAlignment.Center;
@@ -169,10 +180,10 @@ public partial class GameHud : CanvasLayer
         HBoxContainer toolbar = Layout<HBoxContainer>();
         toolbar.Alignment = BoxContainer.AlignmentMode.Center;
         toolbarPanel.AddChild(toolbar);
-        AddCategory(toolbar, HudCategory.Build, "BUILD", "Construction and settlement structures");
-        AddCategory(toolbar, HudCategory.Work, "WORK", "Harvesting and scavenging designations");
-        AddCategory(toolbar, HudCategory.People, "PEOPLE", "Selected survivor information");
-        AddCategory(toolbar, HudCategory.County, "COUNTY", "County map, discoveries and regional control");
+        AddCategory(toolbar, HudCategory.Build, "BUILD", "build", "Construction and settlement structures");
+        AddCategory(toolbar, HudCategory.Work, "WORK", "work", "Harvesting and scavenging designations");
+        AddCategory(toolbar, HudCategory.People, "PEOPLE", "people", "Selected survivor information");
+        AddCategory(toolbar, HudCategory.County, "COUNTY", "county", "County map, discoveries and regional control");
         column.AddChild(toolbarPanel);
         return column;
     }
@@ -183,9 +194,9 @@ public partial class GameHud : CanvasLayer
         HBoxContainer row = Layout<HBoxContainer>();
         row.Alignment = BoxContainer.AlignmentMode.Center;
         panel.AddChild(row);
-        AddAction(row, "SHELTER\n30 WOOD", () => _placement.BeginPlacement(BuildingCatalog.Shelter), "Provides survivor resting capacity.");
-        AddAction(row, "STORAGE\n20 WOOD", () => _placement.BeginPlacement(BuildingCatalog.ProvisionsShed), "Stores settlement provisions.");
-        AddAction(row, "OUTPOST\n12 MATERIALS", () => _placement.BeginPlacement(BuildingCatalog.Outpost), "Extends settlement control.");
+        AddAction(row, "SHELTER  30", "shelter", () => _placement.BeginPlacement(BuildingCatalog.Shelter), "Provides survivor resting capacity. Costs 30 Wood.");
+        AddAction(row, "STORAGE  20", "storage", () => _placement.BeginPlacement(BuildingCatalog.ProvisionsShed), "Stores settlement provisions. Costs 20 Wood.");
+        AddAction(row, "OUTPOST  12", "outpost", () => _placement.BeginPlacement(BuildingCatalog.Outpost), "Extends settlement control. Costs 12 Materials.");
         return panel;
     }
 
@@ -195,9 +206,11 @@ public partial class GameHud : CanvasLayer
         HBoxContainer row = Layout<HBoxContainer>();
         row.Alignment = BoxContainer.AlignmentMode.Center;
         panel.AddChild(row);
-        AddAction(row, "CHOP", _designation.ToggleDesignation, "Designate trees for timber harvesting.");
-        AddAction(row, "FORAGE", _designation.ToggleForageDesignation, "Designate food-bearing plants.");
-        AddAction(row, "SCAVENGE", _designation.ToggleScavengeDesignation, "Search abandoned locations for salvage.");
+        AddAction(row, "CHOP", "chop", _designation.ToggleDesignation, "Designate trees for timber harvesting.");
+        AddAction(row, "FORAGE", "forage", _designation.ToggleForageDesignation, "Designate food-bearing plants.");
+        AddAction(row, "SCAVENGE", "scavenge", _designation.ToggleScavengeDesignation, "Search abandoned locations for salvage.");
+        AddAction(row, "HAUL", "haul", () => Notify("Hauling is assigned automatically by work priority."), "Hauling uses survivor work priorities.");
+        AddAction(row, "CANCEL", "cancel", _designation.EndDesignation, "Cancel the active work designation.");
         return panel;
     }
 
@@ -216,22 +229,29 @@ public partial class GameHud : CanvasLayer
         HBoxContainer row = Layout<HBoxContainer>();
         row.Alignment = BoxContainer.AlignmentMode.Center;
         panel.AddChild(row);
-        AddAction(row, "OPEN COUNTY MAP  [M]", OpenCountyMap, "Open the strategic county overview.");
+        AddAction(row, "COUNTY MAP  [M]", "county", OpenCountyMap, "Open the strategic county overview.");
         return panel;
     }
 
     private Control BuildSurvivorPanel()
     {
-        _survivorPanel = Panel("HudSurvivorPanel", new Vector2(395, 0));
+        _survivorPanel = Panel("HudSurvivorPanel", new Vector2(326, 0));
         _survivorPanel.Visible = false;
         VBoxContainer rows = Layout<VBoxContainer>();
         _survivorPanel.AddChild(rows);
 
+        HBoxContainer identity = Layout<HBoxContainer>();
+        TextureRect portrait = Icon("survivor_portrait", 62);
+        portrait.CustomMinimumSize = new Vector2(62, 62);
+        identity.AddChild(portrait);
+        VBoxContainer identityText = Layout<VBoxContainer>();
         _survivorName = Text("SURVIVOR", "HudSurvivorName");
         _survivorMeta = Text(string.Empty, "HudMuted");
         _survivorMeta.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-        rows.AddChild(_survivorName);
-        rows.AddChild(_survivorMeta);
+        identityText.AddChild(_survivorName);
+        identityText.AddChild(_survivorMeta);
+        identity.AddChild(identityText);
+        rows.AddChild(identity);
         rows.AddChild(Separator(false));
 
         _vitals = Layout<HBoxContainer>();
@@ -268,7 +288,7 @@ public partial class GameHud : CanvasLayer
         VBoxContainer content = Layout<VBoxContainer>();
         _overviewText = Text(string.Empty, "HudMuted");
         _overviewText.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-        _overviewText.CustomMinimumSize = new Vector2(0, 92);
+        _overviewText.CustomMinimumSize = new Vector2(0, 60);
         content.AddChild(_overviewText);
         return content;
     }
@@ -280,7 +300,7 @@ public partial class GameHud : CanvasLayer
         {
             HBoxContainer row = Layout<HBoxContainer>();
             Label name = Text(skill.ToString(), "HudMuted");
-            name.CustomMinimumSize = new Vector2(92, 0);
+            name.CustomMinimumSize = new Vector2(74, 0);
             row.AddChild(name);
             ProgressBar bar = CreateBar(new Color("a8935eff"), 10);
             bar.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
@@ -303,7 +323,7 @@ public partial class GameHud : CanvasLayer
         {
             HBoxContainer row = Layout<HBoxContainer>();
             Label name = Text(category.ToString(), "HudTiny");
-            name.CustomMinimumSize = new Vector2(88, 0);
+            name.CustomMinimumSize = new Vector2(68, 0);
             row.AddChild(name);
             Dictionary<WorkPriority, Button> choices = [];
             foreach ((WorkPriority priority, string label) in new[]
@@ -315,7 +335,7 @@ public partial class GameHud : CanvasLayer
             {
                 Button button = HudButton(label, "HudPriorityButton");
                 button.ToggleMode = true;
-                button.CustomMinimumSize = new Vector2(84, 26);
+                button.CustomMinimumSize = new Vector2(70, 23);
                 WorkCategory capturedCategory = category;
                 WorkPriority capturedPriority = priority;
                 button.Pressed += () => SetPriority(capturedCategory, capturedPriority);
@@ -328,16 +348,17 @@ public partial class GameHud : CanvasLayer
         return content;
     }
 
-    private void AddResourceReadout(Container parent, ResourceType resource, string name)
+    private void AddResourceReadout(Container parent, ResourceType resource, string name, string iconName)
     {
-        VBoxContainer readout = Layout<VBoxContainer>();
-        readout.CustomMinimumSize = new Vector2(resource == ResourceType.Materials ? 76 : 58, 0);
+        HBoxContainer readout = Layout<HBoxContainer>();
+        readout.CustomMinimumSize = new Vector2(resource == ResourceType.Materials ? 82 : 67, 0);
+        readout.AddChild(Icon(iconName, 20));
+        VBoxContainer copy = Layout<VBoxContainer>();
         Label value = Text("0", "HudResourceValue");
-        value.HorizontalAlignment = HorizontalAlignment.Center;
         Label caption = Text(name, "HudResourceName");
-        caption.HorizontalAlignment = HorizontalAlignment.Center;
-        readout.AddChild(value);
-        readout.AddChild(caption);
+        copy.AddChild(value);
+        copy.AddChild(caption);
+        readout.AddChild(copy);
         parent.AddChild(readout);
         _resourceValues[resource] = value;
     }
@@ -345,11 +366,12 @@ public partial class GameHud : CanvasLayer
     private void AddVital(Container parent, string name, Color color)
     {
         HBoxContainer row = Layout<HBoxContainer>();
+        row.AddChild(Icon(name.ToLowerInvariant(), 15));
         Label title = Text(name, "HudMuted");
-        title.CustomMinimumSize = new Vector2(62, 0);
+        title.CustomMinimumSize = new Vector2(49, 0);
         row.AddChild(title);
         ProgressBar bar = CreateBar(color, 100);
-        bar.CustomMinimumSize = new Vector2(220, 12);
+        bar.CustomMinimumSize = new Vector2(150, 9);
         bar.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         row.AddChild(bar);
         Label value = Text("100%", "HudTiny");
@@ -382,11 +404,11 @@ public partial class GameHud : CanvasLayer
         return bar;
     }
 
-    private void AddCategory(Container parent, HudCategory category, string text, string tooltip)
+    private void AddCategory(Container parent, HudCategory category, string text, string icon, string tooltip)
     {
-        Button button = HudButton(text, "HudCategoryButton", tooltip);
+        Button button = HudButton(text, "HudCategoryButton", tooltip, icon);
         button.ToggleMode = true;
-        button.CustomMinimumSize = new Vector2(105, 42);
+        button.CustomMinimumSize = new Vector2(92, 40);
         button.Pressed += () => SelectCategory(category);
         parent.AddChild(button);
         _categoryButtons[category] = button;
@@ -396,24 +418,24 @@ public partial class GameHud : CanvasLayer
     {
         Button button = HudButton(tab.ToString().ToUpperInvariant(), "HudTabButton");
         button.ToggleMode = true;
-        button.CustomMinimumSize = new Vector2(104, 29);
+        button.CustomMinimumSize = new Vector2(88, 27);
         button.Pressed += () => SelectSurvivorTab(tab);
         parent.AddChild(button);
         _tabButtons[tab] = button;
     }
 
-    private static void AddAction(Container parent, string text, Action action, string tooltip)
+    private static void AddAction(Container parent, string text, string icon, Action action, string tooltip)
     {
-        Button button = HudButton(text, "HudActionButton", tooltip);
-        button.CustomMinimumSize = new Vector2(118, 42);
+        Button button = HudButton(text, "HudActionButton", tooltip, icon);
+        button.CustomMinimumSize = new Vector2(82, 38);
         button.Pressed += action;
         parent.AddChild(button);
     }
 
-    private void AddSpeedButton(Container parent, string text, int speed, string tooltip)
+    private void AddSpeedButton(Container parent, string text, int speed, string tooltip, string icon = "")
     {
-        Button button = HudButton(text, "HudSpeedButton", tooltip);
-        button.CustomMinimumSize = new Vector2(speed >= 2 ? 43 : 34, 32);
+        Button button = HudButton(text, "HudSpeedButton", tooltip, icon);
+        button.CustomMinimumSize = new Vector2(29, 27);
         button.Pressed += () =>
         {
             if (speed == 0) _simulation.TogglePause();
@@ -543,8 +565,8 @@ public partial class GameHud : CanvasLayer
         Survivor survivor = _selection.SelectedSurvivors[0];
         SurvivorProfile profile = survivor.Profile;
         _survivorName.Text = profile.DisplayName.ToUpperInvariant();
-        _survivorMeta.Text = $"{profile.Occupation}\n{profile.HomeRegion} - {profile.ImportantLocation}";
-        _overviewText.Text = $"ACTIVITY\n{survivor.Activity}\n\nTRAIT\n{profile.Trait}";
+        _survivorMeta.Text = $"{profile.Occupation}\n{survivor.Activity}";
+        _overviewText.Text = $"FROM  {profile.HomeRegion}\n{profile.ImportantLocation}\n\nTRAIT  {profile.Trait}";
 
         SetVital("Health", survivor.Health / Mathf.Max(1, survivor.MaxHealth) * 100f);
         SetVital("Hunger", survivor.Hunger);
@@ -598,14 +620,30 @@ public partial class GameHud : CanvasLayer
             : new HSeparator { MouseFilter = Control.MouseFilterEnum.Ignore };
     }
 
-    private static Button HudButton(string text, string variation, string tooltip = "")
+    private static TextureRect Icon(string name, int size)
     {
-        return new Button
+        return new TextureRect
+        {
+            Texture = GD.Load<Texture2D>($"res://assets/ui/icons/{name}.svg"),
+            CustomMinimumSize = new Vector2(size, size),
+            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+            StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+            MouseFilter = Control.MouseFilterEnum.Ignore
+        };
+    }
+
+    private static Button HudButton(string text, string variation, string tooltip = "", string icon = "")
+    {
+        Button button = new()
         {
             Text = text,
             ThemeTypeVariation = variation,
             TooltipText = tooltip,
-            MouseFilter = Control.MouseFilterEnum.Stop
+            MouseFilter = Control.MouseFilterEnum.Stop,
+            ExpandIcon = true
         };
+        button.AddThemeConstantOverride("icon_max_width", 18);
+        if (!string.IsNullOrEmpty(icon)) button.Icon = GD.Load<Texture2D>($"res://assets/ui/icons/{icon}.svg");
+        return button;
     }
 }

@@ -615,12 +615,13 @@ script = ExtResource("33_map")
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-color = Color(0.02,0.03,0.02,0.94)
+color = Color(0.015,0.02,0.016,0.88)
 [node name="MapFrame" type="Panel" parent="CountyMap/Panel"]
 offset_left = 120.0
 offset_top = 50.0
 offset_right = 1160.0
 offset_bottom = 670.0
+self_modulate = Color(1, 1, 1, 1)
 [node name="Map" type="TextureRect" parent="CountyMap/Panel/MapFrame"]
 offset_left = 20.0
 offset_top = 20.0

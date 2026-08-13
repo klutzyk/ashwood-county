@@ -28,16 +28,22 @@ public partial class IsometricWorld : Node2D
 
     public override void _Ready()
     {
+        // During a C# editor reload Godot can briefly instantiate scene nodes
+        // before their managed scripts are rebound. Keep the tool preview
+        // tolerant of that transient state; runtime still requires exact types.
+        if (Engine.IsEditorHint())
+        {
+            if (GetNodeOrNull("Terrain") is TerrainRenderer editorTerrain)
+                editorTerrain.Configure(StartingAreaWidth, StartingAreaHeight);
+            SetProcess(false);
+            return;
+        }
+
         _terrain = GetNode<TerrainRenderer>("Terrain");
         _hover = GetNode<HoverHighlight>("HoverHighlight");
         _camera = GetNode<StrategyCamera>("StrategyCamera");
 
         _terrain.Configure(StartingAreaWidth, StartingAreaHeight);
-        if (Engine.IsEditorHint())
-        {
-            SetProcess(false);
-            return;
-        }
         _camera.ConfigureBounds(CalculateMapBounds());
     }
 

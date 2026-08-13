@@ -38,6 +38,11 @@ public partial class StrategyCamera : Camera2D
         ClampTargetPosition();
     }
 
+    public void SetZoom(float zoom)
+    {
+        _targetZoom = Mathf.Clamp(zoom, MinZoom, MaxZoom);
+    }
+
     public override void _UnhandledInput(InputEvent inputEvent)
     {
         if (inputEvent is InputEventMouseButton mouseButton)

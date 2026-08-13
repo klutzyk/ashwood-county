@@ -2,6 +2,7 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using AshwoodCounty.World.County.Visual;
 using Godot;
 
 namespace AshwoodCounty.World.County;
@@ -25,7 +26,7 @@ public partial class CountyWorld : Node2D
 
     [Export] public string FocusGroupName { get; set; } = "survivors";
     [Export] public bool DrawMacroLandscape { get; set; } = true;
-    [Export] public bool DrawLocationLabels { get; set; } = true;
+    [Export] public bool DrawLocationLabels { get; set; }
     [Export] public bool DrawChunkDebug { get; set; }
     [Export] public bool DrawRegionDebug { get; set; }
     [Export] public bool DrawFullCountyInEditor { get; set; }
@@ -46,12 +47,26 @@ public partial class CountyWorld : Node2D
     private readonly Dictionary<ulong, string> _actorRegions = [];
     private readonly List<Vector2> _explicitFocusPoints = [];
     private double _streamingElapsed;
+    private CountyVisualLayer? _visualLayer;
 
     public override void _Ready()
     {
         Visible = true;
         YSortEnabled = false;
         ZIndex = -100;
+        // Opt-out is useful for renderer profiling and automated isolation; it
+        // does not alter normal gameplay or editor behavior.
+        bool visualsDisabled = System.Environment.GetEnvironmentVariable("ASHWOOD_DISABLE_COUNTY_VISUALS") == "1";
+        if (DrawMacroLandscape && !visualsDisabled)
+        {
+            _visualLayer = new CountyVisualLayer
+            {
+                Name = "CountyVisuals",
+                DrawLocationLabels = DrawLocationLabels
+            };
+            AddChild(_visualLayer);
+            MoveChild(_visualLayer, 0);
+        }
         _explicitFocusPoints.Add(StartingCampGridPosition);
         RefreshStreaming();
     }
@@ -113,21 +128,10 @@ public partial class CountyWorld : Node2D
 
     public override void _Draw()
     {
-        // The projected county spans tens of thousands of canvas pixels. Godot's
-        // 2D editor caches that Tool draw extent and can allocate several GB.
-        // Runtime rendering is viewport-cropped, so keep the full macro draw
-        // runtime-only unless a developer explicitly opts into the heavy preview.
-        if (!DrawMacroLandscape || (Engine.IsEditorHint() && !DrawFullCountyInEditor))
-            return;
-
-        DrawBaseTerrain();
-        DrawLandUses();
-        DrawAgriculturalRows();
-        DrawWater();
-        DrawRoads();
-        DrawUrbanBlockout();
-        DrawLandmarks();
-
+        // Production landscape art is split into small CanvasItems by
+        // CountyVisualLayer. Keeping this root draw list debug-only lets Godot
+        // cull distant county art instead of treating the entire 384x320 map as
+        // one enormous visible CanvasItem.
         if (DrawRegionDebug)
             DrawRegionBoundaries();
         if (DrawChunkDebug)
@@ -210,78 +214,6 @@ public partial class CountyWorld : Node2D
         }
     }
 
-    private void DrawBaseTerrain()
-    {
-        DrawColoredPolygon(
-            IsometricGrid.ProjectRectangle(Vector2.Zero, CountyCoordinateSpace.GridBounds.Size),
-            new Color("#4c6340"));
-    }
-
-    private void DrawLandUses()
-    {
-        foreach (CountyLandUseDefinition use in CountyMacroLayout.LandUses)
-            DrawColoredPolygon(ProjectEllipse(use.Center, use.Radius, 48), use.Color);
-    }
-
-    private void DrawAgriculturalRows()
-    {
-        Color farmRow = new("#9a8a51");
-        for (int y = 179; y <= 228; y += 6)
-            DrawLine(IsometricGrid.GridToScreen(new Vector2(144, y)), IsometricGrid.GridToScreen(new Vector2(193, y)), farmRow, 4f, true);
-        for (int y = 232; y <= 282; y += 7)
-            DrawLine(IsometricGrid.GridToScreen(new Vector2(98, y)), IsometricGrid.GridToScreen(new Vector2(211, y)), farmRow.Darkened(.12f), 4f, true);
-    }
-
-    private void DrawWater()
-    {
-        DrawColoredPolygon(CountyMacroLayout.BlackwaterLake.Select(IsometricGrid.GridToScreen).ToArray(), new Color("#315e67"));
-        DrawPolyline(CountyMacroLayout.BlackwaterLake.Append(CountyMacroLayout.BlackwaterLake[0]).Select(IsometricGrid.GridToScreen).ToArray(), new Color("#65878a"), 3f, true);
-        DrawRoadRibbon(CountyMacroLayout.BlackwaterRiver, 3.2f, new Color("#2e5963"));
-        DrawRoadRibbon(CountyMacroLayout.BlackwaterRiver, 2.35f, new Color("#3a6b75"));
-    }
-
-    private void DrawRoads()
-    {
-        foreach (CountyRoadDefinition road in CountyMacroLayout.Roads)
-        {
-            Color shoulder = road.Major ? new Color("#625b4b") : new Color("#5e5948");
-            Color surface = road.Major ? new Color("#8a816a") : new Color("#85744f");
-            DrawRoadRibbon(road.Points, road.HalfWidth + .65f, shoulder);
-            DrawRoadRibbon(road.Points, road.HalfWidth, surface);
-            if (road.Major)
-                DrawPolyline(road.Points.Select(IsometricGrid.GridToScreen).ToArray(), new Color("#b2a16a"), 1.4f, true);
-        }
-    }
-
-    private void DrawUrbanBlockout()
-    {
-        Color street = new("#6f6d63");
-        for (int x = 222; x <= 284; x += 12)
-            DrawLine(IsometricGrid.GridToScreen(new Vector2(x, 116)), IsometricGrid.GridToScreen(new Vector2(x, 174)), street, 6f, true);
-        for (int y = 122; y <= 170; y += 12)
-            DrawLine(IsometricGrid.GridToScreen(new Vector2(216, y)), IsometricGrid.GridToScreen(new Vector2(289, y)), street, 6f, true);
-
-        Color building = new("#4b4b43");
-        for (int y = 124; y <= 160; y += 12)
-        {
-            for (int x = 224; x <= 276; x += 13)
-                DrawColoredPolygon(IsometricGrid.ProjectRectangle(new Vector2(x, y), new Vector2(6, 6)), building);
-        }
-    }
-
-    private void DrawLandmarks()
-    {
-        foreach (CountyLocationDefinition landmark in CountyMacroLayout.Locations.Where(location => location.Kind == CountyLocationKind.Landmark))
-        {
-            Vector2 basePoint = IsometricGrid.GridToScreen(landmark.Center);
-            Vector2[] footprint = IsometricGrid.ProjectRectangle(landmark.Center - new Vector2(2, 2), new Vector2(4, 4));
-            DrawColoredPolygon(footprint, new Color("#62543d"));
-            DrawColoredPolygon([footprint[0], footprint[1], basePoint + new Vector2(0, -34), footprint[3]], new Color("#88724e"));
-            if (DrawLocationLabels)
-                DrawString(ThemeDB.FallbackFont, basePoint + new Vector2(9, -10), landmark.Name, HorizontalAlignment.Left, -1, 13, new Color("#d8c9a0"));
-        }
-    }
-
     private void DrawRegionBoundaries()
     {
         foreach (CountyLocationDefinition region in CountyMacroLayout.Locations.Where(location => location.Kind == CountyLocationKind.District))
@@ -322,29 +254,4 @@ public partial class CountyWorld : Node2D
         return points;
     }
 
-    private void DrawRoadRibbon(Vector2[] line, float halfWidth, Color color)
-    {
-        if (line.Length < 2)
-            return;
-
-        // Render as overlapping convex segment quads. A single mitered ribbon
-        // can self-intersect at sharp bends and fail Godot triangulation.
-        for (int index = 0; index < line.Length - 1; index++)
-        {
-            Vector2 start = line[index];
-            Vector2 end = line[index + 1];
-            Vector2 tangent = end - start;
-            if (tangent.IsZeroApprox())
-                continue;
-            Vector2 normal = new Vector2(-tangent.Y, tangent.X).Normalized() * halfWidth;
-            Vector2[] quad =
-            [
-                IsometricGrid.GridToScreen(start + normal),
-                IsometricGrid.GridToScreen(end + normal),
-                IsometricGrid.GridToScreen(end - normal),
-                IsometricGrid.GridToScreen(start - normal)
-            ];
-            DrawColoredPolygon(quad, color);
-        }
-    }
 }
