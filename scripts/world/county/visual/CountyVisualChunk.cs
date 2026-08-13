@@ -13,7 +13,22 @@ namespace AshwoodCounty.World.County.Visual;
 /// </summary>
 public partial class CountyVisualChunk : Node2D
 {
-    private enum Biome { Meadow, Forest, Outskirts, Farm, Mill, SouthFarm, Urban, Scrub, Water }
+    private enum Biome
+    {
+        Meadow,
+        Forest,
+        PineRidge,
+        Logging,
+        Outskirts,
+        Farm,
+        Mill,
+        SouthFarm,
+        Urban,
+        TrailerPark,
+        Fairgrounds,
+        Scrub,
+        Water
+    }
 
     private readonly record struct Field(Rect2 Bounds, Color Soil, bool RowsAlongX);
     private readonly record struct Prop(string Texture, Vector2 Position, float Scale, Color Tint);
@@ -38,6 +53,11 @@ public partial class CountyVisualChunk : Node2D
         new(159, 248), new(151, 257), new(142, 269), new(129, 277)
     ];
 
+    private static readonly Vector2[] OldMillTributary =
+    [
+        new(150, 111), new(158, 116), new(166, 121), new(174, 126), new(183, 130)
+    ];
+
     private static readonly CountyRoadDefinition[] FarmTracks =
     [
         new("farm_north_track", "North Field Track", .52f,
@@ -58,7 +78,16 @@ public partial class CountyVisualChunk : Node2D
         new(new Rect2(161, 211, 29, 19), new Color("#857541"), true),
         new(new Rect2(174, 195, 18, 13), new Color("#8f8050"), false),
         new(new Rect2(104, 238, 30, 31), new Color("#85814e"), true),
-        new(new Rect2(177, 241, 31, 30), new Color("#8d8650"), false)
+        new(new Rect2(177, 241, 31, 30), new Color("#8d8650"), false),
+
+        // Broad southern agricultural mosaic. The intentional gaps are
+        // hedgerows, drainage lanes and farm access rather than one flat fill.
+        new(new Rect2(75, 248, 24, 29), new Color("#817a43"), false),
+        new(new Rect2(79, 282, 31, 24), new Color("#716b3c"), true),
+        new(new Rect2(115, 274, 27, 32), new Color("#91814a"), false),
+        new(new Rect2(147, 280, 25, 29), new Color("#777441"), true),
+        new(new Rect2(177, 277, 34, 27), new Color("#92874e"), false),
+        new(new Rect2(214, 254, 27, 31), new Color("#77713e"), true)
     ];
 
     private static readonly Prop[] AuthoredProps =
@@ -111,12 +140,16 @@ public partial class CountyVisualChunk : Node2D
         ,P(IndustrialPropsRoot + "scrap_pile_01.png", 151, 253, .27f)
         ,P(IndustrialPropsRoot + "corrugated_shed_01.png", 145, 249, .30f)
         ,P(IndustrialPropsRoot + "road_barrier_01.png", 272, 144, .30f)
-        ,P(IndustrialPropsRoot + "watchtower_01.png", 311, 54, .34f)
     ];
 
     private Vector2I _coordinate;
     private Rect2 _gridBounds;
     private Vector2 _canvasOrigin;
+
+    // CountyGroundSurface now owns the seamless macro terrain. These legacy
+    // stamp helpers remain available while localized art is migrated, but are
+    // deliberately not invoked by the production draw list.
+#pragma warning disable IDE0051
 
     public bool DrawLocationLabels { get; init; } = true;
 
@@ -134,11 +167,9 @@ public partial class CountyVisualChunk : Node2D
 
     public override void _Draw()
     {
-        DrawTerrainFoundation();
         DrawFarmGround();
         DrawMillGround();
         DrawUrbanGround();
-        DrawGroundTexturePatches();
         DrawWaterways();
         DrawRoadNetwork();
         DrawRoadArtStamps();
@@ -152,7 +183,7 @@ public partial class CountyVisualChunk : Node2D
 
     private void DrawTerrainFoundation()
     {
-        const int block = 8;
+        const int block = 6;
         int startX = Mathf.FloorToInt(_gridBounds.Position.X);
         int startY = Mathf.FloorToInt(_gridBounds.Position.Y);
         int endX = Mathf.CeilToInt(_gridBounds.End.X);
@@ -173,12 +204,19 @@ public partial class CountyVisualChunk : Node2D
                 // a large flat blockout.
                 string foundation = BiomeAt(sample) switch
                 {
-                    Biome.Farm or Biome.SouthFarm => Hash01(x, y, 5) > .48f ? "grass_dirt_01.png" : "grass_02.png",
-                    Biome.Mill or Biome.Forest => Hash01(x, y, 5) > .52f ? "leaves_01.png" : "grass_01.png",
-                    Biome.Urban => "gravel_scatter_01.png",
-                    _ => Hash01(x, y, 5) > .45f ? "grass_01.png" : "grass_02.png"
+                    Biome.PineRidge => Ground02Root + (Hash01(x, y, 5) > .42f ? "forest_floor_02.png" : "rocky_ground_03.png"),
+                    Biome.Logging => Ground02Root + (Hash01(x, y, 5) > .48f ? "bare_dirt_01.png" : "forest_floor_02.png"),
+                    Biome.Farm or Biome.SouthFarm => TerrainRoot + (Hash01(x, y, 5) > .48f ? "grass_dirt_01.png" : "grass_02.png"),
+                    Biome.Mill or Biome.Forest => TerrainRoot + (Hash01(x, y, 5) > .52f ? "leaves_01.png" : "grass_01.png"),
+                    Biome.Urban => Ground02Root + "gravel_ground_01.png",
+                    Biome.TrailerPark => Ground02Root + (Hash01(x, y, 5) > .52f ? "gravel_ground_01.png" : "sparse_dirt_01.png"),
+                    Biome.Fairgrounds => Ground02Root + (Hash01(x, y, 5) > .52f ? "dry_grass_rock_01.png" : "mixed_grass_03.png"),
+                    Biome.Scrub => Ground02Root + "dry_grass_rock_01.png",
+                    _ => TerrainRoot + (Hash01(x, y, 5) > .45f ? "grass_01.png" : "grass_02.png")
                 };
-                DrawGroundTexture(TerrainRoot + foundation, sample, 1.45f, new Color(color.Lightened(.12f), .50f));
+                float foundationScale = foundation.StartsWith(Ground02Root, StringComparison.Ordinal) ? 3.75f : 1.62f;
+                Vector2 jittered = sample + new Vector2((Hash01(x, y, 7) - .5f) * 1.1f, (Hash01(x, y, 9) - .5f) * .7f);
+                DrawGroundTexture(foundation, jittered, foundationScale, new Color(color.Lightened(.12f), .58f));
             }
         }
     }
@@ -210,6 +248,19 @@ public partial class CountyVisualChunk : Node2D
         DrawPatch(new Vector2(252, 144), new Vector2(24, 19), new Color(.34f, .33f, .28f, .42f), 28);
     }
 
+    private void DrawCountyRegionGround()
+    {
+        // Low-frequency regional shapes establish identity beneath the art
+        // layer. They are chunk-tessellated by DrawPatch and never become
+        // large uncullable polygons.
+        DrawPatch(new Vector2(72, 37), new Vector2(65, 35), new Color(.12f, .20f, .16f, .42f), 24);
+        DrawPatch(new Vector2(105, 74), new Vector2(30, 23), new Color(.31f, .23f, .14f, .55f), 20);
+        DrawPatch(new Vector2(279, 211), new Vector2(31, 24), new Color(.34f, .32f, .27f, .55f), 20);
+        DrawPatch(new Vector2(246, 234), new Vector2(40, 29), new Color(.47f, .46f, .29f, .38f), 22);
+        DrawPatch(new Vector2(311, 54), new Vector2(19, 15), new Color(.28f, .29f, .23f, .38f), 18);
+        DrawPatch(new Vector2(301, 103), new Vector2(22, 16), new Color(.29f, .30f, .28f, .50f), 18);
+    }
+
     private void DrawGroundTexturePatches()
     {
         int startX = Mathf.FloorToInt(_gridBounds.Position.X) + 2;
@@ -230,27 +281,36 @@ public partial class CountyVisualChunk : Node2D
 
                 Biome biome = BiomeAt(point);
                 float choice = Hash01(x, y, 17);
-                string file = biome switch
+                string path = biome switch
                 {
-                    Biome.Farm or Biome.SouthFarm => choice < .34f ? "grass_dirt_01.png" : choice < .66f ? "grass_02.png" : "dirt_scatter_01.png",
-                    Biome.Mill or Biome.Forest => choice < .40f ? "leaves_01.png" : choice < .68f ? "grass_scatter_01.png" : "mud_scatter_01.png",
-                    Biome.Urban => choice < .54f ? "gravel_scatter_01.png" : "dirt_scatter_01.png",
-                    Biome.Scrub => choice < .50f ? "grass_dirt_01.png" : "dirt_scatter_01.png",
-                    _ => choice < .26f ? "grass_01.png" : choice < .58f ? "grass_scatter_01.png" : choice < .80f ? "grass_02.png" : "dirt_scatter_01.png"
+                    Biome.PineRidge => Ground02Root + (choice < .38f ? "rocky_ground_03.png" : choice < .70f ? "leaf_litter_02.png" : "stone_outcrop_ground_01.png"),
+                    Biome.Logging => Ground02Root + (choice < .45f ? "bare_dirt_01.png" : choice < .76f ? "forest_floor_02.png" : "muddy_ground_02.png"),
+                    Biome.Farm or Biome.SouthFarm => TerrainRoot + (choice < .34f ? "grass_dirt_01.png" : choice < .66f ? "grass_02.png" : "dirt_scatter_01.png"),
+                    Biome.Mill or Biome.Forest => TerrainRoot + (choice < .40f ? "leaves_01.png" : choice < .68f ? "grass_scatter_01.png" : "mud_scatter_01.png"),
+                    Biome.Urban => Ground02Root + (choice < .54f ? "gravel_scatter_02.png" : "sparse_ground_02.png"),
+                    Biome.TrailerPark => Ground02Root + (choice < .54f ? "gravel_ground_01.png" : "sparse_dirt_01.png"),
+                    Biome.Fairgrounds => Ground02Root + (choice < .50f ? "dry_grass_rock_01.png" : "mixed_grass_03.png"),
+                    Biome.Scrub => Ground02Root + (choice < .50f ? "dry_grass_rock_01.png" : "rocky_dirt_01.png"),
+                    _ => TerrainRoot + (choice < .26f ? "grass_01.png" : choice < .58f ? "grass_scatter_01.png" : choice < .80f ? "grass_02.png" : "dirt_scatter_01.png")
                 };
-                float scale = .52f + Hash01(x, y, 19) * .22f;
-                float alpha = biome is Biome.Mill or Biome.Farm ? .58f : .47f;
-                DrawGroundTexture(TerrainRoot + file, point, scale, new Color(1, 1, 1, alpha));
+                bool compactAsset = path.StartsWith(Ground02Root, StringComparison.Ordinal);
+                float scale = compactAsset ? 1.18f + Hash01(x, y, 19) * .32f : .52f + Hash01(x, y, 19) * .22f;
+                float alpha = biome is Biome.Mill or Biome.Farm or Biome.Logging or Biome.PineRidge ? .57f : .48f;
+                DrawGroundTexture(path, point, scale, new Color(1, 1, 1, alpha));
             }
         }
     }
 
     private void DrawWaterways()
     {
-        // Lake bank is made from short, locally culled pieces; coarse interior
-        // diamonds then give the broad water body a subtle color variation.
-        DrawPolylineRibbon(CountyMacroLayout.BlackwaterLake.Append(CountyMacroLayout.BlackwaterLake[0]).ToArray(), 3.4f, new Color("#635a43"), 3f);
-        DrawLakeInterior();
+        // The animated lake polygon owns its continuous water fill. A narrow,
+        // subdued earth ribbon softens the edge without forming the broad
+        // angular tan wedges produced by the old macro shoreline.
+        DrawPolylineRibbon(CountyMacroLayout.BlackwaterLake.Append(CountyMacroLayout.BlackwaterLake[0]).ToArray(), .30f, new Color(.22f, .29f, .20f, .58f), 1.8f);
+
+        // A narrow north-country tributary gives Old Mill Bridge its actual
+        // geographic crossing. It is visual only and does not affect pathing.
+        DrawStreamBanks(OldMillTributary, .48f);
 
         DrawStreamBanks(CountyMacroLayout.BlackwaterRiver, .95f);
         DrawStreamBanks(MillCreek, .60f);
@@ -316,11 +376,14 @@ public partial class CountyVisualChunk : Node2D
         foreach (CountyRoadDefinition road in CountyMacroLayout.Roads.Concat(FarmTracks))
             DrawRoad(road);
 
-        // Ashwood streets establish readable blocks at county zoom.
-        for (int x = 218; x <= 286; x += 11)
-            DrawRoad(new CountyRoadDefinition($"street_x_{x}", "Ashwood Street", .72f, [new(x, 116), new(x, 175)]));
-        for (int y = 120; y <= 175; y += 11)
-            DrawRoad(new CountyRoadDefinition($"street_y_{y}", "Ashwood Street", .72f, [new(214, y), new(290, y)]));
+        // Ashwood uses a connected but deliberately incomplete street plan:
+        // main corridors, civic access and neighborhood loops. This avoids a
+        // board-game grid while preserving clear urban navigation.
+        DrawRoad(new CountyRoadDefinition("ashwood_main", "Ashwood Main Street", 1.05f, [new(216, 143), new(292, 143)]));
+        DrawRoad(new CountyRoadDefinition("ashwood_north", "North Ashwood Street", .68f, [new(220, 122), new(287, 122)]));
+        DrawRoad(new CountyRoadDefinition("ashwood_south", "South Ashwood Street", .68f, [new(220, 166), new(287, 166)]));
+        foreach (int x in new[] { 216, 237, 270, 291 })
+            DrawRoad(new CountyRoadDefinition($"ashwood_cross_{x}", "Ashwood Cross Street", .68f, [new(x, 118), new(x, 173)]));
     }
 
     private void DrawRoad(CountyRoadDefinition road)
@@ -458,10 +521,14 @@ public partial class CountyVisualChunk : Node2D
                 {
                     Biome.Mill => .32f,
                     Biome.Forest => .43f,
+                    Biome.PineRidge => .28f,
+                    Biome.Logging => IsLoggingClearing(point) ? .86f : .44f,
                     Biome.Outskirts => .68f,
                     Biome.Scrub => .72f,
                     Biome.Farm or Biome.SouthFarm => IsFarmTreeLine(point) ? .45f : .91f,
-                    Biome.Urban => .94f,
+                    Biome.Urban => .92f,
+                    Biome.TrailerPark => .87f,
+                    Biome.Fairgrounds => .95f,
                     _ => .78f
                 };
                 float value = Hash01(x, y, 47);
@@ -474,7 +541,15 @@ public partial class CountyVisualChunk : Node2D
         foreach ((Vector2 point, Biome biome, float value) in trees.OrderBy(tree => tree.Point.X + tree.Point.Y))
         {
             string texture;
-            if (biome is Biome.Mill or Biome.Forest)
+            if (biome is Biome.PineRidge)
+                texture = value > .86f ? Vegetation02Root + "pine_03.png"
+                    : value > .68f ? Vegetation02Root + "pine_02.png"
+                    : Vegetation02Root + "young_pine_02.png";
+            else if (biome is Biome.Logging)
+                texture = value > .82f ? Vegetation02Root + "pine_03.png"
+                    : value > .64f ? Vegetation02Root + "pine_02.png"
+                    : Vegetation02Root + "dead_tree_02.png";
+            else if (biome is Biome.Mill or Biome.Forest)
                 texture = value > .88f ? Vegetation02Root + "pine_02.png"
                     : value > .76f ? VegetationRoot + "pine_01.png"
                     : value > .63f ? Vegetation02Root + "deciduous_02.png"
@@ -485,13 +560,21 @@ public partial class CountyVisualChunk : Node2D
                     : value > .73f ? Vegetation02Root + "birch_01.png"
                     : VegetationRoot + "young_tree_01.png";
             float scale = texture.Contains("young", StringComparison.Ordinal) ? .27f : .29f + Hash01((int)point.X, (int)point.Y, 53) * .05f;
-            Color tint = biome == Biome.Mill ? new Color(.82f, .90f, .82f, .96f) : Colors.White;
+            Color tint = biome switch
+            {
+                Biome.Mill => new Color(.82f, .90f, .82f, .96f),
+                Biome.PineRidge => new Color(.78f, .88f, .82f, .98f),
+                Biome.Logging => new Color(.88f, .86f, .77f, .97f),
+                _ => Colors.White
+            };
             DrawAnchoredTexture(texture, point, scale, tint);
 
             if (Hash01((int)point.X, (int)point.Y, 59) > .66f)
             {
                 Vector2 undergrowth = point + new Vector2(1.2f, -.5f);
-                string floor = biome == Biome.Mill ? Vegetation02Root + "fern_02.png" : Vegetation02Root + "bush_dense_02.png";
+                string floor = biome is Biome.Mill or Biome.Logging ? Vegetation02Root + "fern_02.png"
+                    : biome == Biome.PineRidge ? RoadsidePropsRoot + "mossy_boulder_02.png"
+                    : Vegetation02Root + "bush_dense_02.png";
                 DrawAnchoredTexture(floor, undergrowth, .24f, new Color(1, 1, 1, .88f));
             }
         }
@@ -505,10 +588,12 @@ public partial class CountyVisualChunk : Node2D
                 if (!_gridBounds.HasPoint(point) || DistanceToAnyRoad(point) < 2.3f)
                     continue;
                 Biome biome = BiomeAt(point);
-                if (biome is not (Biome.Mill or Biome.Forest or Biome.Outskirts))
+                if (biome is not (Biome.Mill or Biome.Forest or Biome.PineRidge or Biome.Logging or Biome.Outskirts))
                     continue;
                 float choice = Hash01(x, y, 71);
-                string path = choice < .34f ? VegetationRoot + "fern_01.png"
+                string path = biome == Biome.PineRidge
+                    ? choice < .48f ? RoadsidePropsRoot + "rock_formation_02.png" : RoadsidePropsRoot + "mossy_boulder_02.png"
+                    : choice < .34f ? VegetationRoot + "fern_01.png"
                     : choice < .68f ? VegetationRoot + "grass_clump_01.png"
                     : RocksRoot + "mossy_rock_01.png";
                 DrawAnchoredTexture(path, point, .22f + Hash01(x, y, 73) * .06f, new Color(1, 1, 1, .84f));
@@ -531,26 +616,9 @@ public partial class CountyVisualChunk : Node2D
         if (ashwood is null || !ashwood.Bounds.Intersects(_gridBounds))
             return;
 
-        for (int y = 124; y <= 168; y += 11)
-        {
-            for (int x = 220; x <= 286; x += 11)
-            {
-                Vector2 point = new(x + 4.1f, y + 4.0f);
-                if (!_gridBounds.Grow(2).HasPoint(point) || !CountyMacroLayout.Contains(ashwood, point))
-                    continue;
-
-                float variant = Hash01(x, y, 83);
-                if (x is >= 242 and <= 264 && y is >= 135 and <= 157)
-                    DrawBuildingIfLocal(point, new Vector2(2.8f, 2.3f), new Color("#5a554b"), variant > .5f ? new Color("#6d5c45") : new Color("#515c57"), 30);
-                else
-                    DrawAnchoredTexture("res://assets/art/buildings/survival_cabin.png", point, .105f + variant * .012f, new Color(.84f, .84f, .80f, .94f));
-            }
-        }
-
-        // Civic anchors and a small town green break up the repeated blocks.
-        DrawBuildingIfLocal(new Vector2(244, 151), new Vector2(4.2f, 3.1f), new Color("#59605c"), new Color("#728078"), 40);
-        DrawBuildingIfLocal(new Vector2(272, 137), new Vector2(3.1f, 2.4f), new Color("#5c554a"), new Color("#75644d"), 34);
-        DrawPatch(new Vector2(266, 160), new Vector2(8, 7), new Color(.22f, .40f, .19f, .78f), 18);
+        // Structures, lots, civic anchors and the town green are owned by the
+        // dedicated chunked authoring layer. This intentionally remains a
+        // no-op so no legacy blockout or oversized translucent patch leaks in.
     }
 
     private void DrawLandmarks()
@@ -749,10 +817,18 @@ public partial class CountyVisualChunk : Node2D
         float outskirts = Influence(point, new Vector2(197, 157), new Vector2(48, 40));
         float urban = Influence(point, new Vector2(252, 145), new Vector2(54, 45));
         float south = Influence(point, new Vector2(164, 263), new Vector2(91, 59));
+        float logging = Influence(point, new Vector2(105, 74), new Vector2(31, 24));
+        float pine = Influence(point, new Vector2(72, 37), new Vector2(67, 37));
+        float trailer = Influence(point, new Vector2(279, 211), new Vector2(32, 25));
+        float fairgrounds = Influence(point, new Vector2(246, 234), new Vector2(41, 30));
+        if (logging > .25f) return Biome.Logging;
+        if (pine > .24f) return Biome.PineRidge;
         if (mill > .34f) return Biome.Mill;
         if (farm > .37f) return Biome.Farm;
         if (outskirts > .38f) return Biome.Outskirts;
         if (urban > .38f) return Biome.Urban;
+        if (trailer > .30f) return Biome.TrailerPark;
+        if (fairgrounds > .30f) return Biome.Fairgrounds;
         if (south > .35f) return Biome.SouthFarm;
         if (point.Y < 118 || point.X < 115) return Biome.Forest;
         if (point.X > 290) return Biome.Scrub;
@@ -763,11 +839,15 @@ public partial class CountyVisualChunk : Node2D
     {
         Color color = new("#49613b");
         color = color.Lerp(new Color("#304735"), Influence(point, new Vector2(145, 54), new Vector2(170, 76)) * .83f);
+        color = color.Lerp(new Color("#263b31"), Influence(point, new Vector2(72, 37), new Vector2(69, 39)) * .82f);
+        color = color.Lerp(new Color("#604f35"), Influence(point, new Vector2(105, 74), new Vector2(31, 24)) * .72f);
         color = color.Lerp(new Color("#607848"), Influence(point, new Vector2(197, 157), new Vector2(51, 43)) * .78f);
         color = color.Lerp(new Color("#737747"), Influence(point, new Vector2(170, 204), new Vector2(62, 51)) * .82f);
         color = color.Lerp(new Color("#304e3b"), Influence(point, new Vector2(154, 250), new Vector2(53, 48)) * .88f);
         color = color.Lerp(new Color("#777849"), Influence(point, new Vector2(164, 268), new Vector2(100, 66)) * .72f);
         color = color.Lerp(new Color("#565a50"), Influence(point, new Vector2(252, 145), new Vector2(57, 48)) * .84f);
+        color = color.Lerp(new Color("#5f5b4d"), Influence(point, new Vector2(279, 211), new Vector2(32, 25)) * .73f);
+        color = color.Lerp(new Color("#78764a"), Influence(point, new Vector2(246, 234), new Vector2(41, 30)) * .68f);
         color = color.Lerp(new Color("#46593b"), Influence(point, new Vector2(322, 193), new Vector2(77, 105)) * .58f);
         return color;
     }
@@ -792,6 +872,9 @@ public partial class CountyVisualChunk : Node2D
         }
         return false;
     }
+
+    private static bool IsLoggingClearing(Vector2 point) =>
+        Influence(point, new Vector2(105, 74), new Vector2(21, 15)) > .18f;
 
     private static float DistanceToAnyRoad(Vector2 point)
     {

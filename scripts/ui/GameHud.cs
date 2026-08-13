@@ -70,9 +70,9 @@ public partial class GameHud : CanvasLayer
         AddChild(safe);
         safe.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         safe.AddThemeConstantOverride("margin_left", 16);
-        safe.AddThemeConstantOverride("margin_top", 12);
+        safe.AddThemeConstantOverride("margin_top", 10);
         safe.AddThemeConstantOverride("margin_right", 16);
-        safe.AddThemeConstantOverride("margin_bottom", 14);
+        safe.AddThemeConstantOverride("margin_bottom", 12);
 
         VBoxContainer screen = Layout<VBoxContainer>();
         safe.AddChild(screen);
@@ -113,6 +113,9 @@ public partial class GameHud : CanvasLayer
         bar.AddChild(Separator(true));
 
         VBoxContainer clock = Layout<VBoxContainer>();
+        clock.CustomMinimumSize = new Vector2(82, 0);
+        clock.MouseFilter = Control.MouseFilterEnum.Stop;
+        clock.TooltipText = "County day, local time, and current simulation speed.";
         _time = Text("DAY 1  09:00", "HudHeading");
         _time.HorizontalAlignment = HorizontalAlignment.Right;
         _simulationState = Text("1x", "HudTiny");
@@ -336,6 +339,7 @@ public partial class GameHud : CanvasLayer
                 Button button = HudButton(label, "HudPriorityButton");
                 button.ToggleMode = true;
                 button.CustomMinimumSize = new Vector2(70, 23);
+                button.TooltipText = $"Set {category} work to {priority.ToString().ToLowerInvariant()}.";
                 WorkCategory capturedCategory = category;
                 WorkPriority capturedPriority = priority;
                 button.Pressed += () => SetPriority(capturedCategory, capturedPriority);
@@ -352,6 +356,8 @@ public partial class GameHud : CanvasLayer
     {
         HBoxContainer readout = Layout<HBoxContainer>();
         readout.CustomMinimumSize = new Vector2(resource == ResourceType.Materials ? 82 : 67, 0);
+        readout.MouseFilter = Control.MouseFilterEnum.Stop;
+        readout.TooltipText = $"{name[..1]}{name[1..].ToLowerInvariant()} available to the settlement.";
         readout.AddChild(Icon(iconName, 20));
         VBoxContainer copy = Layout<VBoxContainer>();
         Label value = Text("0", "HudResourceValue");
@@ -416,7 +422,13 @@ public partial class GameHud : CanvasLayer
 
     private void AddTab(Container parent, SurvivorTab tab)
     {
-        Button button = HudButton(tab.ToString().ToUpperInvariant(), "HudTabButton");
+        string tooltip = tab switch
+        {
+            SurvivorTab.Overview => "Background, current activity, and defining trait.",
+            SurvivorTab.Skills => "Current survivor skill levels.",
+            _ => "Allowed, preferred, and disabled work priorities."
+        };
+        Button button = HudButton(tab.ToString().ToUpperInvariant(), "HudTabButton", tooltip);
         button.ToggleMode = true;
         button.CustomMinimumSize = new Vector2(88, 27);
         button.Pressed += () => SelectSurvivorTab(tab);
@@ -456,13 +468,7 @@ public partial class GameHud : CanvasLayer
         _paletteHint.Visible = true;
         foreach ((HudCategory item, Control palette) in _palettes) palette.Visible = item == category;
         foreach ((HudCategory item, Button button) in _categoryButtons) button.ButtonPressed = item == category;
-        _paletteHint.Text = category switch
-        {
-            HudCategory.Build => "Choose a structure, then place it in the world.",
-            HudCategory.Work => "Choose a designation, then mark targets in the world.",
-            HudCategory.People => "Survivor details appear when one or more people are selected.",
-            _ => "Review county control, discoveries and known routes."
-        };
+        _paletteHint.Text = CategoryHint(category);
     }
 
     private void CollapsePalettes()
@@ -539,9 +545,35 @@ public partial class GameHud : CanvasLayer
 
     private void RefreshActionHint()
     {
-        if (_placement.IsPlacementActive){_paletteHint.Visible=true;_paletteHint.Text = _placement.CurrentFeedback;}
-        else if (_designation.IsDesignationActive){_paletteHint.Visible=true;_paletteHint.Text = "Designation active - click targets; right-click or Esc to finish.";}
+        if (_placement.IsPlacementActive)
+        {
+            _paletteHint.Visible = true;
+            _paletteHint.Text = _placement.CurrentFeedback;
+        }
+        else if (_designation.IsDesignationActive)
+        {
+            _paletteHint.Visible = true;
+            _paletteHint.Text = "Designation active — click targets; right-click or Esc to finish.";
+        }
+        else if (_activeCategory is HudCategory category)
+        {
+            _paletteHint.Visible = true;
+            _paletteHint.Text = CategoryHint(category);
+        }
+        else
+        {
+            _paletteHint.Visible = false;
+            _paletteHint.Text = string.Empty;
+        }
     }
+
+    private static string CategoryHint(HudCategory category) => category switch
+    {
+        HudCategory.Build => "Choose a structure, then place it in the world.",
+        HudCategory.Work => "Choose a designation, then mark targets in the world.",
+        HudCategory.People => "Survivor details appear when one or more people are selected.",
+        _ => "Review county control, discoveries and known routes."
+    };
 
     private void RefreshSelection()
     {
@@ -628,6 +660,8 @@ public partial class GameHud : CanvasLayer
             CustomMinimumSize = new Vector2(size, size),
             ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+            SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter,
+            SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
             MouseFilter = Control.MouseFilterEnum.Ignore
         };
     }
@@ -640,7 +674,10 @@ public partial class GameHud : CanvasLayer
             ThemeTypeVariation = variation,
             TooltipText = tooltip,
             MouseFilter = Control.MouseFilterEnum.Stop,
-            ExpandIcon = true
+            ExpandIcon = true,
+            Alignment = HorizontalAlignment.Center,
+            IconAlignment = HorizontalAlignment.Left,
+            ClipText = true
         };
         button.AddThemeConstantOverride("icon_max_width", 18);
         if (!string.IsNullOrEmpty(icon)) button.Icon = GD.Load<Texture2D>($"res://assets/ui/icons/{icon}.svg");

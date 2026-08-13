@@ -16,6 +16,11 @@ public partial class CountyWaterLayer : Node2D
         new(159, 248), new(151, 257), new(142, 269), new(129, 277)
     ];
 
+    private static readonly Vector2[] OldMillTributary =
+    [
+        new(150, 111), new(158, 116), new(166, 121), new(174, 126), new(183, 130)
+    ];
+
     public override void _Ready()
     {
         ZAsRelative = false;
@@ -23,6 +28,7 @@ public partial class CountyWaterLayer : Node2D
         BuildLake();
         BuildFlow("BlackwaterRiver", CountyMacroLayout.BlackwaterRiver, .95f, WaterMaterialLibrary.River);
         BuildFlow("MillCreek", MillCreek, .48f, WaterMaterialLibrary.Creek);
+        BuildFlow("OldMillTributary", OldMillTributary, .38f, WaterMaterialLibrary.Creek);
         BuildPonds();
     }
 

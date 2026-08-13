@@ -1,6 +1,7 @@
 #nullable enable
 
 using Godot;
+using AshwoodCounty.World.County.Visual.Authoring;
 
 namespace AshwoodCounty.World.County.Visual;
 
@@ -18,6 +19,7 @@ public partial class CountyVisualLayer : Node2D
         ZAsRelative = false;
         ZIndex = -100;
 
+        AddChild(new CountyGroundSurface { Name = "CountyGround" });
         AddChild(new CountyWaterLayer { Name = "AnimatedWater" });
 
         int columns = Mathf.CeilToInt(CountyCoordinateSpace.Width / (float)CountyCoordinateSpace.ChunkSize);
@@ -35,5 +37,10 @@ public partial class CountyVisualLayer : Node2D
                 AddChild(visual);
             }
         }
+
+        // Structures sit above ground, roads and water. Their chunk draw
+        // commands remain cullable, while actors continue to render on the
+        // world's normal foreground layer.
+        AddChild(new CountyAuthoredStructuresLayer { Name = "AuthoredStructures" });
     }
 }
