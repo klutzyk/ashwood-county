@@ -1,4 +1,4 @@
-[gd_scene load_steps=45 format=3]
+[gd_scene load_steps=48 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/IsometricWorld.cs" id="1_world"]
 [ext_resource type="Script" path="res://scripts/world/TerrainRenderer.cs" id="2_terrain"]
@@ -37,6 +37,9 @@
 [ext_resource type="Script" path="res://scripts/threats/ZombieThreatSystem.cs" id="36_threat"]
 [ext_resource type="Script" path="res://scripts/combat/NoiseSystem.cs" id="37_noise"]
 [ext_resource type="Script" path="res://scripts/ui/GameHud.cs" id="38_game_hud"]
+[ext_resource type="Script" path="res://scripts/world/regions/RegionManager.cs" id="39_region_manager"]
+[ext_resource type="PackedScene" path="res://scenes/world/ScavengeSource.tscn" id="40_scavenge"]
+[ext_resource type="Script" path="res://scripts/ui/TravelPanel.cs" id="41_travel"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBox_debug"]
 bg_color = Color(0.055, 0.075, 0.06, 0.88)
@@ -98,6 +101,14 @@ script = ExtResource("31_sim")
 
 [node name="GameClock" type="Node" parent="."]
 script = ExtResource("32_clock")
+
+[node name="RegionManager" type="Node" parent="."]
+script = ExtResource("39_region_manager")
+ContentHostPath = NodePath("../World/RegionContent")
+
+[node name="TravelPanel" type="CanvasLayer" parent="."]
+layer = 45
+script = ExtResource("41_travel")
 [node name="NoiseSystem" type="Node" parent="."]
 script = ExtResource("37_noise")
 [node name="ZombieThreatSystem" type="Node" parent="."]
@@ -116,6 +127,9 @@ script = ExtResource("3_hover")
 
 [node name="Objects" type="Node2D" parent="World"]
 y_sort_enabled = true
+
+[node name="RegionContent" type="Node2D" parent="World"]
+z_index = -1
 
 [node name="RegionDressing" type="Node2D" parent="World/Objects"]
 show_behind_parent = true
@@ -330,6 +344,19 @@ GridPosition = Vector2(30.5, 28.5)
 [node name="ForageD" parent="World/Objects" instance=ExtResource("30_forage")]
 GridPosition = Vector2(10.5, 27.5)
 
+[node name="SupplyWreck" parent="World/Objects" instance=ExtResource("40_scavenge")]
+GridPosition = Vector2(24, 17)
+LootType = 2
+StartingAmount = 18
+DesignatedAtStart = true
+
+[node name="MedicalCache" parent="World/Objects" instance=ExtResource("40_scavenge")]
+GridPosition = Vector2(31, 14)
+LootType = 3
+StartingAmount = 8
+SearchDuration = 4.0
+DesignatedAtStart = true
+
 [node name="Stockpile" parent="World/Objects" instance=ExtResource("10_stockpile")]
 GridPosition = Vector2(21.5, 21.8)
 
@@ -382,6 +409,7 @@ layer = 20
 script = ExtResource("13_placement")
 
 [node name="BuildPanel" type="PanelContainer" parent="BuildingPlacementController"]
+visible = false
 offset_left = 16.0
 offset_top = 306.0
 offset_right = 286.0
@@ -419,6 +447,7 @@ layer = 20
 script = ExtResource("23_chop")
 
 [node name="Panel" type="PanelContainer" parent="ChopDesignationController"]
+visible = false
 offset_left = 16.0
 offset_top = 470.0
 offset_right = 286.0

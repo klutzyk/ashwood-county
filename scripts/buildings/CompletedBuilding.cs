@@ -1,13 +1,18 @@
 using AshwoodCounty.World;
 using Godot;
+using AshwoodCounty.World.Regions;
+using System.Collections.Generic;
 
 namespace AshwoodCounty.Buildings;
 
 [Tool]
 public partial class CompletedBuilding : Node2D, IGridOccupant
 {
+    public const string GroupName = "completed_buildings";
+
     private Vector2 _buildingPosition;
     private Vector2 _footprintSize = new(3, 2);
+    private readonly Dictionary<ulong, int> _restingSurvivors = [];
 
     [Export]
     public Vector2 BuildingPosition
@@ -34,16 +39,47 @@ public partial class CompletedBuilding : Node2D, IGridOccupant
     }
 
     [Export] public BuildingType BuildingType { get; set; } = BuildingType.Shelter;
+    [Export] public string RegionId { get; set; } = "outskirts";
+    [Export(PropertyHint.Range, "0,20,1")] public int RestCapacity { get; set; } = 4;
     public WorldFootprint OccupancyFootprint => new(BuildingPosition, FootprintSize);
+    public bool ProvidesRest => BuildingType == BuildingType.Shelter && RestCapacity > 0;
+    public int AvailableRestSlots => Mathf.Max(0, RestCapacity - _restingSurvivors.Count);
 
     public override void _Ready()
     {
         UpdateRenderedPosition();
         if (!Engine.IsEditorHint())
         {
+            RegionManager manager=GetTree().Root.FindChild("RegionManager",true,false) as RegionManager;
+            if(manager is not null)RegionId=manager.CurrentRegionId;
             AddToGroup(GridOccupancy.OccupantGroup);
+            AddToGroup(GroupName);
         }
     }
+
+    public bool TryReserveRestSlot(ulong survivorId, out Vector2 restPosition)
+    {
+        restPosition = BuildingPosition + FootprintSize * 0.5f;
+        if (!ProvidesRest || (!_restingSurvivors.ContainsKey(survivorId) && _restingSurvivors.Count >= RestCapacity))
+        {
+            return false;
+        }
+
+        if (!_restingSurvivors.TryGetValue(survivorId, out int slot))
+        {
+            slot = 0;
+            while (_restingSurvivors.ContainsValue(slot)) slot++;
+            _restingSurvivors[survivorId] = slot;
+        }
+        int columns = Mathf.Max(1, Mathf.CeilToInt(Mathf.Sqrt(RestCapacity)));
+        int rows = Mathf.Max(1, Mathf.CeilToInt((float)RestCapacity / columns));
+        restPosition = BuildingPosition + new Vector2(
+            (slot % columns + 0.5f) * FootprintSize.X / columns,
+            (slot / columns + 0.5f) * FootprintSize.Y / rows);
+        return true;
+    }
+
+    public void ReleaseRestSlot(ulong survivorId) => _restingSurvivors.Remove(survivorId);
 
     public void Initialize(BuildingDefinition definition, Vector2 position)
     {

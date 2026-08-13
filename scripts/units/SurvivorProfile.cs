@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace AshwoodCounty.Units;
 
 public enum SurvivorSkill { Labor, Scavenging, Combat, Medical }
-public enum WorkCategory { Construction, Woodcutting, Foraging, Scavenging, Hauling }
+public enum WorkCategory { Construction, Woodcutting, Foraging, Scavenging, Hauling, Medical }
 public enum WorkPriority { Disabled, Allowed, Preferred }
 
 public sealed class SurvivorProfile
@@ -42,7 +42,7 @@ public sealed class SurvivorProfile
         SurvivorProfile profile = new() { DisplayName=p.name, Occupation=p.job, HomeRegion=p.home, ImportantLocation=p.place, Trait=p.trait };
         foreach (SurvivorSkill skill in Enum.GetValues<SurvivorSkill>()) profile.Skills[skill] = skill == p.specialty ? 3 : 1;
         foreach (WorkCategory work in Enum.GetValues<WorkCategory>()) profile.WorkPriorities[work] = WorkPriority.Allowed;
-        profile.WorkPriorities[p.specialty switch { SurvivorSkill.Labor => WorkCategory.Construction, SurvivorSkill.Scavenging => WorkCategory.Scavenging, _ => WorkCategory.Hauling }] = WorkPriority.Preferred;
+        profile.WorkPriorities[p.specialty switch { SurvivorSkill.Labor => WorkCategory.Construction, SurvivorSkill.Scavenging => WorkCategory.Scavenging, SurvivorSkill.Medical => WorkCategory.Medical, _ => WorkCategory.Hauling }] = WorkPriority.Preferred;
         if (p.home == "Farm District") profile.KnownRegions.Add("farm_district");
         if (p.home == "Mill Creek") profile.KnownRegions.Add("mill_creek");
         return profile;

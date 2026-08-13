@@ -9,6 +9,7 @@ public partial class ChopDesignationController : CanvasLayer
     private Button _chopButton = null!;
     private Button _forageButton = null!;
     private Label _status = null!;
+    private bool _scavengeMode;
     public bool IsDesignationActive { get; private set; }
     public ResourceType DesignatedResourceType { get; private set; } = ResourceType.Wood;
 
@@ -36,10 +37,16 @@ public partial class ChopDesignationController : CanvasLayer
 
     public void ToggleDesignation() => ToggleMode(ResourceType.Wood);
     public void ToggleForageDesignation() => ToggleMode(ResourceType.Food);
+    public void ToggleScavengeDesignation()
+    {
+        _scavengeMode = !(IsDesignationActive && _scavengeMode); IsDesignationActive = _scavengeMode;
+        _chopButton.ButtonPressed=false;_forageButton.ButtonPressed=false;_status.Text=IsDesignationActive?"Click salvage locations to designate • Esc/right-click exits":"Designate settlement work";
+    }
 
     private void ToggleMode(ResourceType resourceType)
     {
         bool turnOff = IsDesignationActive && DesignatedResourceType == resourceType;
+        _scavengeMode=false;
         IsDesignationActive = !turnOff;
         DesignatedResourceType = resourceType;
         _chopButton.ButtonPressed = IsDesignationActive && resourceType == ResourceType.Wood;
@@ -51,6 +58,11 @@ public partial class ChopDesignationController : CanvasLayer
     public bool ToggleTreeAt(Vector2 screenPosition) => ToggleResourceAt(screenPosition);
     public bool ToggleResourceAt(Vector2 screenPosition)
     {
+        if (_scavengeMode)
+        {
+            ScavengeSource source=GetTree().GetNodesInGroup(ScavengeSource.GroupName).OfType<ScavengeSource>().Where(s=>s.ContainsScreenPoint(screenPosition)&&!s.IsDepleted).OrderBy(s=>s.Position.Y).LastOrDefault();
+            if(source is null)return false;source.SetScavengeDesignated(!source.IsDesignatedForScavenging);_status.Text=source.IsDesignatedForScavenging?"Location designated for scavenging":"Scavenge designation removed";return true;
+        }
         HarvestableResource resource = GetTree().GetNodesInGroup(HarvestableResource.GroupName).OfType<HarvestableResource>()
             .Where(item => item.ResourceType == DesignatedResourceType && item.IsHarvestable && item.ContainsScreenPoint(screenPosition))
             .OrderBy(item => item.Position.Y).LastOrDefault();
@@ -64,6 +76,7 @@ public partial class ChopDesignationController : CanvasLayer
     public void EndDesignation()
     {
         IsDesignationActive = false;
+        _scavengeMode=false;
         _chopButton.ButtonPressed = false;
         _forageButton.ButtonPressed = false;
         _status.Text = "Designate settlement work";

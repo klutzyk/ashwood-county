@@ -79,6 +79,9 @@ public partial class Survivor : Node2D
         SurvivorOrderType.HarvestResource => CarriedAmount > 0 ? "Carrying / Delivering" : "Chopping",
         SurvivorOrderType.Build => "Building",
         SurvivorOrderType.Eat => "Eating",
+        SurvivorOrderType.Scavenge => CarriedAmount > 0 ? "Delivering salvage" : "Scavenging",
+        SurvivorOrderType.Rest => "Resting",
+        SurvivorOrderType.Treat => "Providing treatment",
         SurvivorOrderType.AttackZombie => "Fighting",
         _ when _dead => "Dead",
         _ => NeedsMeal ? "Idle • Hungry" : "Idle"
@@ -170,6 +173,15 @@ public partial class Survivor : Node2D
     {
         AssignOrder(new BuildOrder(target, interactionPosition), true);
     }
+
+    public void IssueAutonomousScavengeOrder(ScavengeSource target, Stockpile stockpile, Vector2 interactionPosition, Vector2 deliveryPosition)
+    {
+        AssignOrder(new ScavengeOrder(target, stockpile, interactionPosition, deliveryPosition), true);
+    }
+
+    public void IssueAutonomousRestOrder(CompletedBuilding shelter) => AssignOrder(new RestOrder(shelter), true);
+    public void IssueAutonomousTreatOrder(Survivor patient, SettlementInventory inventory) => AssignOrder(new TreatOrder(patient, inventory, (target, amount) => target.ReceiveTreatment(amount)), true);
+    public void ReceiveTreatment(float amount) { if (!_dead) { _health = Mathf.Min(MaxHealth, _health + Mathf.Max(0, amount)); RefreshVisual(); } }
 
     public bool MoveTowardsGridPosition(Vector2 destination, double delta)
     {

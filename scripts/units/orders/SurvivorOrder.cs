@@ -7,6 +7,9 @@ public enum SurvivorOrderType
     HarvestResource,
     Build,
     Eat,
+    Scavenge,
+    Rest,
+    Treat,
     AttackZombie
 }
 
