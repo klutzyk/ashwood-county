@@ -77,6 +77,7 @@ public partial class AuthoringStudioCanvas : Node2D
     public bool RandomAssetVariation { get; set; }=true;
     public string PathType { get; set; }="Rural Road";
     public float PathWidth { get; set; }=1.2f;
+    public string PathAssetPath { get; set; }=string.Empty;
     public bool SnapEnabled { get=>_snap; set{_snap=value;QueueRedraw();} }
 
     public void Initialize(IsometricWorld world,AuthoredCountyDocument document)
@@ -105,7 +106,7 @@ public partial class AuthoringStudioCanvas : Node2D
     public void BeginStructureLineTool(AuthoringAssetEntry asset){if(_lockedLayers.Contains("Props")){StatusChanged?.Invoke("Props layer is locked.");return;}_structureLine=true;_lineAsset=asset;_pathPoints.Clear();SetTool(AuthoringTool.Road);StatusChanged?.Invoke($"LINE TOOL — {asset.Name}; click points, Enter to finish");}
     public void FinishPath()
     {
-        if(_pathPoints.Count<2){_pathPoints.Clear();QueueRedraw();return;}Checkpoint();_document.Paths.Add(new AuthoredPathData{Id=StableId(_structureLine?"line":"road"),DisplayName=_structureLine?_lineAsset?.Name??"Structure Line":PathType,PathType=PathType,LineKind=_structureLine?"Structure":"Road",AssetPath=_lineAsset?.Path??string.Empty,Width=Mathf.Max(.15f,PathWidth),SegmentSpacing=Mathf.Max(.35f,PathWidth),SegmentScale=_lineAsset?.DefaultScale??.35f,Points=_pathPoints.Select(AuthoredPointData.From).ToList()});_pathPoints.Clear();Changed(_structureLine?"Created structure line":"Created road/path");
+        if(_pathPoints.Count<2){_pathPoints.Clear();QueueRedraw();return;}Checkpoint();_document.Paths.Add(new AuthoredPathData{Id=StableId(_structureLine?"line":"road"),DisplayName=_structureLine?_lineAsset?.Name??"Structure Line":PathType,PathType=PathType,LineKind=_structureLine?"Structure":"Road",AssetPath=_structureLine?_lineAsset?.Path??string.Empty:PathAssetPath,Width=Mathf.Max(.15f,PathWidth),SegmentSpacing=Mathf.Max(.35f,PathWidth),SegmentScale=_structureLine?_lineAsset?.DefaultScale??.35f:1,Points=_pathPoints.Select(AuthoredPointData.From).ToList()});_pathPoints.Clear();Changed(_structureLine?"Created structure line":"Created road/path");
     }
     public void AddPathPoint(Vector2 point){_pathPoints.Add(Snap(point));QueueRedraw();}
     public void ApplyBrushDab(Vector2 point){BeginBrush(point);EndPointer(point,false);}
@@ -163,9 +164,10 @@ public partial class AuthoringStudioCanvas : Node2D
 
     public void RotateSelection(float degrees=90)
     {
-        if(GetSelectedData() is not AuthoredWorldObjectData&&GetSelectedData() is not AuthoredBuildingData)return;Checkpoint();
+        if(GetSelectedData() is not AuthoredWorldObjectData&&GetSelectedData() is not AuthoredBuildingData&&GetSelectedData() is not AuthoredPathData)return;Checkpoint();
         if(GetSelectedData() is AuthoredWorldObjectData item)item.RotationDegrees=Mathf.PosMod(item.RotationDegrees+degrees,360);
         else if(GetSelectedData() is AuthoredBuildingData building)building.ExteriorRotationDegrees=Mathf.PosMod(building.ExteriorRotationDegrees+degrees,360);
+        else if(GetSelectedData() is AuthoredPathData path&&path.Points.Count>0){Vector2 center=path.Points.Select(point=>point.Vector).Aggregate(Vector2.Zero,(sum,point)=>sum+point)/path.Points.Count;float radians=Mathf.DegToRad(degrees);foreach(AuthoredPointData point in path.Points){Vector2 rotated=(point.Vector-center).Rotated(radians)+center;point.X=rotated.X;point.Y=rotated.Y;}}
         Changed("Rotated selection");
     }
 
@@ -583,7 +585,6 @@ public partial class AuthoringStudioCanvas : Node2D
 
     public override void _Draw()
     {
-        Rect2 loaded=LoadedGridBounds();DrawGridRect(loaded,new Color("d1ad6060"),3);
         if(_interiorBuilding is not null)
         {
             Rect2 footprint=new(_interiorBuilding.FootprintX,_interiorBuilding.FootprintY,_interiorBuilding.FootprintWidth,_interiorBuilding.FootprintHeight);DrawGridRect(footprint,new Color("e3c875d0"),3);

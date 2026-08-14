@@ -1,0 +1,2579 @@
+{
+  "asset_count": 338,
+  "warning_count": 82,
+  "assets": [
+    {
+      "path": "assets/art/buildings/survival_cabin.png",
+      "width": 1254,
+      "height": 1254,
+      "alpha_islands": 2,
+      "warnings": [
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/buildings/residential/abandoned_house_01.png",
+      "width": 408,
+      "height": 434,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/buildings/residential/abandoned_house_02.png",
+      "width": 402,
+      "height": 404,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/buildings/residential/abandoned_house_03.png",
+      "width": 380,
+      "height": 372,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/buildings/residential/abandoned_house_04.png",
+      "width": 430,
+      "height": 397,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/buildings/residential/abandoned_house_05.png",
+      "width": 403,
+      "height": 409,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/buildings/residential/abandoned_house_06.png",
+      "width": 398,
+      "height": 396,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/buildings/residential/abandoned_house_07.png",
+      "width": 382,
+      "height": 384,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/buildings/residential/abandoned_house_08.png",
+      "width": 436,
+      "height": 406,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/buildings/residential/house_01.png",
+      "width": 401,
+      "height": 378,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/buildings/residential/house_02.png",
+      "width": 395,
+      "height": 368,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/buildings/residential/house_03.png",
+      "width": 389,
+      "height": 338,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/buildings/residential/house_04.png",
+      "width": 386,
+      "height": 361,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/buildings/residential/house_05.png",
+      "width": 404,
+      "height": 343,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/buildings/residential/house_06.png",
+      "width": 405,
+      "height": 344,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/buildings/residential/house_07.png",
+      "width": 389,
+      "height": 352,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/buildings/residential/house_08.png",
+      "width": 395,
+      "height": 352,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/buildings/residential/house_abandoned_01.png",
+      "width": 382,
+      "height": 384,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/buildings/residential/house_abandoned_02.png",
+      "width": 402,
+      "height": 404,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/buildings/residential/house_abandoned_03.png",
+      "width": 380,
+      "height": 372,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/buildings/residential/house_abandoned_04.png",
+      "width": 430,
+      "height": 397,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/buildings/residential/ranch_house_01.png",
+      "width": 404,
+      "height": 343,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/buildings/residential/suburban_house_01.png",
+      "width": 395,
+      "height": 368,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/buildings/residential/suburban_house_02.png",
+      "width": 389,
+      "height": 352,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/buildings/residential/two_storey_house_01.png",
+      "width": 401,
+      "height": 378,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/buildings/rural/cabin_01.png",
+      "width": 354,
+      "height": 299,
+      "alpha_islands": 4,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/buildings/rural/farm_shelter_01.png",
+      "width": 473,
+      "height": 330,
+      "alpha_islands": 6,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/buildings/rural/garden_shed_01.png",
+      "width": 315,
+      "height": 286,
+      "alpha_islands": 3,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/buildings/rural/greenhouse_01.png",
+      "width": 354,
+      "height": 274,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/buildings/rural/mobile_home_01.png",
+      "width": 430,
+      "height": 289,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/buildings/rural/outhouse_01.png",
+      "width": 214,
+      "height": 272,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/buildings/rural/outhouse_02.png",
+      "width": 224,
+      "height": 269,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/buildings/rural/shed_01.png",
+      "width": 310,
+      "height": 256,
+      "alpha_islands": 3,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/buildings/rural/small_cabin_01.png",
+      "width": 320,
+      "height": 320,
+      "alpha_islands": 4,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/buildings/rural/tool_shed_01.png",
+      "width": 310,
+      "height": 256,
+      "alpha_islands": 3,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/buildings/rural/trailer_01.png",
+      "width": 430,
+      "height": 289,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/buildings/rural/wood_shelter_01.png",
+      "width": 376,
+      "height": 300,
+      "alpha_islands": 7,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/buildings/rural/work_cabin_01.png",
+      "width": 354,
+      "height": 299,
+      "alpha_islands": 4,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/environment/props/fence_01.png",
+      "width": 189,
+      "height": 153,
+      "alpha_islands": 11,
+      "warnings": [
+        "many_tiny_islands"
+      ]
+    },
+    {
+      "path": "assets/art/environment/props/stockpile_01.png",
+      "width": 460,
+      "height": 353,
+      "alpha_islands": 4,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/environment/rocks/mossy_rock_01.png",
+      "width": 181,
+      "height": 135,
+      "alpha_islands": 20,
+      "warnings": [
+        "many_alpha_islands",
+        "many_tiny_islands",
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/environment/rocks/rock_cluster_01.png",
+      "width": 234,
+      "height": 136,
+      "alpha_islands": 28,
+      "warnings": [
+        "many_alpha_islands",
+        "many_tiny_islands"
+      ]
+    },
+    {
+      "path": "assets/art/environment/vegetation/bush_01.png",
+      "width": 161,
+      "height": 146,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/environment/vegetation/dead_tree_01.png",
+      "width": 189,
+      "height": 336,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/environment/vegetation/fern_01.png",
+      "width": 131,
+      "height": 111,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/environment/vegetation/flowers_01.png",
+      "width": 132,
+      "height": 120,
+      "alpha_islands": 3,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/environment/vegetation/grass_clump_01.png",
+      "width": 117,
+      "height": 114,
+      "alpha_islands": 18,
+      "warnings": [
+        "many_alpha_islands",
+        "many_tiny_islands"
+      ]
+    },
+    {
+      "path": "assets/art/environment/vegetation/oak_01.png",
+      "width": 393,
+      "height": 516,
+      "alpha_islands": 11,
+      "warnings": [
+        "many_tiny_islands"
+      ]
+    },
+    {
+      "path": "assets/art/environment/vegetation/pine_01.png",
+      "width": 288,
+      "height": 491,
+      "alpha_islands": 9,
+      "warnings": [
+        "many_tiny_islands"
+      ]
+    },
+    {
+      "path": "assets/art/environment/vegetation/young_tree_01.png",
+      "width": 224,
+      "height": 403,
+      "alpha_islands": 14,
+      "warnings": [
+        "many_alpha_islands",
+        "many_tiny_islands"
+      ]
+    },
+    {
+      "path": "assets/art/interiors/residential/bathroom/bathroom_sink_01.png",
+      "width": 55,
+      "height": 69,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/bathroom/bathtub_01.png",
+      "width": 175,
+      "height": 164,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/bathroom/toilet_01.png",
+      "width": 72,
+      "height": 101,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/bedroom/bed_blue_01.png",
+      "width": 172,
+      "height": 137,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/bedroom/bed_single_blue_01.png",
+      "width": 108,
+      "height": 105,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/bedroom/dresser_01.png",
+      "width": 82,
+      "height": 84,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/clutter/bloodied_rug_01.png",
+      "width": 119,
+      "height": 74,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/clutter/blue_storage_bin_01.png",
+      "width": 77,
+      "height": 91,
+      "alpha_islands": 3,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/clutter/cardboard_boxes_01.png",
+      "width": 88,
+      "height": 88,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/clutter/coat_stand_01.png",
+      "width": 58,
+      "height": 137,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/clutter/plant_01.png",
+      "width": 66,
+      "height": 103,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/clutter/radio_01.png",
+      "width": 76,
+      "height": 65,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/clutter/safe_01.png",
+      "width": 90,
+      "height": 108,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/clutter/storage_boxes_01.png",
+      "width": 83,
+      "height": 82,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/clutter/tool_chest_01.png",
+      "width": 86,
+      "height": 105,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/clutter/vacuum_01.png",
+      "width": 80,
+      "height": 121,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/clutter/wall_clock_01.png",
+      "width": 59,
+      "height": 62,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/kitchen/counter_sink_01.png",
+      "width": 121,
+      "height": 134,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/kitchen/refrigerator_green_01.png",
+      "width": 82,
+      "height": 135,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/kitchen/refrigerator_open_01.png",
+      "width": 96,
+      "height": 147,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/kitchen/refrigerator_white_01.png",
+      "width": 92,
+      "height": 150,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/kitchen/stove_01.png",
+      "width": 93,
+      "height": 122,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/living/armchair_green_01.png",
+      "width": 103,
+      "height": 112,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/living/armchair_worn_01.png",
+      "width": 96,
+      "height": 101,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/living/bookcase_medium_01.png",
+      "width": 91,
+      "height": 135,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/living/bookcase_tall_01.png",
+      "width": 77,
+      "height": 128,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/living/coffee_table_01.png",
+      "width": 96,
+      "height": 101,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/living/dining_table_01.png",
+      "width": 162,
+      "height": 140,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/living/side_table_01.png",
+      "width": 68,
+      "height": 97,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/living/sofa_blue_01.png",
+      "width": 145,
+      "height": 120,
+      "alpha_islands": 3,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/living/sofa_brown_01.png",
+      "width": 145,
+      "height": 119,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/living/sofa_plaid_01.png",
+      "width": 134,
+      "height": 105,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/living/television_01.png",
+      "width": 97,
+      "height": 115,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/structure/door_barricaded_01.png",
+      "width": 82,
+      "height": 158,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/structure/door_blue_01.png",
+      "width": 81,
+      "height": 167,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/structure/door_broken_01.png",
+      "width": 81,
+      "height": 171,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/structure/door_closed_brown_01.png",
+      "width": 83,
+      "height": 165,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/structure/door_closed_light_01.png",
+      "width": 80,
+      "height": 168,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/structure/door_frame_open_01.png",
+      "width": 77,
+      "height": 160,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/structure/door_green_01.png",
+      "width": 78,
+      "height": 165,
+      "alpha_islands": 3,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/structure/door_louvered_01.png",
+      "width": 75,
+      "height": 166,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/structure/wall_barricaded_01.png",
+      "width": 114,
+      "height": 176,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/structure/wall_damaged_cream_01.png",
+      "width": 117,
+      "height": 178,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/structure/wall_damaged_green_01.png",
+      "width": 119,
+      "height": 177,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/structure/wall_plain_blue_01.png",
+      "width": 115,
+      "height": 177,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/structure/wall_plain_cream_01.png",
+      "width": 113,
+      "height": 178,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/structure/wall_radiator_01.png",
+      "width": 110,
+      "height": 174,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/structure/wall_window_01.png",
+      "width": 120,
+      "height": 179,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/structure/window_broken_01.png",
+      "width": 97,
+      "height": 123,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/structure/window_shuttered_01.png",
+      "width": 116,
+      "height": 153,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/surfaces/floor_checker_01.png",
+      "width": 138,
+      "height": 91,
+      "alpha_islands": 5,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/surfaces/floor_parquet_01.png",
+      "width": 146,
+      "height": 97,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/surfaces/floor_tile_cream_01.png",
+      "width": 142,
+      "height": 90,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/surfaces/floor_tile_damaged_01.png",
+      "width": 162,
+      "height": 104,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/surfaces/floor_wood_dark_01.png",
+      "width": 142,
+      "height": 95,
+      "alpha_islands": 3,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/surfaces/floor_wood_light_01.png",
+      "width": 140,
+      "height": 93,
+      "alpha_islands": 4,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/surfaces/rug_blue_01.png",
+      "width": 164,
+      "height": 103,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/surfaces/rug_red_01.png",
+      "width": 142,
+      "height": 92,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/utility/supply_shelf_01.png",
+      "width": 141,
+      "height": 179,
+      "alpha_islands": 5,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/utility/washer_sink_unit_01.png",
+      "width": 110,
+      "height": 126,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/utility/washing_machine_01.png",
+      "width": 80,
+      "height": 108,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/interiors/residential/utility/water_heater_01.png",
+      "width": 55,
+      "height": 118,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/farm/barbed_fence_01.png",
+      "width": 118,
+      "height": 112,
+      "alpha_islands": 4,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/farm/corn_rows_01.png",
+      "width": 155,
+      "height": 88,
+      "alpha_islands": 3,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/farm/corn_rows_02.png",
+      "width": 106,
+      "height": 110,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/farm/crop_rows_green_01.png",
+      "width": 181,
+      "height": 132,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/farm/crop_rows_mixed_01.png",
+      "width": 115,
+      "height": 93,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/farm/fence_overgrown_02.png",
+      "width": 179,
+      "height": 141,
+      "alpha_islands": 11,
+      "warnings": [
+        "many_tiny_islands",
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/props/farm/gate_01.png",
+      "width": 139,
+      "height": 100,
+      "alpha_islands": 9,
+      "warnings": [
+        "many_tiny_islands"
+      ]
+    },
+    {
+      "path": "assets/art/props/farm/hay_bale_round_01.png",
+      "width": 80,
+      "height": 85,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/farm/hay_bale_square_01.png",
+      "width": 56,
+      "height": 65,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/farm/palisade_fence_01.png",
+      "width": 179,
+      "height": 124,
+      "alpha_islands": 9,
+      "warnings": [
+        "many_tiny_islands",
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/props/farm/wheat_patch_01.png",
+      "width": 164,
+      "height": 123,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/farm/wood_gate_02.png",
+      "width": 102,
+      "height": 92,
+      "alpha_islands": 3,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/industrial/abandoned_pickup_01.png",
+      "width": 251,
+      "height": 144,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/industrial/barrels_01.png",
+      "width": 66,
+      "height": 86,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/industrial/concrete_pipes_01.png",
+      "width": 106,
+      "height": 81,
+      "alpha_islands": 3,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/industrial/corrugated_shed_01.png",
+      "width": 134,
+      "height": 123,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/industrial/crate_01.png",
+      "width": 62,
+      "height": 69,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/industrial/road_barrier_01.png",
+      "width": 68,
+      "height": 77,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/industrial/ruined_shed_01.png",
+      "width": 134,
+      "height": 123,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/industrial/scrap_pile_01.png",
+      "width": 251,
+      "height": 144,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/industrial/watchtower_01.png",
+      "width": 148,
+      "height": 251,
+      "alpha_islands": 11,
+      "warnings": [
+        "many_tiny_islands"
+      ]
+    },
+    {
+      "path": "assets/art/props/landmarks/ashwood_welcome_sign_01.png",
+      "width": 504,
+      "height": 425,
+      "alpha_islands": 15,
+      "warnings": [
+        "many_alpha_islands",
+        "many_tiny_islands"
+      ]
+    },
+    {
+      "path": "assets/art/props/landmarks/boat_01.png",
+      "width": 507,
+      "height": 265,
+      "alpha_islands": 15,
+      "warnings": [
+        "many_alpha_islands",
+        "many_tiny_islands"
+      ]
+    },
+    {
+      "path": "assets/art/props/landmarks/campfire_01.png",
+      "width": 369,
+      "height": 268,
+      "alpha_islands": 3,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/landmarks/communications_tower_01.png",
+      "width": 453,
+      "height": 625,
+      "alpha_islands": 73,
+      "warnings": [
+        "many_alpha_islands",
+        "many_tiny_islands"
+      ]
+    },
+    {
+      "path": "assets/art/props/landmarks/dock_01.png",
+      "width": 507,
+      "height": 265,
+      "alpha_islands": 15,
+      "warnings": [
+        "many_alpha_islands",
+        "many_tiny_islands"
+      ]
+    },
+    {
+      "path": "assets/art/props/landmarks/dock_rowboat_01.png",
+      "width": 507,
+      "height": 265,
+      "alpha_islands": 15,
+      "warnings": [
+        "many_alpha_islands",
+        "many_tiny_islands"
+      ]
+    },
+    {
+      "path": "assets/art/props/landmarks/fire_lookout_tower_01.png",
+      "width": 342,
+      "height": 523,
+      "alpha_islands": 9,
+      "warnings": [
+        "many_tiny_islands"
+      ]
+    },
+    {
+      "path": "assets/art/props/landmarks/lookout_viewpoint_01.png",
+      "width": 472,
+      "height": 308,
+      "alpha_islands": 10,
+      "warnings": [
+        "many_tiny_islands"
+      ]
+    },
+    {
+      "path": "assets/art/props/landmarks/picnic_table_01.png",
+      "width": 345,
+      "height": 262,
+      "alpha_islands": 3,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/landmarks/ridge_viewpoint_01.png",
+      "width": 472,
+      "height": 308,
+      "alpha_islands": 10,
+      "warnings": [
+        "many_tiny_islands"
+      ]
+    },
+    {
+      "path": "assets/art/props/landmarks/rowboat_01.png",
+      "width": 507,
+      "height": 265,
+      "alpha_islands": 15,
+      "warnings": [
+        "many_alpha_islands",
+        "many_tiny_islands"
+      ]
+    },
+    {
+      "path": "assets/art/props/landmarks/ruined_cabin_01.png",
+      "width": 457,
+      "height": 377,
+      "alpha_islands": 12,
+      "warnings": [
+        "many_tiny_islands"
+      ]
+    },
+    {
+      "path": "assets/art/props/landmarks/trail_board_01.png",
+      "width": 499,
+      "height": 419,
+      "alpha_islands": 12,
+      "warnings": [
+        "many_tiny_islands"
+      ]
+    },
+    {
+      "path": "assets/art/props/landmarks/trail_information_board_01.png",
+      "width": 499,
+      "height": 419,
+      "alpha_islands": 12,
+      "warnings": [
+        "many_tiny_islands"
+      ]
+    },
+    {
+      "path": "assets/art/props/landmarks/watchtower_01.png",
+      "width": 342,
+      "height": 523,
+      "alpha_islands": 9,
+      "warnings": [
+        "many_tiny_islands"
+      ]
+    },
+    {
+      "path": "assets/art/props/landmarks/welcome_sign_01.png",
+      "width": 504,
+      "height": 425,
+      "alpha_islands": 15,
+      "warnings": [
+        "many_alpha_islands",
+        "many_tiny_islands"
+      ]
+    },
+    {
+      "path": "assets/art/props/landmarks/wooden_dock_01.png",
+      "width": 507,
+      "height": 265,
+      "alpha_islands": 15,
+      "warnings": [
+        "many_alpha_islands",
+        "many_tiny_islands"
+      ]
+    },
+    {
+      "path": "assets/art/props/logging/fallen_log_02.png",
+      "width": 170,
+      "height": 106,
+      "alpha_islands": 4,
+      "warnings": [
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/props/logging/log_pile_03.png",
+      "width": 115,
+      "height": 85,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/logging/rotted_log_01.png",
+      "width": 134,
+      "height": 106,
+      "alpha_islands": 6,
+      "warnings": [
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/props/logging/stump_02.png",
+      "width": 163,
+      "height": 111,
+      "alpha_islands": 10,
+      "warnings": [
+        "many_tiny_islands",
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/props/logging/timber_stack_03.png",
+      "width": 115,
+      "height": 85,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/roadside/boulder_cluster_03.png",
+      "width": 155,
+      "height": 127,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/roadside/cliff_rock_01.png",
+      "width": 107,
+      "height": 96,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/roadside/cliff_rock_02.png",
+      "width": 119,
+      "height": 109,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/roadside/cliff_rock_03.png",
+      "width": 133,
+      "height": 122,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/roadside/cliff_rock_04.png",
+      "width": 101,
+      "height": 92,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/roadside/concrete_barrier_01.png",
+      "width": 81,
+      "height": 70,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/roadside/cones_barrier_01.png",
+      "width": 186,
+      "height": 154,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/roadside/curve_sign_01.png",
+      "width": 54,
+      "height": 93,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/roadside/mossy_boulder_02.png",
+      "width": 147,
+      "height": 102,
+      "alpha_islands": 7,
+      "warnings": [
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/props/roadside/rock_formation_02.png",
+      "width": 109,
+      "height": 90,
+      "alpha_islands": 5,
+      "warnings": [
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/props/roadside/rock_slab_01.png",
+      "width": 155,
+      "height": 127,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/roadside/rusty_barrel_01.png",
+      "width": 149,
+      "height": 142,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/roadside/speed_sign_55_01.png",
+      "width": 40,
+      "height": 102,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/roadside/stone_wall_01.png",
+      "width": 179,
+      "height": 132,
+      "alpha_islands": 11,
+      "warnings": [
+        "many_tiny_islands",
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/props/roadside/stop_sign_01.png",
+      "width": 46,
+      "height": 89,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/roadside/street_light_01.png",
+      "width": 30,
+      "height": 25,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/roadside/tire_pile_01.png",
+      "width": 265,
+      "height": 139,
+      "alpha_islands": 3,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/roadside/traffic_cone_02.png",
+      "width": 7,
+      "height": 7,
+      "alpha_islands": 0,
+      "warnings": [
+        "excessive_empty_canvas"
+      ]
+    },
+    {
+      "path": "assets/art/props/roadside/utility_pole_01.png",
+      "width": 50,
+      "height": 152,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/roadside/warning_sign_01.png",
+      "width": 54,
+      "height": 93,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/rural/campfire_01.png",
+      "width": 369,
+      "height": 268,
+      "alpha_islands": 3,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/rural/garden_plot_01.png",
+      "width": 478,
+      "height": 286,
+      "alpha_islands": 5,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/rural/laundry_yard_01.png",
+      "width": 304,
+      "height": 282,
+      "alpha_islands": 8,
+      "warnings": [
+        "many_tiny_islands"
+      ]
+    },
+    {
+      "path": "assets/art/props/rural/mailbox_tree_01.png",
+      "width": 246,
+      "height": 320,
+      "alpha_islands": 7,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/rural/picnic_table_01.png",
+      "width": 345,
+      "height": 262,
+      "alpha_islands": 3,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/urban/banner_lamp_01.png",
+      "width": 147,
+      "height": 392,
+      "alpha_islands": 3,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/urban/bench_01.png",
+      "width": 312,
+      "height": 196,
+      "alpha_islands": 4,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/urban/bicycle_rack_01.png",
+      "width": 346,
+      "height": 222,
+      "alpha_islands": 15,
+      "warnings": [
+        "many_alpha_islands",
+        "many_tiny_islands"
+      ]
+    },
+    {
+      "path": "assets/art/props/urban/bus_shelter_01.png",
+      "width": 322,
+      "height": 312,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/urban/chainlink_fence_01.png",
+      "width": 349,
+      "height": 236,
+      "alpha_islands": 45,
+      "warnings": [
+        "many_alpha_islands",
+        "many_tiny_islands"
+      ]
+    },
+    {
+      "path": "assets/art/props/urban/communications_tower_01.png",
+      "width": 453,
+      "height": 625,
+      "alpha_islands": 73,
+      "warnings": [
+        "many_alpha_islands",
+        "many_tiny_islands"
+      ]
+    },
+    {
+      "path": "assets/art/props/urban/county_planter_01.png",
+      "width": 347,
+      "height": 231,
+      "alpha_islands": 8,
+      "warnings": [
+        "many_tiny_islands"
+      ]
+    },
+    {
+      "path": "assets/art/props/urban/dumpster_01.png",
+      "width": 314,
+      "height": 240,
+      "alpha_islands": 5,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/urban/electrical_cabinet_01.png",
+      "width": 266,
+      "height": 260,
+      "alpha_islands": 8,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/urban/fire_hydrant_01.png",
+      "width": 131,
+      "height": 173,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/urban/graffiti_barrier_01.png",
+      "width": 380,
+      "height": 181,
+      "alpha_islands": 3,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/urban/hvac_unit_01.png",
+      "width": 270,
+      "height": 201,
+      "alpha_islands": 4,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/urban/mailbox_01.png",
+      "width": 164,
+      "height": 212,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/urban/newspaper_box_01.png",
+      "width": 211,
+      "height": 240,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/urban/planter_01.png",
+      "width": 347,
+      "height": 231,
+      "alpha_islands": 8,
+      "warnings": [
+        "many_tiny_islands"
+      ]
+    },
+    {
+      "path": "assets/art/props/urban/road_barrier_01.png",
+      "width": 277,
+      "height": 206,
+      "alpha_islands": 7,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/urban/road_sign_01.png",
+      "width": 139,
+      "height": 316,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/urban/service_station_sign_01.png",
+      "width": 139,
+      "height": 316,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/urban/street_light_01.png",
+      "width": 231,
+      "height": 372,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/urban/traffic_barrel_01.png",
+      "width": 182,
+      "height": 186,
+      "alpha_islands": 4,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/urban/traffic_cones_01.png",
+      "width": 148,
+      "height": 154,
+      "alpha_islands": 4,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/urban/traffic_cone_01.png",
+      "width": 148,
+      "height": 154,
+      "alpha_islands": 4,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/urban/traffic_light_01.png",
+      "width": 294,
+      "height": 399,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/urban/trash_bin_01.png",
+      "width": 221,
+      "height": 202,
+      "alpha_islands": 3,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/urban/trash_pile_01.png",
+      "width": 334,
+      "height": 209,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/urban/utility_pole_01.png",
+      "width": 284,
+      "height": 377,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/vehicles/abandoned_ambulance_01.png",
+      "width": 366,
+      "height": 248,
+      "alpha_islands": 5,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/vehicles/abandoned_sedan_01.png",
+      "width": 279,
+      "height": 160,
+      "alpha_islands": 3,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/vehicles/abandoned_sedan_02.png",
+      "width": 282,
+      "height": 149,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/vehicles/abandoned_sedan_03.png",
+      "width": 279,
+      "height": 160,
+      "alpha_islands": 3,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/vehicles/ambulance_01.png",
+      "width": 366,
+      "height": 248,
+      "alpha_islands": 5,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/vehicles/boat_01.png",
+      "width": 302,
+      "height": 150,
+      "alpha_islands": 7,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/vehicles/box_truck_01.png",
+      "width": 394,
+      "height": 269,
+      "alpha_islands": 6,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/vehicles/bus_01.png",
+      "width": 455,
+      "height": 258,
+      "alpha_islands": 4,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/vehicles/farm_pickup_01.png",
+      "width": 376,
+      "height": 201,
+      "alpha_islands": 5,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/vehicles/jeep_01.png",
+      "width": 294,
+      "height": 166,
+      "alpha_islands": 5,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/vehicles/logging_suv_01.png",
+      "width": 327,
+      "height": 206,
+      "alpha_islands": 3,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/vehicles/logging_truck_01.png",
+      "width": 394,
+      "height": 269,
+      "alpha_islands": 6,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/vehicles/motorcycle_01.png",
+      "width": 248,
+      "height": 157,
+      "alpha_islands": 10,
+      "warnings": [
+        "many_tiny_islands"
+      ]
+    },
+    {
+      "path": "assets/art/props/vehicles/old_van_01.png",
+      "width": 290,
+      "height": 172,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/vehicles/overturned_vehicle_01.png",
+      "width": 341,
+      "height": 187,
+      "alpha_islands": 5,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/vehicles/pickup_01.png",
+      "width": 376,
+      "height": 201,
+      "alpha_islands": 5,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/vehicles/pickup_02.png",
+      "width": 336,
+      "height": 167,
+      "alpha_islands": 4,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/vehicles/police_car_01.png",
+      "width": 334,
+      "height": 185,
+      "alpha_islands": 7,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/vehicles/school_bus_01.png",
+      "width": 455,
+      "height": 258,
+      "alpha_islands": 4,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/vehicles/sedan_01.png",
+      "width": 374,
+      "height": 191,
+      "alpha_islands": 6,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/vehicles/sedan_02.png",
+      "width": 363,
+      "height": 174,
+      "alpha_islands": 6,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/vehicles/sheriff_car_01.png",
+      "width": 334,
+      "height": 185,
+      "alpha_islands": 7,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/vehicles/station_wagon_01.png",
+      "width": 296,
+      "height": 180,
+      "alpha_islands": 6,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/vehicles/suv_01.png",
+      "width": 379,
+      "height": 217,
+      "alpha_islands": 4,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/vehicles/trailer_01.png",
+      "width": 287,
+      "height": 157,
+      "alpha_islands": 6,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/vehicles/truck_01.png",
+      "width": 394,
+      "height": 269,
+      "alpha_islands": 6,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/vehicles/utility_trailer_01.png",
+      "width": 287,
+      "height": 157,
+      "alpha_islands": 6,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/vehicles/van_01.png",
+      "width": 327,
+      "height": 212,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/vehicles/van_02.png",
+      "width": 290,
+      "height": 172,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/vehicles/work_pickup_01.png",
+      "width": 336,
+      "height": 167,
+      "alpha_islands": 4,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/props/vehicles/wreck_01.png",
+      "width": 341,
+      "height": 187,
+      "alpha_islands": 5,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/resources/fallen_log_01.png",
+      "width": 182,
+      "height": 117,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/resources/stump_01.png",
+      "width": 175,
+      "height": 121,
+      "alpha_islands": 9,
+      "warnings": [
+        "many_tiny_islands"
+      ]
+    },
+    {
+      "path": "assets/art/resources/wood_stack_01.png",
+      "width": 299,
+      "height": 232,
+      "alpha_islands": 4,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/resources/wood_stack_02.png",
+      "width": 240,
+      "height": 151,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/dirt_01.png",
+      "width": 294,
+      "height": 199,
+      "alpha_islands": 3,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/dirt_path_01.png",
+      "width": 319,
+      "height": 211,
+      "alpha_islands": 3,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/dirt_scatter_01.png",
+      "width": 187,
+      "height": 131,
+      "alpha_islands": 38,
+      "warnings": [
+        "many_alpha_islands",
+        "many_tiny_islands"
+      ]
+    },
+    {
+      "path": "assets/art/terrain/grass_01.png",
+      "width": 340,
+      "height": 208,
+      "alpha_islands": 7,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/grass_02.png",
+      "width": 306,
+      "height": 201,
+      "alpha_islands": 4,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/grass_dirt_01.png",
+      "width": 292,
+      "height": 202,
+      "alpha_islands": 3,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/grass_scatter_01.png",
+      "width": 220,
+      "height": 150,
+      "alpha_islands": 54,
+      "warnings": [
+        "many_alpha_islands",
+        "many_tiny_islands",
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/terrain/gravel_scatter_01.png",
+      "width": 208,
+      "height": 140,
+      "alpha_islands": 39,
+      "warnings": [
+        "many_alpha_islands",
+        "many_tiny_islands",
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/terrain/leaves_01.png",
+      "width": 260,
+      "height": 150,
+      "alpha_islands": 41,
+      "warnings": [
+        "many_alpha_islands",
+        "many_tiny_islands",
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/terrain/mud_scatter_01.png",
+      "width": 231,
+      "height": 153,
+      "alpha_islands": 29,
+      "warnings": [
+        "many_alpha_islands",
+        "many_tiny_islands",
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/terrain/ground/bare_dirt_01.png",
+      "width": 282,
+      "height": 187,
+      "alpha_islands": 3,
+      "warnings": [
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/terrain/ground/dirt_scatter_02.png",
+      "width": 181,
+      "height": 125,
+      "alpha_islands": 38,
+      "warnings": [
+        "many_alpha_islands",
+        "many_tiny_islands",
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/terrain/ground/dry_grass_rock_01.png",
+      "width": 141,
+      "height": 100,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/ground/farm_rows_muddy_01.png",
+      "width": 293,
+      "height": 199,
+      "alpha_islands": 1,
+      "warnings": [
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/terrain/ground/forest_floor_02.png",
+      "width": 141,
+      "height": 101,
+      "alpha_islands": 4,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/ground/grass_dirt_edge_01.png",
+      "width": 280,
+      "height": 191,
+      "alpha_islands": 3,
+      "warnings": [
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/terrain/ground/grass_scatter_02.png",
+      "width": 226,
+      "height": 136,
+      "alpha_islands": 53,
+      "warnings": [
+        "many_alpha_islands",
+        "many_tiny_islands",
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/terrain/ground/gravel_ground_01.png",
+      "width": 287,
+      "height": 195,
+      "alpha_islands": 1,
+      "warnings": [
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/terrain/ground/gravel_scatter_02.png",
+      "width": 171,
+      "height": 122,
+      "alpha_islands": 37,
+      "warnings": [
+        "many_alpha_islands",
+        "many_tiny_islands",
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/terrain/ground/leaf_litter_02.png",
+      "width": 225,
+      "height": 116,
+      "alpha_islands": 39,
+      "warnings": [
+        "many_alpha_islands",
+        "many_tiny_islands",
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/terrain/ground/lush_grass_flowers_01.png",
+      "width": 328,
+      "height": 196,
+      "alpha_islands": 7,
+      "warnings": [
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/terrain/ground/meadow_flowers_03.png",
+      "width": 141,
+      "height": 102,
+      "alpha_islands": 3,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/ground/mixed_grass_03.png",
+      "width": 143,
+      "height": 101,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/ground/muddy_ground_02.png",
+      "width": 143,
+      "height": 102,
+      "alpha_islands": 3,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/ground/mushroom_meadow_01.png",
+      "width": 143,
+      "height": 99,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/ground/ploughed_rows_02.png",
+      "width": 169,
+      "height": 120,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/ground/rocky_dirt_01.png",
+      "width": 297,
+      "height": 199,
+      "alpha_islands": 1,
+      "warnings": [
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/terrain/ground/rocky_ground_03.png",
+      "width": 129,
+      "height": 93,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/ground/sparse_dirt_01.png",
+      "width": 282,
+      "height": 189,
+      "alpha_islands": 3,
+      "warnings": [
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/terrain/ground/sparse_grass_01.png",
+      "width": 295,
+      "height": 189,
+      "alpha_islands": 4,
+      "warnings": [
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/terrain/ground/sparse_ground_02.png",
+      "width": 146,
+      "height": 101,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/ground/stone_outcrop_ground_01.png",
+      "width": 103,
+      "height": 89,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/ground/wildflower_grass_02.png",
+      "width": 141,
+      "height": 99,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/rail/rail_curve_01.png",
+      "width": 154,
+      "height": 112,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/rail/rail_grass_straight_01.png",
+      "width": 150,
+      "height": 101,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/rail/rail_straight_01.png",
+      "width": 152,
+      "height": 104,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/roads/asphalt_bend_01.png",
+      "width": 132,
+      "height": 108,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/roads/asphalt_cracked_01.png",
+      "width": 286,
+      "height": 193,
+      "alpha_islands": 1,
+      "warnings": [
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/terrain/roads/asphalt_curve_01.png",
+      "width": 121,
+      "height": 125,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/roads/asphalt_edge_01.png",
+      "width": 76,
+      "height": 104,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/roads/asphalt_intersection_01.png",
+      "width": 152,
+      "height": 130,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/roads/asphalt_straight_02.png",
+      "width": 147,
+      "height": 103,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/roads/asphalt_wear_01.png",
+      "width": 211,
+      "height": 127,
+      "alpha_islands": 21,
+      "warnings": [
+        "many_alpha_islands",
+        "many_tiny_islands",
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/terrain/roads/dirt_crossroads_01.png",
+      "width": 144,
+      "height": 112,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/roads/dirt_curve_01.png",
+      "width": 129,
+      "height": 114,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/roads/dirt_junction_01.png",
+      "width": 154,
+      "height": 110,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/roads/dirt_lane_02.png",
+      "width": 158,
+      "height": 108,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/roads/dirt_ruts_02.png",
+      "width": 159,
+      "height": 108,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/roads/dirt_straight_03.png",
+      "width": 154,
+      "height": 106,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/roads/dirt_track_01.png",
+      "width": 308,
+      "height": 200,
+      "alpha_islands": 3,
+      "warnings": [
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/terrain/roads/forest_track_01.png",
+      "width": 283,
+      "height": 197,
+      "alpha_islands": 1,
+      "warnings": [
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/terrain/roads/forest_track_02.png",
+      "width": 135,
+      "height": 108,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/roads/gravel_road_01.png",
+      "width": 287,
+      "height": 195,
+      "alpha_islands": 4,
+      "warnings": [
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/terrain/roads/gravel_road_02.png",
+      "width": 162,
+      "height": 110,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/roads/muddy_curve_01.png",
+      "width": 131,
+      "height": 102,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/roads/ploughed_curve_01.png",
+      "width": 150,
+      "height": 108,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/roads/rural_path_grass_01.png",
+      "width": 321,
+      "height": 203,
+      "alpha_islands": 5,
+      "warnings": [
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/terrain/roads/wet_track_01.png",
+      "width": 160,
+      "height": 109,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/water/autumn_puddle_01.png",
+      "width": 143,
+      "height": 102,
+      "alpha_islands": 3,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/water/berry_puddle_01.png",
+      "width": 142,
+      "height": 100,
+      "alpha_islands": 4,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/water/creek_rapids_01.png",
+      "width": 189,
+      "height": 133,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/water/marsh_pond_01.png",
+      "width": 199,
+      "height": 111,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/water/marsh_pond_02.png",
+      "width": 191,
+      "height": 155,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/water/muddy_pond_01.png",
+      "width": 283,
+      "height": 194,
+      "alpha_islands": 1,
+      "warnings": [
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/terrain/water/muddy_puddle_01.png",
+      "width": 225,
+      "height": 128,
+      "alpha_islands": 28,
+      "warnings": [
+        "many_alpha_islands",
+        "many_tiny_islands",
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/terrain/water/mud_puddle_02.png",
+      "width": 144,
+      "height": 101,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/water/pond_deep_01.png",
+      "width": 189,
+      "height": 122,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/water/pond_lilies_01.png",
+      "width": 180,
+      "height": 118,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/water/pond_reeds_01.png",
+      "width": 217,
+      "height": 121,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/water/river_rapids_curve_01.png",
+      "width": 206,
+      "height": 135,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/water/river_rapids_rocks_01.png",
+      "width": 199,
+      "height": 143,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/terrain/water/river_rapids_straight_01.png",
+      "width": 169,
+      "height": 162,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/vegetation/birch_01.png",
+      "width": 64,
+      "height": 116,
+      "alpha_islands": 5,
+      "warnings": [
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/vegetation/birch_young_01.png",
+      "width": 43,
+      "height": 122,
+      "alpha_islands": 3,
+      "warnings": [
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/vegetation/bush_berries_01.png",
+      "width": 108,
+      "height": 97,
+      "alpha_islands": 1,
+      "warnings": [
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/vegetation/bush_dense_02.png",
+      "width": 149,
+      "height": 136,
+      "alpha_islands": 2,
+      "warnings": [
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/vegetation/bush_flowers_02.png",
+      "width": 123,
+      "height": 110,
+      "alpha_islands": 3,
+      "warnings": [
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/vegetation/dead_tree_02.png",
+      "width": 82,
+      "height": 148,
+      "alpha_islands": 3,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/vegetation/dead_tree_young_01.png",
+      "width": 88,
+      "height": 163,
+      "alpha_islands": 4,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/vegetation/deciduous_02.png",
+      "width": 105,
+      "height": 173,
+      "alpha_islands": 3,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/vegetation/deciduous_autumn_01.png",
+      "width": 101,
+      "height": 149,
+      "alpha_islands": 4,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/vegetation/fern_02.png",
+      "width": 121,
+      "height": 101,
+      "alpha_islands": 2,
+      "warnings": [
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/vegetation/fern_03.png",
+      "width": 121,
+      "height": 101,
+      "alpha_islands": 2,
+      "warnings": [
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/vegetation/flowers_blue_01.png",
+      "width": 72,
+      "height": 82,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/vegetation/flowers_red_01.png",
+      "width": 64,
+      "height": 63,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/vegetation/flowers_white_02.png",
+      "width": 75,
+      "height": 69,
+      "alpha_islands": 1,
+      "warnings": [
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/vegetation/flowers_yellow_01.png",
+      "width": 73,
+      "height": 70,
+      "alpha_islands": 3,
+      "warnings": [
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/vegetation/grass_clump_02.png",
+      "width": 108,
+      "height": 106,
+      "alpha_islands": 18,
+      "warnings": [
+        "many_alpha_islands",
+        "many_tiny_islands",
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/vegetation/hedge_01.png",
+      "width": 182,
+      "height": 120,
+      "alpha_islands": 2,
+      "warnings": [
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/vegetation/pine_02.png",
+      "width": 94,
+      "height": 175,
+      "alpha_islands": 2,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/vegetation/pine_03.png",
+      "width": 72,
+      "height": 104,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/vegetation/reeds_01.png",
+      "width": 46,
+      "height": 98,
+      "alpha_islands": 3,
+      "warnings": [
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/vegetation/reeds_02.png",
+      "width": 46,
+      "height": 98,
+      "alpha_islands": 3,
+      "warnings": [
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/vegetation/shrub_03.png",
+      "width": 149,
+      "height": 136,
+      "alpha_islands": 2,
+      "warnings": [
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/vegetation/shrub_yellow_01.png",
+      "width": 149,
+      "height": 136,
+      "alpha_islands": 2,
+      "warnings": [
+        "touches_crop_boundary"
+      ]
+    },
+    {
+      "path": "assets/art/vegetation/young_deciduous_02.png",
+      "width": 72,
+      "height": 83,
+      "alpha_islands": 1,
+      "warnings": []
+    },
+    {
+      "path": "assets/art/vegetation/young_pine_02.png",
+      "width": 73,
+      "height": 80,
+      "alpha_islands": 1,
+      "warnings": []
+    }
+  ]
+}

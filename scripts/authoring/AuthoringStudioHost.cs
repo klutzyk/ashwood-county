@@ -16,17 +16,17 @@ public partial class AuthoringStudioHost:Node
     private IsometricWorld _world=null!;private CountyWorld _county=null!;private StrategyCamera _camera=null!;private AuthoringStudioCanvas _canvas=null!;private AuthoredLandscapeSystem _landscape=null!;
     private readonly IReadOnlyList<AuthoringAssetEntry> _assets=AuthoringAssetCatalog.GetAssets();
     private readonly List<AuthoringAssetEntry> _recent=[];private readonly HashSet<string> _favorites=[];
-    private OptionButton _location=null!,_radius=null!,_category=null!,_gameplay=null!,_selectedGameplay=null!,_loot=null!,_roadType=null!,_layer=null!;
+    private OptionButton _location=null!,_radius=null!,_category=null!,_subcategory=null!,_gameplay=null!,_selectedGameplay=null!,_loot=null!,_roadType=null!,_layer=null!;
     private LineEdit _search=null!,_name=null!,_roomA=null!,_roomB=null!;
     private GridContainer _assetGrid=null!;private Label _status=null!,_dirtyStatus=null!,_coordinates=null!,_selectionTitle=null!,_id=null!,_validation=null!;
     private SpinBox _x=null!,_y=null!,_width=null!,_height=null!,_target=null!,_visualWidth=null!,_rotation=null!,_anchorX=null!,_anchorY=null!,_duration=null!,_brushRadius=null!,_brushDensity=null!,_brushVariation=null!,_roadWidth=null!;
     private Label _xLabel=null!,_yLabel=null!,_widthLabel=null!,_heightLabel=null!,_targetLabel=null!,_visualWidthLabel=null!,_anchorXLabel=null!,_anchorYLabel=null!;
-    private CheckBox _collision=null!,_snap=null!,_keepAspect=null!,_randomBrush=null!,_layerVisible=null!,_layerLocked=null!;private Button _editInterior=null!,_exitInterior=null!,_apply=null!;private StudioCountyMinimap _minimap=null!;private AuthoringAssetEntry? _chosenAsset;
-    private CountyLocationDefinition[] _locations=[];private readonly Dictionary<string,bool> _layerVisibility=[];private readonly Dictionary<string,bool> _layerLocks=[];private bool _refreshingInspector,_quitArmed,_refreshingLayer;
+    private CheckBox _collision=null!,_snap=null!,_keepAspect=null!,_randomBrush=null!,_layerVisible=null!,_layerLocked=null!,_cleanupFlag=null!;private Button _editInterior=null!,_exitInterior=null!,_apply=null!;private StudioCountyMinimap _minimap=null!;private AssetInspectionPreview _assetPreview=null!;private Label _assetDetails=null!;private AuthoringAssetEntry? _chosenAsset;
+    private CountyLocationDefinition[] _locations=[];private readonly Dictionary<string,bool> _layerVisibility=[];private readonly Dictionary<string,bool> _layerLocks=[];private readonly HashSet<string> _cleanupFlags=[];private bool _refreshingInspector,_quitArmed,_refreshingLayer,_refreshingAssetQa;
 
     public override void _Ready()
     {
-        BuildWorld();BuildUi();
+        LoadCleanupFlags();BuildWorld();BuildUi();
         GetTree().AutoAcceptQuit=false;Timer autosave=new(){WaitTime=60,OneShot=false,Autostart=true};autosave.Timeout+=_canvas.SaveRecovery;AddChild(autosave);
         Vector2 center=AuthoringSessionState.Center.IsZeroApprox()?new Vector2(220,155):AuthoringSessionState.Center;
         int radius=AuthoringSessionState.Radius;
@@ -47,7 +47,14 @@ public partial class AuthoringStudioHost:Node
         else if(System.Environment.GetEnvironmentVariable("ASHWOOD_VALIDATE_AUTHORING_STUDIO")=="1")RunAutomatedValidation();
         else if(!string.IsNullOrWhiteSpace(System.Environment.GetEnvironmentVariable("ASHWOOD_STUDIO_CAPTURE_PNG")))CaptureStudio();
     }
-    public override void _Process(double delta){if(_coordinates is null||_world is null)return;Vector2 grid=_world.ScreenToGridPosition(GetViewport().GetMousePosition());_coordinates.Text=$"X {grid.X:0.0}  Y {grid.Y:0.0}";}
+    public override void _Process(double delta)
+    {
+        if(_coordinates is null||_world is null)return;
+        Vector2 grid=_world.ScreenToGridPosition(GetViewport().GetMousePosition());_coordinates.Text=$"X {grid.X:0.0}  Y {grid.Y:0.0}";
+        if(_canvas.IsInteriorMode)return;
+        Vector2 cameraGrid=CountyCoordinateSpace.ClampToCounty(IsometricGrid.ScreenToGrid(_camera.Position));
+        if(CountyCoordinateSpace.GridToChunk(cameraGrid)!=CountyCoordinateSpace.GridToChunk(_canvas.LoadedCenter))StreamArea(cameraGrid,RadiusValue());
+    }
 
     private void BuildWorld()
     {
@@ -74,23 +81,36 @@ public partial class AuthoringStudioHost:Node
     {
         PanelContainer panel=Panel(root,10,10,300,-10,true);VBoxContainer box=VBox(panel);
         box.AddChild(Label("ASHWOOD AUTHORING STUDIO","HudTitle"));box.AddChild(Label("CHUNK-SCOPED WORLD & INTERIOR DESIGN","HudTiny"));
-        _minimap=new StudioCountyMinimap{CustomMinimumSize=new Vector2(270,142)};_minimap.CenterRequested+=center=>LoadArea(center,RadiusValue());box.AddChild(_minimap);
+        _minimap=new StudioCountyMinimap{CustomMinimumSize=new Vector2(270,104)};_minimap.CenterRequested+=center=>LoadArea(center,RadiusValue());box.AddChild(_minimap);
         _location=new OptionButton();_locations=CountyMacroLayout.Locations.OrderBy(location=>location.Kind).ThenBy(location=>location.Name).ToArray();foreach(CountyLocationDefinition location in _locations)_location.AddItem(location.Name);box.AddChild(_location);
         HBoxContainer loadRow=new();_radius=new OptionButton();_radius.AddItem("1 CHUNK");_radius.AddItem("3 x 3 CHUNKS");_radius.AddItem("5 x 5 CHUNKS");_radius.Selected=1;loadRow.AddChild(_radius);Button load=Button("LOAD AREA",()=>LoadArea(_locations[_location.Selected].Center,RadiusValue()));loadRow.AddChild(load);box.AddChild(loadRow);
-        HBoxContainer layerRow=new();_layer=new OptionButton();foreach(string layer in new[]{"Terrain","Roads","Vegetation","Buildings","Props","Gameplay"}){_layer.AddItem(layer);_layerVisibility[layer]=true;_layerLocks[layer]=false;}_layerVisible=new CheckBox{Text="SHOW",ButtonPressed=true};_layerLocked=new CheckBox{Text="LOCK"};_layer.ItemSelected+=_=>RefreshLayerControls();_layerVisible.Toggled+=_=>ApplyLayerControls();_layerLocked.Toggled+=_=>ApplyLayerControls();layerRow.AddChild(_layer);layerRow.AddChild(_layerVisible);layerRow.AddChild(_layerLocked);box.AddChild(layerRow);
-        box.AddChild(new HSeparator());box.AddChild(Label("ASSET LIBRARY","HudHeading"));
-        _search=new LineEdit{PlaceholderText="Search assets...",ClearButtonEnabled=true};_search.TextChanged+=_=>RefreshAssets();box.AddChild(_search);
-        _category=new OptionButton();_category.AddItem("All Assets");_category.AddItem("Recent");_category.AddItem("★ Favorites");foreach(string category in _assets.Select(asset=>asset.Category).Distinct())_category.AddItem(category);_category.ItemSelected+=_=>RefreshAssets();box.AddChild(_category);
-        _gameplay=new OptionButton();foreach(string type in new[]{"Decoration","Building","Door","Container","Bed","Scavenge Source","Landmark","Zombie Spawn","Resource"})_gameplay.AddItem(type);_gameplay.ItemSelected+=_=>_canvas.PlacementGameplayType=_gameplay.GetItemText(_gameplay.Selected);box.AddChild(_gameplay);
-        HBoxContainer brushRow=new();_brushRadius=CompactNumber("RADIUS",.5,12,.5,2.5);_brushDensity=CompactNumber("DENSITY",.1,2,.1,.65);_brushVariation=CompactNumber("SCALE ±",0,.75,.05,.18);brushRow.AddChild(_brushRadius);brushRow.AddChild(_brushDensity);brushRow.AddChild(_brushVariation);box.AddChild(brushRow);_randomBrush=new CheckBox{Text="RANDOM ASSET / ROTATION",ButtonPressed=true};_randomBrush.Toggled+=_=>ApplyBrushSettings();box.AddChild(_randomBrush);_brushRadius.ValueChanged+=_=>ApplyBrushSettings();_brushDensity.ValueChanged+=_=>ApplyBrushSettings();_brushVariation.ValueChanged+=_=>ApplyBrushSettings();ApplyBrushSettings();
-        HBoxContainer roadRow=new();_roadType=new OptionButton();foreach(string type in new[]{"Highway","Paved Town Road","Rural Road","Dirt Road","Farm Track","Forest Track","Footpath"})_roadType.AddItem(type);_roadType.Selected=2;_roadWidth=CompactNumber("ROAD WIDTH",.2,4,.1,1.2);_roadType.ItemSelected+=_=>ApplyPathSettings();_roadWidth.ValueChanged+=_=>ApplyPathSettings();roadRow.AddChild(_roadType);roadRow.AddChild(_roadWidth);box.AddChild(roadRow);
-        ScrollContainer scroll=new(){SizeFlagsVertical=Control.SizeFlags.ExpandFill,HorizontalScrollMode=ScrollContainer.ScrollMode.Disabled};_assetGrid=new GridContainer{Columns=3,SizeFlagsHorizontal=Control.SizeFlags.ExpandFill};scroll.AddChild(_assetGrid);box.AddChild(scroll);RefreshAssets();
+
+        TabContainer tabs=new(){Name="AuthoringTabs",SizeFlagsVertical=Control.SizeFlags.ExpandFill,SizeFlagsHorizontal=Control.SizeFlags.ExpandFill};box.AddChild(tabs);
+
+        VBoxContainer assetsTab=new(){Name="ASSETS",SizeFlagsVertical=Control.SizeFlags.ExpandFill};tabs.AddChild(assetsTab);
+        _search=new LineEdit{PlaceholderText="Search assets...",ClearButtonEnabled=true};_search.TextChanged+=_=>RefreshAssets();assetsTab.AddChild(_search);
+        _category=new OptionButton();_category.AddItem("All Assets");_category.AddItem("Recent");_category.AddItem("★ Favorites");foreach(string category in _assets.Select(asset=>asset.Category).Distinct())_category.AddItem(category);_category.ItemSelected+=_=>RefreshSubcategories();assetsTab.AddChild(_category);
+        _subcategory=new OptionButton();_subcategory.AddItem("All Subcategories");_subcategory.ItemSelected+=_=>RefreshAssets();assetsTab.AddChild(_subcategory);
+        ScrollContainer scroll=new(){SizeFlagsVertical=Control.SizeFlags.ExpandFill,SizeFlagsHorizontal=Control.SizeFlags.ExpandFill,HorizontalScrollMode=ScrollContainer.ScrollMode.Disabled,MouseFilter=Control.MouseFilterEnum.Stop};scroll.GuiInput+=input=>{if(input is InputEventMouseButton mouse&&mouse.Pressed&&mouse.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown)scroll.AcceptEvent();};_assetGrid=new GridContainer{Columns=3,SizeFlagsHorizontal=Control.SizeFlags.ExpandFill};scroll.AddChild(_assetGrid);assetsTab.AddChild(scroll);
+
+        VBoxContainer qaTab=new(){Name="QA",SizeFlagsVertical=Control.SizeFlags.ExpandFill};tabs.AddChild(qaTab);qaTab.AddChild(Label("ASSET INSPECTION","HudHeading"));qaTab.AddChild(Label("Select any library thumbnail to inspect its actual pixels.","HudTiny"));_assetPreview=new AssetInspectionPreview{CustomMinimumSize=new Vector2(270,230),SizeFlagsHorizontal=Control.SizeFlags.ExpandFill};qaTab.AddChild(_assetPreview);_assetDetails=Label("No asset selected.","HudMuted");_assetDetails.AutowrapMode=TextServer.AutowrapMode.WordSmart;qaTab.AddChild(_assetDetails);_cleanupFlag=new CheckBox{Text="NEEDS CLEANUP"};_cleanupFlag.Toggled+=ToggleCleanupFlag;qaTab.AddChild(_cleanupFlag);
+
+        VBoxContainer toolsTab=new(){Name="PAINT",SizeFlagsVertical=Control.SizeFlags.ExpandFill};tabs.AddChild(toolsTab);
+        toolsTab.AddChild(new HSeparator());toolsTab.AddChild(Label("TERRAIN / SCATTER BRUSH","HudHeading"));toolsTab.AddChild(Label("R radius   D density   ± scale variation","HudTiny"));HBoxContainer brushRow=new();_brushRadius=CompactNumber("RADIUS",.5,12,.5,2.5);_brushDensity=CompactNumber("DENSITY",.1,2,.1,.65);_brushVariation=CompactNumber("SCALE ±",0,.75,.05,.18);brushRow.AddChild(_brushRadius);brushRow.AddChild(_brushDensity);brushRow.AddChild(_brushVariation);toolsTab.AddChild(brushRow);_randomBrush=new CheckBox{Text="RANDOM ASSET / ROTATION",ButtonPressed=true};_randomBrush.Toggled+=_=>ApplyBrushSettings();toolsTab.AddChild(_randomBrush);_brushRadius.ValueChanged+=_=>ApplyBrushSettings();_brushDensity.ValueChanged+=_=>ApplyBrushSettings();_brushVariation.ValueChanged+=_=>ApplyBrushSettings();ApplyBrushSettings();
+        toolsTab.AddChild(new HSeparator());toolsTab.AddChild(Label("ROAD STYLE","HudHeading"));toolsTab.AddChild(Label("Choosing a style starts drawing immediately.","HudTiny"));HBoxContainer roadRow=new();_roadType=new OptionButton();foreach(string type in new[]{"Highway","Paved Town Road","Rural Road","Dirt Road","Farm Track","Forest Track","Footpath"})_roadType.AddItem(type);_roadType.Selected=2;_roadWidth=CompactNumber("ROAD WIDTH",.2,4,.1,1.2);_roadType.ItemSelected+=_=>ActivateSelectedRoad();_roadWidth.ValueChanged+=_=>ApplyPathSettings();roadRow.AddChild(_roadType);roadRow.AddChild(_roadWidth);toolsTab.AddChild(roadRow);
+
+        HBoxContainer paintActions=new();paintActions.AddChild(Button("SCATTER SELECTED",ActivateScatter));paintActions.AddChild(Button("ERASE BRUSH",()=>_canvas.SetTool(AuthoringTool.Erase)));toolsTab.AddChild(paintActions);toolsTab.AddChild(Button("DRAW SELECTED AS LINE",ActivateLine));
+
+        VBoxContainer layersTab=new(){Name="LAYERS",SizeFlagsVertical=Control.SizeFlags.ExpandFill};tabs.AddChild(layersTab);layersTab.AddChild(Label("AUTHORING LAYERS","HudHeading"));layersTab.AddChild(Label("SHOW hides or reveals a layer. LOCK prevents selecting or painting it.","HudMuted"));HBoxContainer layerRow=new();_layer=new OptionButton();foreach(string layer in new[]{"Terrain","Roads","Vegetation","Buildings","Props","Gameplay"}){_layer.AddItem(layer);_layerVisibility[layer]=true;_layerLocks[layer]=false;}_layerVisible=new CheckBox{Text="SHOW",ButtonPressed=true};_layerLocked=new CheckBox{Text="LOCK"};_layer.ItemSelected+=_=>RefreshLayerControls();_layerVisible.Toggled+=_=>ApplyLayerControls();_layerLocked.Toggled+=_=>ApplyLayerControls();layerRow.AddChild(_layer);layerRow.AddChild(_layerVisible);layerRow.AddChild(_layerLocked);layersTab.AddChild(layerRow);
+        layersTab.AddChild(Label("Switching the dropdown only chooses which layer the SHOW and LOCK controls affect.","HudTiny"));
+        layersTab.AddChild(new HSeparator());layersTab.AddChild(Label("GAMEPLAY ROLE","HudHeading"));layersTab.AddChild(Label("Advanced: only change this for gameplay markers.","HudTiny"));_gameplay=new OptionButton();foreach(string type in new[]{"Decoration","Building","Door","Container","Bed","Scavenge Source","Landmark","Zombie Spawn","Resource"})_gameplay.AddItem(type);_gameplay.ItemSelected+=_=>_canvas.PlacementGameplayType=_gameplay.GetItemText(_gameplay.Selected);layersTab.AddChild(_gameplay);
+        RefreshAssets();
     }
 
     private void BuildToolbar(Control root)
     {
-        PanelContainer panel=Panel(root,310,10,-330,132);VBoxContainer rows=new();panel.AddChild(rows);GridContainer tools=new(){Columns=7};HBoxContainer actions=new();rows.AddChild(tools);rows.AddChild(actions);
-        tools.AddChild(Button("SELECT [Q]",()=>_canvas.SetTool(AuthoringTool.Select)));tools.AddChild(Button("PLACE",()=>_canvas.SetTool(AuthoringTool.Place)));tools.AddChild(Button("TERRAIN",ActivateTerrain));tools.AddChild(Button("SCATTER",ActivateScatter));tools.AddChild(Button("ERASE",()=>_canvas.SetTool(AuthoringTool.Erase)));tools.AddChild(Button("ROAD",()=>{ApplyPathSettings();_canvas.BeginRoadTool();}));tools.AddChild(Button("LINE",ActivateLine));tools.AddChild(Button("FINISH",_canvas.FinishPath));tools.AddChild(Button("FLOOR/ROOM",()=>_canvas.SetTool(AuthoringTool.Room)));tools.AddChild(Button("WALL",()=>_canvas.SetTool(AuthoringTool.Wall)));tools.AddChild(Button("DOOR",()=>_canvas.SetTool(AuthoringTool.Door)));
+        PanelContainer panel=Panel(root,310,10,-330,132);VBoxContainer rows=new();panel.AddChild(rows);HBoxContainer tools=new();HBoxContainer actions=new();rows.AddChild(tools);rows.AddChild(actions);
+        tools.AddChild(Button("SELECT [Q]",()=>_canvas.SetTool(AuthoringTool.Select)));tools.AddChild(Button("FINISH PATH",_canvas.FinishPath));tools.AddChild(Button("ROOM",()=>_canvas.SetTool(AuthoringTool.Room)));tools.AddChild(Button("WALL",()=>_canvas.SetTool(AuthoringTool.Wall)));tools.AddChild(Button("DOOR",()=>_canvas.SetTool(AuthoringTool.Door)));
         _snap=new CheckBox{Text="SNAP 0.25",ButtonPressed=true};_snap.Toggled+=value=>_canvas.SnapEnabled=value;tools.AddChild(_snap);
         actions.AddChild(Button("UNDO",_canvas.Undo));actions.AddChild(Button("REDO",_canvas.Redo));actions.AddChild(Button("DUPLICATE",_canvas.DuplicateSelection));actions.AddChild(Button("ROTATE [R]",()=>_canvas.RotateSelection()));actions.AddChild(Button("DELETE [E]",_canvas.DeleteSelection));actions.AddChild(Button("SAVE",_canvas.Save));actions.AddChild(Button("RECOVER",_canvas.Recover));actions.AddChild(Button("PLAYTEST",BeginPlaytest));
     }
@@ -121,31 +141,40 @@ public partial class AuthoringStudioHost:Node
 
     private void RefreshAssets()
     {
-        if(_assetGrid is null)return;foreach(Node child in _assetGrid.GetChildren())child.QueueFree();string category=_category?.Selected>0?_category.GetItemText(_category.Selected):string.Empty;string query=_search?.Text.Trim()??string.Empty;IEnumerable<AuthoringAssetEntry> source=category=="Recent"?_recent:category=="★ Favorites"?_assets.Where(asset=>_favorites.Contains(asset.Path)):_assets.Where(asset=>string.IsNullOrEmpty(category)||asset.Category==category);
-        foreach(AuthoringAssetEntry asset in source.Where(asset=>string.IsNullOrEmpty(query)||asset.Name.Contains(query,StringComparison.OrdinalIgnoreCase)||asset.Subcategory.Contains(query,StringComparison.OrdinalIgnoreCase)).Take(90))
+        if(_assetGrid is null)return;foreach(Node child in _assetGrid.GetChildren())child.QueueFree();string category=_category?.Selected>0?_category.GetItemText(_category.Selected):string.Empty;string subcategory=_subcategory?.Selected>0?_subcategory.GetItemText(_subcategory.Selected):string.Empty;string query=_search?.Text.Trim()??string.Empty;IEnumerable<AuthoringAssetEntry> source=category=="Recent"?_recent:category=="★ Favorites"?_assets.Where(asset=>_favorites.Contains(asset.Path)):_assets.Where(asset=>string.IsNullOrEmpty(category)||asset.Category==category);
+        foreach(AuthoringAssetEntry asset in source.Where(asset=>(string.IsNullOrEmpty(subcategory)||asset.Subcategory==subcategory)&&(string.IsNullOrEmpty(query)||asset.SearchTags.Contains(query,StringComparison.OrdinalIgnoreCase))).Take(90))
         {
-            VBoxContainer tile=new(){CustomMinimumSize=new Vector2(82,82)};Button thumbnail=new(){TooltipText=$"{asset.Name}\n{asset.Category} > {asset.Subcategory}\n{asset.Path}\nRight-click to favorite",CustomMinimumSize=new Vector2(82,58),Icon=AuthoringThumbnailCache.Get(asset.Path),ExpandIcon=true};thumbnail.Pressed+=()=>ChooseAsset(asset);thumbnail.GuiInput+=input=>{if(input is InputEventMouseButton mouse&&mouse.Pressed&&mouse.ButtonIndex==MouseButton.Right){ToggleFavorite(asset);thumbnail.AcceptEvent();}};Label caption=Label((_favorites.Contains(asset.Path)?"★ ":"")+Short(asset.Name,13),"HudTiny");caption.HorizontalAlignment=HorizontalAlignment.Center;caption.TooltipText=asset.Name;caption.ClipText=true;tile.AddChild(thumbnail);tile.AddChild(caption);_assetGrid.AddChild(tile);
+            VBoxContainer tile=new(){CustomMinimumSize=new Vector2(82,82)};Button thumbnail=new(){TooltipText=$"{asset.Name}\n{asset.Category} > {asset.Subcategory}\n{asset.AssetKind} • {asset.SourceSheet}\n{asset.Path}\nRight-click to favorite",CustomMinimumSize=new Vector2(82,58),Icon=AuthoringThumbnailCache.Get(asset.Path),ExpandIcon=true};thumbnail.Pressed+=()=>ChooseAsset(asset);thumbnail.GuiInput+=input=>{if(input is InputEventMouseButton mouse&&mouse.Pressed&&mouse.ButtonIndex==MouseButton.Right){ToggleFavorite(asset);thumbnail.AcceptEvent();}};Label caption=Label((_cleanupFlags.Contains(asset.Path)?"! ":_favorites.Contains(asset.Path)?"★ ":"")+Short(asset.Name,13),"HudTiny");caption.HorizontalAlignment=HorizontalAlignment.Center;caption.TooltipText=asset.Name;caption.ClipText=true;tile.AddChild(thumbnail);tile.AddChild(caption);_assetGrid.AddChild(tile);
         }
+    }
+
+    private void RefreshSubcategories()
+    {
+        if(_subcategory is null)return;string category=_category.Selected>0?_category.GetItemText(_category.Selected):string.Empty;_subcategory.Clear();_subcategory.AddItem("All Subcategories");IEnumerable<AuthoringAssetEntry> source=category=="Recent"?_recent:category=="★ Favorites"?_assets.Where(asset=>_favorites.Contains(asset.Path)):_assets.Where(asset=>string.IsNullOrEmpty(category)||asset.Category==category);foreach(string subcategory in source.Select(asset=>asset.Subcategory).Distinct().OrderBy(value=>value))_subcategory.AddItem(subcategory);_subcategory.Selected=0;RefreshAssets();
     }
 
     private void ChooseAsset(AuthoringAssetEntry asset)
     {
-        _chosenAsset=asset;
+        _chosenAsset=asset;RefreshAssetQa();
         _recent.RemoveAll(item=>item.Path==asset.Path);_recent.Insert(0,asset);if(_recent.Count>18)_recent.RemoveRange(18,_recent.Count-18);
         if(asset.Category=="Terrain"){ActivateTerrain();return;}
         if(_canvas.Tool==AuthoringTool.Scatter){ActivateScatter();return;}
         string type=asset.Category=="Buildings"?"Building":asset.Path.Contains("/bedroom/bed_")?"Bed":"Decoration";
         SelectText(_gameplay,type);_canvas.PlacementGameplayType=type;_canvas.SetPlacementAsset(asset);
     }
+    private void RefreshAssetQa(){if(_chosenAsset is null||_assetPreview is null)return;_assetPreview.ShowAsset(_chosenAsset.Path);Image image=new();image.Load(ProjectSettings.GlobalizePath(_chosenAsset.Path));_assetDetails.Text=$"{_chosenAsset.Name}\n{image.GetWidth()} × {image.GetHeight()} px\n{_chosenAsset.Category} > {_chosenAsset.Subcategory}\nSource: {_chosenAsset.SourceSheet}\n{_chosenAsset.AssetKind}\nAnchor: {_chosenAsset.SuggestedAnchor.X:0.##}, {_chosenAsset.SuggestedAnchor.Y:0.##}\nScale: {_chosenAsset.DefaultScale:0.##}   Blocking: {(_chosenAsset.DefaultCollision?"Yes":"No")}";_refreshingAssetQa=true;_cleanupFlag.ButtonPressed=_cleanupFlags.Contains(_chosenAsset.Path);_refreshingAssetQa=false;}
+    private void ToggleCleanupFlag(bool flagged){if(_refreshingAssetQa||_chosenAsset is null)return;if(flagged)_cleanupFlags.Add(_chosenAsset.Path);else _cleanupFlags.Remove(_chosenAsset.Path);ConfigFile config=new();foreach(string path in _cleanupFlags)config.SetValue("needs_cleanup",path,true);config.Save("user://asset_qa_flags.cfg");RefreshAssets();}
+    private void LoadCleanupFlags(){ConfigFile config=new();if(config.Load("user://asset_qa_flags.cfg")!=Error.Ok)return;foreach(string key in config.GetSectionKeys("needs_cleanup"))if(config.GetValue("needs_cleanup",key,false).AsBool())_cleanupFlags.Add(key);}
     private void ToggleFavorite(AuthoringAssetEntry asset){if(!_favorites.Add(asset.Path))_favorites.Remove(asset.Path);RefreshAssets();SetStatus(_favorites.Contains(asset.Path)?$"Favorited {asset.Name}":$"Removed {asset.Name} from favorites");}
     private void ActivateTerrain(){if(_chosenAsset is null||_chosenAsset.Category!="Terrain"){SetStatus("Choose a Terrain thumbnail first.");return;}ApplyBrushSettings();_canvas.SetTerrainBrush(_chosenAsset);}
     private void ActivateScatter(){if(_chosenAsset is null||_chosenAsset.Category is "Terrain" or "Buildings" or "Interiors"){SetStatus("Choose a vegetation or prop thumbnail first.");return;}ApplyBrushSettings();IReadOnlyList<AuthoringAssetEntry> variants=_assets.Where(item=>item.Category==_chosenAsset.Category&&item.Subcategory==_chosenAsset.Subcategory).ToArray();_canvas.SetScatterBrush(_chosenAsset,variants);}
     private void ActivateLine(){if(_chosenAsset is null||_chosenAsset.Category is "Terrain" or "Buildings" or "Interiors"){SetStatus("Choose a fence, hedge, barrier, or pole asset first.");return;}ApplyPathSettings();_canvas.BeginStructureLineTool(_chosenAsset);}
+    private void ActivateSelectedRoad(){ApplyPathSettings();_canvas.BeginRoadTool();SetStatus($"{_canvas.PathType.ToUpperInvariant()} — click control points, then FINISH or press Enter");}
     private void ApplyBrushSettings(){if(_canvas is null)return;_canvas.BrushRadius=(float)(_brushRadius?.Value??2.5);_canvas.BrushDensity=(float)(_brushDensity?.Value??.65);_canvas.BrushScaleVariation=(float)(_brushVariation?.Value??.18);_canvas.RandomAssetVariation=_randomBrush?.ButtonPressed??true;}
-    private void ApplyPathSettings(){if(_canvas is null||_roadType is null)return;_canvas.PathType=_roadType.GetItemText(_roadType.Selected);_canvas.PathWidth=(float)_roadWidth.Value;}
+    private void ApplyPathSettings(){if(_canvas is null||_roadType is null)return;_canvas.PathType=_roadType.GetItemText(_roadType.Selected);_canvas.PathWidth=(float)_roadWidth.Value;_canvas.PathAssetPath=_chosenAsset is not null&&(_chosenAsset.Subcategory.Contains("Road",StringComparison.OrdinalIgnoreCase)||_chosenAsset.Name.Contains("Road",StringComparison.OrdinalIgnoreCase)||_chosenAsset.Name.Contains("Track",StringComparison.OrdinalIgnoreCase)||_chosenAsset.Name.Contains("Path",StringComparison.OrdinalIgnoreCase))?_chosenAsset.Path:string.Empty;}
     private void RefreshLayerControls(){if(_layer is null)return;_refreshingLayer=true;string layer=_layer.GetItemText(_layer.Selected);_layerVisible.ButtonPressed=_layerVisibility.GetValueOrDefault(layer,true);_layerLocked.ButtonPressed=_layerLocks.GetValueOrDefault(layer);_refreshingLayer=false;}
     private void ApplyLayerControls(){if(_refreshingLayer||_layer is null)return;string layer=_layer.GetItemText(_layer.Selected);_layerVisibility[layer]=_layerVisible.ButtonPressed;_layerLocks[layer]=_layerLocked.ButtonPressed;_canvas.SetLayerState(layer,_layerVisible.ButtonPressed,_layerLocked.ButtonPressed);_landscape.SetLayerVisibility(layer,_layerVisible.ButtonPressed);SetStatus($"{layer}: {(_layerVisible.ButtonPressed?"visible":"hidden")}, {(_layerLocked.ButtonPressed?"locked":"editable")}");}
-    private void ShowWindowAssets(){SelectText(_category,"Interiors");_search.Text="window";RefreshAssets();_canvas.SetTool(AuthoringTool.Place);SetStatus("WINDOW TOOL — choose a window thumbnail, then place against an authored wall");}
+    private void ShowWindowAssets(){SelectText(_category,"Interiors");RefreshSubcategories();_search.Text="window";RefreshAssets();_canvas.SetTool(AuthoringTool.Place);SetStatus("WINDOW TOOL — choose a window thumbnail, then place against an authored wall");}
 
     private void RefreshInspector()
     {
@@ -221,7 +250,8 @@ public partial class AuthoringStudioHost:Node
     private async void CaptureStudio(){string? path=System.Environment.GetEnvironmentVariable("ASHWOOD_STUDIO_CAPTURE_PNG");if(!string.IsNullOrWhiteSpace(path))await SaveCapture(path);}
     private async System.Threading.Tasks.Task SaveCapture(string path){for(int i=0;i<24;i++)await ToSignal(GetTree(),SceneTree.SignalName.ProcessFrame);if(DisplayServer.GetName()=="headless")return;Error error=GetViewport().GetTexture().GetImage().SavePng(path);GD.Print($"AUTHORING_STUDIO_CAPTURE: {error} {path}");}
 
-    private void LoadArea(Vector2 center,int radius){_county.StreamingRadiusChunks=radius;_county.SetStreamingFocus(center);_canvas.SetLoadedArea(center,radius);_camera.CenterOnGridPosition(center);_camera.SetZoom(radius==0?.85f:radius==1?.52f:.34f);_minimap.Center=center;_minimap.Radius=radius;_minimap.QueueRedraw();AuthoringSessionState.Center=center;AuthoringSessionState.Radius=radius;}
+    private void LoadArea(Vector2 center,int radius){StreamArea(center,radius);_camera.CenterOnGridPosition(center);_camera.SetZoom(radius==0?.85f:radius==1?.52f:.34f);}
+    private void StreamArea(Vector2 center,int radius){_county.StreamingRadiusChunks=radius;_county.SetStreamingFocus(center);_canvas.SetLoadedArea(center,radius);_minimap.Center=center;_minimap.Radius=radius;_minimap.QueueRedraw();AuthoringSessionState.Center=center;AuthoringSessionState.Radius=radius;}
     private void CenterBuilding(){AuthoredBuildingData? building=_canvas.InteriorBuilding;if(building is null)return;_camera.CenterOnGridPosition(new Vector2(building.ExteriorX,building.ExteriorY));_camera.SetZoom(.84f);}
     private int RadiusValue()=>Mathf.Clamp(_radius?.Selected??1,0,2);
     private void SetStatus(string value){if(_status is not null)_status.Text=value;}
