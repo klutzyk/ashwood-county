@@ -30,6 +30,8 @@ public partial class InteriorVerticalSliceValidation : Node
     private double _phaseElapsed;
     private int _startingFood;
     private int _startingMaterials;
+    private Vector2 _outsideLeft;
+    private Vector2 _outsideRight;
 
     public override void _Ready()
     {
@@ -70,9 +72,9 @@ public partial class InteriorVerticalSliceValidation : Node
             case Phase.Rest:
                 if(_first.Energy<90)return;
                 if(!_building.State.UsedFurniture.Contains("bed_one")){Fail("bed use not persisted");return;}
-                _first.IssueMoveOrder(new Vector2(215.6f,158.1f));_second.IssueMoveOrder(new Vector2(224.2f,158.1f));Next(Phase.Exit);break;
+                _first.IssueMoveOrder(_outsideLeft);_second.IssueMoveOrder(_outsideRight);Next(Phase.Exit);break;
             case Phase.Exit:
-                if(!At(_first,new Vector2(215.6f,158.1f))||!At(_second,new Vector2(224.2f,158.1f)))return;
+                if(!At(_first,_outsideLeft)||!At(_second,_outsideRight))return;
                 if(_building.HasSurvivorInside)return;
                 if(_building.ExteriorAlpha<.95f)return;
                 _first.IssueMoveOrder(new Vector2(180,155));_second.IssueMoveOrder(new Vector2(180,156));Next(Phase.FarAway);break;
@@ -104,6 +106,8 @@ public partial class InteriorVerticalSliceValidation : Node
         foreach(Zombie zombie in GetTree().GetNodesInGroup(Zombie.GroupName).OfType<Zombie>()){zombie.SetPhysicsProcess(false);zombie.RemoveFromGroup(Zombie.GroupName);}
         (GetTree().GetFirstNodeInGroup(SettlementJobSystem.GroupName) as SettlementJobSystem)?.SetProcess(false);
         _first=survivors[0];_second=survivors[1];_first.MovementSpeed=8;_second.MovementSpeed=8;
+        _outsideLeft=new Vector2(_building.Definition.Footprint.Position.X-.8f,_building.Definition.Footprint.End.Y+1f);
+        _outsideRight=new Vector2(_building.Definition.Footprint.End.X+.8f,_building.Definition.Footprint.End.Y+1f);
         _otherSurvivors=GetTree().GetNodesInGroup(Survivor.GroupName).OfType<Survivor>().Where(s=>s.IsAlive&&s!=_first&&s!=_second).ToArray();
         for(int i=0;i<_otherSurvivors.Length;i++){_otherSurvivors[i].MovementSpeed=8;_otherSurvivors[i].IssueMoveOrder(new Vector2(180,157+i));}
         _inventory=GetTree().GetFirstNodeInGroup(SettlementInventory.GroupName) as SettlementInventory ?? throw new InvalidOperationException("Inventory missing");

@@ -35,8 +35,57 @@ public partial class InteriorNavigationService : Node
             || SegmentTouchesRect(start, destination, candidate.NavigationBounds));
         if (building is null) return [destination];
 
-        Rect2 bounds = building.NavigationBounds.Grow(1.0f);
-        IReadOnlyList<Rect2> blockers = building.NavigationBlockers;
+        bool startInside = building.Definition.Footprint.Grow(-.1f).HasPoint(start);
+        bool destinationInside = building.Definition.Footprint.Grow(-.1f).HasPoint(destination);
+        bool destinationIsDoor = building.Definition.Doors.Any(door=>door.Position.DistanceTo(destination)<.08f);
+        DoorDefinition? entrance = building.Definition.Doors
+            .Where(door => door.Exterior && !door.OutsideApproachPoint.IsZeroApprox() && !door.InsideArrivalPoint.IsZeroApprox())
+            .MinBy(door => startInside
+                ? destination.DistanceSquaredTo(door.OutsideApproachPoint)
+                : start.DistanceSquaredTo(door.OutsideApproachPoint));
+
+        IReadOnlyList<Vector2> route;
+        if(destinationIsDoor)
+        {
+            route=PlanLocal(building,start,destination);
+        }
+        else if (!startInside && destinationInside && entrance is not null)
+        {
+            List<Vector2> outside = [.. PlanLocal(building,start,entrance.OutsideApproachPoint)];
+            List<Vector2> local = [.. PlanLocal(building,entrance.InsideArrivalPoint,destination)];
+            route = [..outside,entrance.Position,entrance.InsideArrivalPoint,.. local.Skip(1)];
+        }
+        else if (startInside && !destinationInside && entrance is not null)
+        {
+            List<Vector2> local = [.. PlanLocal(building,start,entrance.InsideArrivalPoint)];
+            List<Vector2> outside = [.. PlanLocal(building,entrance.OutsideApproachPoint,destination)];
+            route = [.. local,entrance.Position,..outside];
+        }
+        else
+        {
+            route = PlanLocal(building,start,destination);
+        }
+
+        if(System.Environment.GetEnvironmentVariable("ASHWOOD_VALIDATE_INTERIOR")=="1")
+            GD.Print($"INTERIOR_ROUTE: {start} -> {destination} via {string.Join(" | ",route)}");
+        return route;
+    }
+
+    private static IReadOnlyList<Vector2> PlanLocal(InteriorBuildingRuntime building, Vector2 start, Vector2 destination)
+        => PlanLocal(building.NavigationBounds,building.NavigationBlockers,start,destination);
+
+    public static IReadOnlyList<Vector2> PlanDefinition(InteriorBuildingDefinition definition,Vector2 start,Vector2 destination)
+        => PlanLocal(definition.Footprint.Grow(.35f),InteriorBuildingRuntime.BuildNavigationBlockers(definition),start,destination);
+
+    public static bool CanReach(InteriorBuildingDefinition definition,Vector2 start,Vector2 destination)
+    {
+        IReadOnlyList<Vector2> route=PlanDefinition(definition,start,destination);
+        return route.Count>0&&route[^1].DistanceTo(destination)<.35f;
+    }
+
+    private static IReadOnlyList<Vector2> PlanLocal(Rect2 navigationBounds,IReadOnlyList<Rect2> blockers,Vector2 start,Vector2 destination)
+    {
+        Rect2 bounds = navigationBounds.Grow(1.0f);
         Vector2I gridSize = new(
             Mathf.CeilToInt(bounds.Size.X / Step) + 1,
             Mathf.CeilToInt(bounds.Size.Y / Step) + 1);
@@ -82,8 +131,6 @@ public partial class InteriorNavigationService : Node
         raw[0] = start;
         if (IsFree(destination, blockers)) raw[^1] = destination;
         List<Vector2> simplified=Simplify(raw, blockers);
-        if(System.Environment.GetEnvironmentVariable("ASHWOOD_VALIDATE_INTERIOR")=="1")
-            GD.Print($"INTERIOR_ROUTE: {start} -> {destination} via {string.Join(" | ",simplified)}");
         return simplified;
     }
 

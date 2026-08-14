@@ -1,6 +1,7 @@
 using AshwoodCounty.World.Fog;
 using AshwoodCounty.Buildings.Interiors;
 using AshwoodCounty.UI;
+using AshwoodCounty.Authoring;
 using Godot;
 
 namespace AshwoodCounty.World.County;
@@ -36,5 +37,9 @@ public partial class CountyRuntimeBootstrap : Node
             root.AddChild(new InteriorContextHud{Name="InteriorContextHud"});
         if(root.GetNodeOrNull<InteriorVerticalSliceValidation>("InteriorVerticalSliceValidation") is null)
             root.AddChild(new InteriorVerticalSliceValidation{Name="InteriorVerticalSliceValidation"});
+        if(root.GetNodeOrNull<AuthoredWorldObjectSystem>("AuthoredWorldObjectSystem") is null)
+            root.AddChild(new AuthoredWorldObjectSystem{Name="AuthoredWorldObjectSystem"});
+        if(AuthoringSessionState.IsPlaytesting&&root.GetNodeOrNull<AuthoringPlaytestController>("AuthoringPlaytestController") is null)
+            root.AddChild(new AuthoringPlaytestController{Name="AuthoringPlaytestController"});
     }
 }

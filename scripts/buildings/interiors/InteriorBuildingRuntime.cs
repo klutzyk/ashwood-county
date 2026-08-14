@@ -6,6 +6,7 @@ using System.Linq;
 using AshwoodCounty.UI;
 using AshwoodCounty.Units;
 using AshwoodCounty.World;
+using AshwoodCounty.Authoring;
 using Godot;
 
 namespace AshwoodCounty.Buildings.Interiors;
@@ -51,7 +52,7 @@ public partial class InteriorBuildingRuntime : Node
         _objectsRoot = objectsRoot;
         _navigation = navigation;
         EnsureStateEntries();
-        NavigationBlockers = BuildNavigationBlockers();
+        NavigationBlockers = BuildNavigationBlockers(definition);
     }
 
     public override void _Ready()
@@ -214,18 +215,18 @@ public partial class InteriorBuildingRuntime : Node
         visual.Initialize(wall);AddInteriorNode(visual);
     }
 
-    private IReadOnlyList<Rect2> BuildNavigationBlockers()
+    public static IReadOnlyList<Rect2> BuildNavigationBlockers(InteriorBuildingDefinition definition)
     {
         List<Rect2> blockers=[];
-        foreach(WallDefinition wall in Definition.Walls)
+        foreach(WallDefinition wall in definition.Walls)
         {
             Vector2 min=new(Mathf.Min(wall.Start.X,wall.End.X),Mathf.Min(wall.Start.Y,wall.End.Y));
             Vector2 max=new(Mathf.Max(wall.Start.X,wall.End.X),Mathf.Max(wall.Start.Y,wall.End.Y));
             blockers.Add(new Rect2(min-new Vector2(.07f,.07f),(max-min)+new Vector2(.14f,.14f)));
         }
-        blockers.AddRange(Definition.Furniture.Where(f=>f.BlocksMovement).Select(f=>f.Footprint));
-        blockers.AddRange(Definition.Containers.Select(c=>c.Footprint));
-        blockers.AddRange(Definition.Beds.Select(b=>b.Footprint));
+        blockers.AddRange(definition.Furniture.Where(f=>f.BlocksMovement).Select(f=>f.Footprint));
+        blockers.AddRange(definition.Containers.Select(c=>c.Footprint));
+        blockers.AddRange(definition.Beds.Select(b=>b.Footprint));
         return blockers;
     }
 
@@ -248,18 +249,40 @@ public partial class InteriorBuildingRuntime : Node
 
 public partial class InteriorBuildingSystem : Node
 {
+    private readonly Dictionary<Vector2I,List<InteriorBuildingRuntime>> _active=[];
+    private InteriorNavigationService _navigation=null!;
+    private Node2D _objects=null!;
+    private World.County.CountyWorld _county=null!;
+    private AuthoredCountyDocument _document=null!;
     public override void _Ready()
     {
-        InteriorNavigationService navigation=GetNode<InteriorNavigationService>("../InteriorNavigationService");
-        Node2D objects=GetNode<Node2D>("../World/Objects");
-        World.County.CountyWorld county=GetNode<World.County.CountyWorld>("../World/CountyWorld");
-        InteriorBuildingDefinition definition=ResidentialInteriorCatalog.ReferenceHouse;
-        World.County.CountyChunkState chunk=county.GetChunkState(definition.Footprint.GetCenter());
-        if(!chunk.Buildings.TryGetValue(definition.Id,out InteriorBuildingRuntimeState? state))
+        _navigation=GetNode<InteriorNavigationService>("../InteriorNavigationService");
+        _objects=GetNode<Node2D>("../World/Objects");
+        _county=GetNode<World.County.CountyWorld>("../World/CountyWorld");
+        _document=AuthoredContentRepository.Load();
+        _county.ChunkLoaded+=LoadChunk;_county.ChunkUnloaded+=UnloadChunk;
+        foreach(Vector2I coordinate in _county.LoadedChunks)LoadChunk(coordinate);
+    }
+    public override void _ExitTree(){if(GodotObject.IsInstanceValid(_county)){_county.ChunkLoaded-=LoadChunk;_county.ChunkUnloaded-=UnloadChunk;}}
+    private void LoadChunk(Vector2I coordinate)
+    {
+        if(_active.ContainsKey(coordinate))return;List<InteriorBuildingRuntime> nodes=[];
+        foreach(AuthoredBuildingData authored in _document.Buildings.Where(item=>World.County.CountyCoordinateSpace.GridToChunk(new Vector2(item.ExteriorX,item.ExteriorY))==coordinate))
         {
-            state=new InteriorBuildingRuntimeState();chunk.Buildings[definition.Id]=state;
+            InteriorBuildingDefinition definition=AuthoredInteriorConverter.Convert(authored);
+            World.County.CountyChunkState chunk=_county.GetChunkState(coordinate);
+            if(!chunk.Buildings.TryGetValue(definition.Id,out InteriorBuildingRuntimeState? state))
+            {
+                state=new InteriorBuildingRuntimeState();chunk.Buildings[definition.Id]=state;
+            }
+            InteriorBuildingRuntime runtime=new(){Name="AuthoredInterior_"+definition.Id};
+            runtime.Initialize(definition,state,_objects,_navigation);AddChild(runtime);nodes.Add(runtime);
         }
-        InteriorBuildingRuntime runtime=new(){Name="ReferenceResidentialInterior"};
-        runtime.Initialize(definition,state,objects,navigation);AddChild(runtime);
+        _active[coordinate]=nodes;
+    }
+    private void UnloadChunk(Vector2I coordinate)
+    {
+        if(!_active.Remove(coordinate,out List<InteriorBuildingRuntime>? nodes))return;
+        foreach(InteriorBuildingRuntime runtime in nodes)if(GodotObject.IsInstanceValid(runtime))runtime.QueueFree();
     }
 }
