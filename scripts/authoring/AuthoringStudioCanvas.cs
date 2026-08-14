@@ -49,6 +49,7 @@ public partial class AuthoringStudioCanvas : Node2D
     private string? _strokeSnapshot;
     private Vector2? _lastBrushPoint;
     private AuthoringAssetEntry? _brushAsset;
+    private IReadOnlyList<AuthoringAssetEntry> _terrainAssets=[];
     private IReadOnlyList<AuthoringAssetEntry> _scatterAssets=[];
     private readonly RandomNumberGenerator _brushRandom=new();
     private readonly List<Vector2> _pathPoints=[];
@@ -78,6 +79,7 @@ public partial class AuthoringStudioCanvas : Node2D
     public float BrushScaleVariation { get; set; }=.18f;
     public bool RandomAssetVariation { get; set; }=true;
     public string PathType { get; set; }="Rural Road";
+    public string PathFlavor { get; set; }=string.Empty;
     public float PathWidth { get; set; }=1.2f;
     public string PathAssetPath { get; set; }=string.Empty;
     public bool RoadDebugEnabled { get; set; }
@@ -103,14 +105,14 @@ public partial class AuthoringStudioCanvas : Node2D
         Tool=tool;_toolStart=null;_boxStart=null;StatusChanged?.Invoke(tool==AuthoringTool.Place&&_placementAsset is null?"Choose an asset from the library.":$"{tool} tool active");QueueRedraw();
     }
     public void SetPlacementAsset(AuthoringAssetEntry asset){_placementAsset=asset;SetTool(AuthoringTool.Place);StatusChanged?.Invoke($"Placing {asset.Name} — click world to place, Esc to cancel");}
-    public void SetTerrainBrush(AuthoringAssetEntry asset){_brushAsset=asset;SetTool(AuthoringTool.Terrain);StatusChanged?.Invoke($"TERRAIN BRUSH — {asset.Name}");}
+    public void SetTerrainBrush(AuthoringAssetEntry asset,IReadOnlyList<AuthoringAssetEntry>? variants=null){_brushAsset=asset;_terrainAssets=variants is {Count:>0}?variants:[asset];SetTool(AuthoringTool.Terrain);StatusChanged?.Invoke($"TERRAIN BRUSH — {_terrainAssets.Count} checked asset(s)");}
     public void SetScatterBrush(AuthoringAssetEntry asset,IReadOnlyList<AuthoringAssetEntry> variants){_brushAsset=asset;_scatterAssets=variants;SetTool(AuthoringTool.Scatter);StatusChanged?.Invoke($"SCATTER BRUSH — {asset.Name}");}
     public void SetLayerState(string layer,bool visible,bool locked){if(visible)_hiddenLayers.Remove(layer);else _hiddenLayers.Add(layer);if(locked)_lockedLayers.Add(layer);else _lockedLayers.Remove(layer);RebuildVisuals();QueueRedraw();}
     public void BeginRoadTool(){if(_lockedLayers.Contains("Roads")){StatusChanged?.Invoke("Roads layer is locked.");return;}_structureLine=false;_lineAsset=null;_pathPoints.Clear();SetTool(AuthoringTool.Road);StatusChanged?.Invoke("ROAD TOOL — click control points, press Enter to finish");}
     public void BeginStructureLineTool(AuthoringAssetEntry asset){if(_lockedLayers.Contains("Props")){StatusChanged?.Invoke("Props layer is locked.");return;}_structureLine=true;_lineAsset=asset;_pathPoints.Clear();SetTool(AuthoringTool.Road);StatusChanged?.Invoke($"LINE TOOL — {asset.Name}; click points, Enter to finish");}
     public void FinishPath()
     {
-        if(_pathPoints.Count<2){_pathPoints.Clear();QueueRedraw();return;}Checkpoint();string id=StableId(_structureLine?"line":"road");_document.Paths.Add(new AuthoredPathData{Id=id,DisplayName=_structureLine?_lineAsset?.Name??"Structure Line":RoadProfiles.Normalize(PathType),PathType=_structureLine?PathType:RoadProfiles.Normalize(PathType),LineKind=_structureLine?"Structure":"Road",AssetPath=_structureLine?_lineAsset?.Path??string.Empty:PathAssetPath,Width=Mathf.Max(.15f,PathWidth),SegmentSpacing=Mathf.Max(.35f,PathWidth),SegmentScale=_structureLine?_lineAsset?.DefaultScale??.35f:1,VariationSeed=StableSeed(id),Points=_pathPoints.Select(AuthoredPointData.From).ToList()});_pathPoints.Clear();Changed(_structureLine?"Created structure line":"Created spline road");
+        if(_pathPoints.Count<2){_pathPoints.Clear();QueueRedraw();return;}Checkpoint();string id=StableId(_structureLine?"line":"road");_document.Paths.Add(new AuthoredPathData{Id=id,DisplayName=_structureLine?_lineAsset?.Name??"Structure Line":RoadProfiles.Normalize(PathType),PathType=_structureLine?PathType:RoadProfiles.Normalize(PathType),Flavor=_structureLine?string.Empty:PathFlavor,LineKind=_structureLine?"Structure":"Road",AssetPath=_structureLine?_lineAsset?.Path??string.Empty:PathAssetPath,Width=Mathf.Max(.15f,PathWidth),SegmentSpacing=Mathf.Max(.35f,PathWidth),SegmentScale=_structureLine?_lineAsset?.DefaultScale??.35f:1,VariationSeed=StableSeed(id),Points=_pathPoints.Select(AuthoredPointData.From).ToList()});_pathPoints.Clear();Changed(_structureLine?"Created structure line":"Created spline road");
     }
     public void AddPathPoint(Vector2 point){Vector2 basePoint=Snap(point);if(TryBridgeSocket(basePoint,PathType,out BridgeSocket socket,out Vector2 approach)){if(_pathPoints.Count>0&&_pathPoints[^1].DistanceTo(approach)>.2f)_pathPoints.Add(Snap(approach));if(_pathPoints.Count==0||_pathPoints[^1].DistanceTo(socket.Position)>.05f)_pathPoints.Add(socket.Position);}else{Vector2 snapped=SnapRoadPoint(basePoint,null,PathType);if(_pathPoints.Count==0||_pathPoints[^1].DistanceTo(snapped)>.05f)_pathPoints.Add(snapped);}QueueRedraw();}
     public void ExtendSelectedRoad()
@@ -176,7 +178,7 @@ public partial class AuthoringStudioCanvas : Node2D
         _selection.Clear();foreach(StudioSelection selection in replacements)_selection.Add(selection);Changed("Duplicated selection");
     }
 
-    public void RotateSelection(float degrees=90)
+    public void RotateSelection(float degrees=180)
     {
         if(GetSelectedData() is not AuthoredWorldObjectData&&GetSelectedData() is not AuthoredBuildingData&&GetSelectedData() is not AuthoredPathData)return;Checkpoint();
         if(GetSelectedData() is AuthoredWorldObjectData item)item.RotationDegrees=Mathf.PosMod(item.RotationDegrees+degrees,360);
@@ -230,6 +232,10 @@ public partial class AuthoringStudioCanvas : Node2D
         if(inputEvent is InputEventKey key&&key.Pressed&&!key.Echo){HandleShortcut(key);return;}
         Vector2 rawGrid=_world.ScreenToGridPosition(GetViewport().GetMousePosition());
         Vector2 grid=Snap(rawGrid);
+        if(inputEvent is InputEventMouseButton cancel&&cancel.ButtonIndex==MouseButton.Right&&cancel.Pressed)
+        {
+            CancelToSelect();GetViewport().SetInputAsHandled();return;
+        }
         if(inputEvent is InputEventMouseButton mouse&&mouse.ButtonIndex==MouseButton.Left)
         {
             if(mouse.Pressed&&mouse.DoubleClick&&Tool==AuthoringTool.Road){AddPathPoint(grid);FinishPath();GetViewport().SetInputAsHandled();return;}
@@ -280,12 +286,17 @@ public partial class AuthoringStudioCanvas : Node2D
                 StudioSelection hit=HitTest(grid,worldPoint);
                 if(hit.Kind!=StudioSelectionKind.None)
                 {
-                    string previousRoadId=PrimarySelection.Kind==StudioSelectionKind.Road?PrimarySelection.Id:string.Empty;if(!additive&&!_selection.Contains(hit))_selection.Clear();_selection.Add(hit);if(hit.Kind!=StudioSelectionKind.Road||previousRoadId!=hit.Id)_selectedRoadPointIndex=-1;else if(GetSelectedData() is AuthoredPathData selectedRoad&&_selectedRoadPointIndex>=selectedRoad.Points.Count)_selectedRoadPointIndex=-1;SelectionChanged?.Invoke();
+                    string previousRoadId=PrimarySelection.Kind==StudioSelectionKind.Road?PrimarySelection.Id:string.Empty;if(!additive&&!_selection.Contains(hit))_selection.Clear();_selection.Add(hit);if(hit.Kind!=StudioSelectionKind.Road||previousRoadId!=hit.Id)_selectedRoadPointIndex=-1;else if(GetSelectedData() is AuthoredPathData selectedRoad&&_selectedRoadPointIndex>=selectedRoad.Points.Count)_selectedRoadPointIndex=-1;RebuildVisuals();SelectionChanged?.Invoke();
                     _dragStart=grid;_dragSnapshot=AuthoredContentRepository.Serialize(_document);
                 }
-                else{if(!additive)_selection.Clear();_boxStart=grid;SelectionChanged?.Invoke();}
+                else{if(!additive)_selection.Clear();_boxStart=grid;RebuildVisuals();SelectionChanged?.Invoke();}
                 break;
         }
+    }
+
+    private void CancelToSelect()
+    {
+        _pathPoints.Clear();_selection.Clear();_selectedRoadPointIndex=-1;_roadPointIndex=-1;_resizeHandle=StudioResizeHandle.None;_dragStart=null;_boxStart=null;_pointerDown=false;SetTool(AuthoringTool.Select);RebuildVisuals();SelectionChanged?.Invoke();StatusChanged?.Invoke("SELECT — tool and selection cleared");
     }
 
     private void EndPointer(Vector2 grid,bool additive)
@@ -333,7 +344,7 @@ public partial class AuthoringStudioCanvas : Node2D
         string brushLayer=Tool==AuthoringTool.Terrain?"Terrain":Tool==AuthoringTool.Scatter&&_brushAsset is not null?LayerFor(_brushAsset.Category,"Decoration"):"";if(_lockedLayers.Contains(brushLayer)){StatusChanged?.Invoke($"{brushLayer} layer is locked.");return;}
         if(Tool==AuthoringTool.Terrain&&_brushAsset is not null)
         {
-            Vector2 point=center+RandomOffset(BrushRadius*.18f);_document.TerrainStamps.Add(new AuthoredTerrainStampData{Id=StableId("terrain"),AssetPath=_brushAsset.Path,X=point.X,Y=point.Y,Radius=Mathf.Max(.65f,BrushRadius*(.82f+_brushRandom.RandfRange(-.08f,.08f))),Opacity=Mathf.Clamp(.42f+BrushDensity*.42f,.2f,.95f),RotationDegrees=RandomAssetVariation?_brushRandom.RandfRange(-12,12):0});
+            IReadOnlyList<AuthoringAssetEntry> choices=_terrainAssets.Count>0?_terrainAssets:[_brushAsset];AuthoringAssetEntry asset=choices[_brushRandom.RandiRange(0,choices.Count-1)];Vector2 point=center+RandomOffset(BrushRadius*.18f);_document.TerrainStamps.Add(new AuthoredTerrainStampData{Id=StableId("terrain"),AssetPath=asset.Path,X=point.X,Y=point.Y,Radius=Mathf.Max(.65f,BrushRadius*(.82f+_brushRandom.RandfRange(-.08f,.08f))),Opacity=Mathf.Clamp(.42f+BrushDensity*.42f,.2f,.95f),RotationDegrees=RandomAssetVariation?_brushRandom.RandfRange(-12,12):0});
         }
         else if(Tool==AuthoringTool.Scatter&&_brushAsset is not null)
         {
@@ -354,7 +365,7 @@ public partial class AuthoringStudioCanvas : Node2D
 
     private void ResizeSelection(Vector2 worldPoint)
     {
-        object? selected=GetSelectedData();if(selected is not AuthoredWorldObjectData&&selected is not AuthoredBuildingData)return;Vector2 delta=(worldPoint-_resizeStartWorld).Rotated(-Mathf.DegToRad(SelectedRotation()));float fx=1,fy=1;
+        object? selected=GetSelectedData();if(selected is not AuthoredWorldObjectData&&selected is not AuthoredBuildingData)return;Vector2 delta=worldPoint-_resizeStartWorld;float fx=1,fy=1;
         if(_resizeHandle is StudioResizeHandle.Left or StudioResizeHandle.TopLeft or StudioResizeHandle.BottomLeft)fx=1-delta.X/Mathf.Max(1,_resizeStartRect.Size.X);
         if(_resizeHandle is StudioResizeHandle.Right or StudioResizeHandle.TopRight or StudioResizeHandle.BottomRight)fx=1+delta.X/Mathf.Max(1,_resizeStartRect.Size.X);
         if(_resizeHandle is StudioResizeHandle.Top or StudioResizeHandle.TopLeft or StudioResizeHandle.TopRight)fy=1-delta.Y/Mathf.Max(1,_resizeStartRect.Size.Y);
@@ -505,7 +516,7 @@ public partial class AuthoringStudioCanvas : Node2D
 
     private StudioResizeHandle ResizeHandleAt(Vector2 worldPoint)
     {
-        if(GetSelectedData() is not AuthoredWorldObjectData&&GetSelectedData() is not AuthoredBuildingData)return StudioResizeHandle.None;Rect2 rect=SelectedResizeRect();Vector2 center=rect.GetCenter(),pivot=SelectedPivot();float rotation=Mathf.DegToRad(SelectedRotation());
+        if(GetSelectedData() is not AuthoredWorldObjectData&&GetSelectedData() is not AuthoredBuildingData)return StudioResizeHandle.None;Rect2 rect=SelectedResizeRect();Vector2 center=rect.GetCenter(),pivot=SelectedPivot();float rotation=0;
         (StudioResizeHandle Handle,Vector2 Point)[] handles=[(StudioResizeHandle.TopLeft,rect.Position),(StudioResizeHandle.Top,new(center.X,rect.Position.Y)),(StudioResizeHandle.TopRight,new(rect.End.X,rect.Position.Y)),(StudioResizeHandle.Left,new(rect.Position.X,center.Y)),(StudioResizeHandle.Right,new(rect.End.X,center.Y)),(StudioResizeHandle.BottomLeft,new(rect.Position.X,rect.End.Y)),(StudioResizeHandle.Bottom,new(center.X,rect.End.Y)),(StudioResizeHandle.BottomRight,rect.End)];
         foreach((StudioResizeHandle handle,Vector2 point) in handles)if(worldPoint.DistanceTo(pivot+(point-pivot).Rotated(rotation))<=12)return handle;return StudioResizeHandle.None;
     }
@@ -519,7 +530,7 @@ public partial class AuthoringStudioCanvas : Node2D
     private float SelectedRotation()=>GetSelectedData() switch{AuthoredWorldObjectData item=>item.RotationDegrees,AuthoredBuildingData building=>building.ExteriorRotationDegrees,_=>0};
     private Vector2 SelectedPivot()=>GetSelectedData() switch{AuthoredWorldObjectData item=>IsometricGrid.GridToScreen(new(item.X,item.Y)),AuthoredBuildingData building=>IsometricGrid.GridToScreen(new(building.ExteriorX,building.ExteriorY)),_=>Vector2.Zero};
 
-    private static bool SpriteContains(string path,Vector2 grid,float targetHeight,float scale,Vector2 anchor,Vector2 worldPoint,float scaleY=0,float targetWidth=0,float rotationDegrees=0){Vector2 pivot=IsometricGrid.GridToScreen(grid);Vector2 unrotated=pivot+(worldPoint-pivot).Rotated(-Mathf.DegToRad(rotationDegrees));return SpriteRect(path,grid,targetHeight,scale,anchor,scaleY,targetWidth).Grow(3).HasPoint(unrotated);}
+    private static bool SpriteContains(string path,Vector2 grid,float targetHeight,float scale,Vector2 anchor,Vector2 worldPoint,float scaleY=0,float targetWidth=0,float rotationDegrees=0)=>SpriteRect(path,grid,targetHeight,scale,anchor,scaleY,targetWidth).Grow(3).HasPoint(worldPoint);
     private static Rect2 SpriteRect(string path,Vector2 grid,float targetHeight,float scale,Vector2 anchor,float scaleY=0,float targetWidth=0)
     {
         if(string.IsNullOrWhiteSpace(path)||!ResourceLoader.Exists(path))return new Rect2();Texture2D texture=TextureRegistry.Get(path);Vector2 visualScale=targetHeight>0?new Vector2(targetWidth>0?targetWidth/Mathf.Max(1,texture.GetWidth()):targetHeight/Mathf.Max(1,texture.GetHeight()),targetHeight/Mathf.Max(1,texture.GetHeight())):new Vector2(Mathf.Max(.02f,scale),Mathf.Max(.02f,scaleY>0?scaleY:scale));Vector2 size=texture.GetSize()*visualScale;
@@ -683,8 +694,8 @@ public partial class AuthoringStudioCanvas : Node2D
 
 public partial class StudioSpriteVisual:Node2D
 {
-    private Texture2D _texture=null!;private float _height;private float _targetWidth;private float _scale;private float _scaleY;private Vector2 _anchor;private Color _tint;private bool _selected;private bool _resizable;
-    public void Initialize(string path,Vector2 grid,float targetHeight,float targetWidth,float scale,float scaleY,Vector2 anchor,Color tint,bool selected,bool resizable,float rotationDegrees){_texture=TextureRegistry.Get(path);_height=targetHeight;_targetWidth=targetWidth;_scale=scale;_scaleY=scaleY;_anchor=anchor;_tint=tint;_selected=selected;_resizable=resizable;Position=IsometricGrid.GridToScreen(grid);RotationDegrees=rotationDegrees;ZIndex=0;}
+    private Texture2D _texture=null!;private float _height;private float _targetWidth;private float _scale;private float _scaleY;private Vector2 _anchor;private Color _tint;private bool _selected;private bool _resizable;private bool _mirror;
+    public void Initialize(string path,Vector2 grid,float targetHeight,float targetWidth,float scale,float scaleY,Vector2 anchor,Color tint,bool selected,bool resizable,float rotationDegrees){_texture=TextureRegistry.Get(path);_height=targetHeight;_targetWidth=targetWidth;_scale=scale;_scaleY=scaleY;_anchor=anchor;_tint=tint;_selected=selected;_resizable=resizable;_mirror=Mathf.PosMod(rotationDegrees,360)>=90&&Mathf.PosMod(rotationDegrees,360)<270;Position=IsometricGrid.GridToScreen(grid);ZIndex=0;}
     public override void _Ready()=>QueueRedraw();
-    public override void _Draw(){Vector2 scale=_height>0?new Vector2(_targetWidth>0?_targetWidth/Mathf.Max(1,_texture.GetWidth()):_height/Mathf.Max(1,_texture.GetHeight()),_height/Mathf.Max(1,_texture.GetHeight())):new Vector2(Mathf.Max(.02f,_scale),Mathf.Max(.02f,_scaleY>0?_scaleY:_scale));Vector2 size=_texture.GetSize()*scale;Rect2 rect=new(-size.X*_anchor.X,-size.Y*_anchor.Y,size.X,size.Y);DrawTextureRect(_texture,rect,false,_tint);if(_selected){Color color=new("f0c96d");DrawRect(rect,color,false,3);if(_resizable){Vector2 center=rect.GetCenter();foreach(Vector2 point in new[]{rect.Position,new Vector2(center.X,rect.Position.Y),new Vector2(rect.End.X,rect.Position.Y),new Vector2(rect.Position.X,center.Y),new Vector2(rect.End.X,center.Y),new Vector2(rect.Position.X,rect.End.Y),new Vector2(center.X,rect.End.Y),rect.End})DrawRect(new Rect2(point-new Vector2(5,5),new Vector2(10,10)),color,true);}}}
+    public override void _Draw(){Vector2 scale=_height>0?new Vector2(_targetWidth>0?_targetWidth/Mathf.Max(1,_texture.GetWidth()):_height/Mathf.Max(1,_texture.GetHeight()),_height/Mathf.Max(1,_texture.GetHeight())):new Vector2(Mathf.Max(.02f,_scale),Mathf.Max(.02f,_scaleY>0?_scaleY:_scale));Vector2 size=_texture.GetSize()*scale;Rect2 rect=new(-size.X*_anchor.X,-size.Y*_anchor.Y,size.X,size.Y);if(_mirror){DrawSetTransform(Vector2.Zero,0,new Vector2(-1,1));Rect2 mirrored=new(new Vector2(-rect.End.X,rect.Position.Y),rect.Size);DrawTextureRect(_texture,mirrored,false,_tint);DrawSetTransform(Vector2.Zero);}else DrawTextureRect(_texture,rect,false,_tint);if(_selected){Color color=new("f0c96d");DrawRect(rect,color,false,3);if(_resizable){Vector2 center=rect.GetCenter();foreach(Vector2 point in new[]{rect.Position,new Vector2(center.X,rect.Position.Y),new Vector2(rect.End.X,rect.Position.Y),new Vector2(rect.Position.X,center.Y),new Vector2(rect.End.X,center.Y),new Vector2(rect.Position.X,rect.End.Y),new Vector2(center.X,rect.End.Y),rect.End})DrawRect(new Rect2(point-new Vector2(5,5),new Vector2(10,10)),color,true);}}}
 }

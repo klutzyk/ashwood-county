@@ -74,20 +74,20 @@ internal partial class AuthoredPathVisual : Node2D
     public override void _Draw()
     {
         if(_path.Points.Count<2)return;if(_path.LineKind=="Structure"){DrawStructureLine();return;}
-        RoadProfileDefinition profile=RoadProfiles.Get(_path.PathType);IReadOnlyList<RoadSplineSample> samples=RoadSplineGeometry.Sample(_path);if(samples.Count<2)return;
-        Texture2D? texture=ResourceLoader.Exists(profile.SurfaceTexture)?TextureRegistry.Get(profile.SurfaceTexture):null;
+        RoadProfileDefinition profile=RoadProfiles.Get(_path.PathType);RoadFlavorDefinition flavor=RoadFlavors.Get(_path.PathType,_path.Flavor);IReadOnlyList<RoadSplineSample> samples=RoadSplineGeometry.Sample(_path);if(samples.Count<2)return;
+        Texture2D? texture=ResourceLoader.Exists(flavor.SurfaceTexture)?TextureRegistry.Get(flavor.SurfaceTexture):null;Texture2D? shoulderTexture=ResourceLoader.Exists(flavor.ShoulderTexture)?TextureRegistry.Get(flavor.ShoulderTexture):null;
         for(int i=0;i<samples.Count-1;i++)
         {
             RoadSplineSample a=samples[i],b=samples[i+1];if(!SegmentLoaded(a.GridPosition,b.GridPosition)||a.CanvasPosition.DistanceSquaredTo(b.CanvasPosition)<.01f)continue;
             float halfA=Mathf.Max(2,a.Width*IsometricGrid.TileHeight*.5f),halfB=Mathf.Max(2,b.Width*IsometricGrid.TileHeight*.5f);
             Vector2 normalA=new(-a.CanvasTangent.Y,a.CanvasTangent.X),normalB=new(-b.CanvasTangent.Y,b.CanvasTangent.X);
-            bool organicEdge=profile.SurfaceTexture.Contains("dirt")||profile.SurfaceTexture.Contains("mud");float shoulderA=profile.ShoulderScale*(organicEdge ? .96f+Deterministic01(_path.VariationSeed,i)*.08f : 1),shoulderB=profile.ShoulderScale*(organicEdge ? .96f+Deterministic01(_path.VariationSeed,i+1)*.08f : 1);Vector2[] shoulder=[a.CanvasPosition-normalA*halfA*shoulderA,a.CanvasPosition+normalA*halfA*shoulderA,b.CanvasPosition+normalB*halfB*shoulderB,b.CanvasPosition-normalB*halfB*shoulderB];
-            DrawColoredQuad(shoulder,profile.Shoulder);
+            float shoulderA=profile.ShoulderScale,shoulderB=profile.ShoulderScale;Vector2[] shoulder=[a.CanvasPosition-normalA*halfA*shoulderA,a.CanvasPosition+normalA*halfA*shoulderA,b.CanvasPosition+normalB*halfB*shoulderB,b.CanvasPosition-normalB*halfB*shoulderB];
+            float repeat=256;Vector2[] shoulderUv=[new(0,a.Distance/repeat),new(1,a.Distance/repeat),new(1,b.Distance/repeat),new(0,b.Distance/repeat)];if(shoulderTexture is null)DrawColoredQuad(shoulder,profile.Shoulder);else DrawTexturedQuad(shoulder,shoulderUv,shoulderTexture,Colors.White);
             Vector2[] surface=[a.CanvasPosition-normalA*halfA,a.CanvasPosition+normalA*halfA,b.CanvasPosition+normalB*halfB,b.CanvasPosition-normalB*halfB];
             if(texture is null)DrawColoredQuad(surface,profile.Surface);else
             {
-                float repeat=96;Vector2[] uv=[new(0,a.Distance/repeat),new(1,a.Distance/repeat),new(1,b.Distance/repeat),new(0,b.Distance/repeat)];
-                float variation=.94f+Deterministic01(_path.VariationSeed,i)*.09f;DrawTexturedQuad(surface,uv,texture,new Color(variation,variation,variation,1));
+                Vector2[] uv=[new(0,a.Distance/repeat),new(1,a.Distance/repeat),new(1,b.Distance/repeat),new(0,b.Distance/repeat)];
+                DrawTexturedQuad(surface,uv,texture,Colors.White);
             }
         }
         DrawMarkings(samples,profile);
@@ -125,7 +125,7 @@ internal partial class AuthoredPathVisual : Node2D
     private void DrawColoredQuad(Vector2[] quad,Color color){DrawColoredPolygon([quad[0],quad[1],quad[2]],color);DrawColoredPolygon([quad[0],quad[2],quad[3]],color);}
     private void DrawTexturedQuad(Vector2[] quad,Vector2[] uv,Texture2D texture,Color tint){Color[] colors=[tint];Vector2[] first=[quad[0],quad[1],quad[2]],firstUv=[uv[0],uv[1],uv[2]],second=[quad[0],quad[2],quad[3]],secondUv=[uv[0],uv[2],uv[3]];DrawPolygon(first,colors,firstUv,texture);DrawPolygon(second,colors,secondUv,texture);}
     private static float Deterministic01(int seed,int segment){unchecked{uint x=(uint)(seed*374761393+segment*668265263);x=(x^(x>>13))*1274126177u;return (x&0xffff)/65535f;}}
-    private static int Signature(AuthoredPathData path){HashCode hash=new();hash.Add(path.PathType);hash.Add(path.LineKind);hash.Add(path.AssetPath);hash.Add(path.Width);hash.Add(path.SegmentSpacing);hash.Add(path.SegmentScale);hash.Add(path.VariationSeed);foreach(AuthoredPointData point in path.Points){hash.Add(point.X);hash.Add(point.Y);hash.Add(point.WidthScale);}return hash.ToHashCode();}
+    private static int Signature(AuthoredPathData path){HashCode hash=new();hash.Add(path.PathType);hash.Add(path.Flavor);hash.Add(path.LineKind);hash.Add(path.AssetPath);hash.Add(path.Width);hash.Add(path.SegmentSpacing);hash.Add(path.SegmentScale);hash.Add(path.VariationSeed);foreach(AuthoredPointData point in path.Points){hash.Add(point.X);hash.Add(point.Y);hash.Add(point.WidthScale);}return hash.ToHashCode();}
 }
 
 internal partial class RoadJunctionVisual : Node2D

@@ -135,6 +135,7 @@ internal partial class InteriorExteriorVisual : Node2D
     private Texture2D _texture = null!;
     private float _targetHeight;
     private float _targetWidth;
+    private bool _mirror;
 
     public void Initialize(InteriorBuildingDefinition definition)
     {
@@ -142,7 +143,7 @@ internal partial class InteriorExteriorVisual : Node2D
         _targetHeight = definition.ExteriorTargetHeight;
         _targetWidth = definition.ExteriorTargetWidth;
         Position = IsometricGrid.GridToScreen(definition.ExteriorAnchor);
-        RotationDegrees = definition.ExteriorRotationDegrees;
+        _mirror = Mathf.PosMod(definition.ExteriorRotationDegrees,360) >= 90 && Mathf.PosMod(definition.ExteriorRotationDegrees,360) < 270;
         // Share the Objects y-sort layer with survivors: actors north of the
         // house render behind it, while actors south of its base render in front.
         ZAsRelative = true;
@@ -156,6 +157,6 @@ internal partial class InteriorExteriorVisual : Node2D
         float scaleY = _targetHeight / Mathf.Max(1, _texture.GetHeight());
         float scaleX = _targetWidth > 0 ? _targetWidth / Mathf.Max(1, _texture.GetWidth()) : scaleY;
         Vector2 size = _texture.GetSize() * new Vector2(scaleX,scaleY);
-        DrawTextureRect(_texture, new Rect2(-size.X * .5f, -size.Y, size.X, size.Y), false);
+        if(_mirror){DrawSetTransform(Vector2.Zero,0,new Vector2(-1,1));DrawTextureRect(_texture,new Rect2(-size.X*.5f,-size.Y,size.X,size.Y),false);DrawSetTransform(Vector2.Zero);}else DrawTextureRect(_texture, new Rect2(-size.X * .5f, -size.Y, size.X, size.Y), false);
     }
 }

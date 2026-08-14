@@ -25,6 +25,38 @@ public sealed record RoadProfileDefinition(
 
 public enum RoadMarkingStyle { None, SingleCenter, DoubleCenter, Highway, FarmRuts, LoggingRuts }
 
+public sealed record RoadFlavorDefinition(string Id,string SurfaceTexture,string ShoulderTexture,string PreviewAsset);
+
+public static class RoadFlavors
+{
+    private const string MaterialRoot="res://assets/art/roads/materials/";
+    public static IReadOnlyList<RoadFlavorDefinition> ForProfile(string? profile)=>RoadProfiles.Get(profile).Id switch
+    {
+        "Highway" or "Town Road"=>[
+            new("Clean asphalt",MaterialRoot+"asphalt_surface.png",MaterialRoot+"asphalt_shoulder.png","res://assets/art/roads/asphalt/reference/highway_straight.png"),
+            new("Worn asphalt",MaterialRoot+"asphalt_worn_surface.png",MaterialRoot+"asphalt_shoulder.png","res://assets/art/roads/asphalt/reference/town_straight.png")],
+        "County Road" or "Rural Asphalt Road"=>[
+            new("Worn asphalt",MaterialRoot+"asphalt_worn_surface.png",MaterialRoot+"asphalt_shoulder.png","res://assets/art/roads/asphalt/reference/town_straight.png"),
+            new("Clean asphalt",MaterialRoot+"asphalt_surface.png",MaterialRoot+"asphalt_shoulder.png","res://assets/art/roads/asphalt/reference/highway_straight.png")],
+        "Logging Road"=>[
+            new("Muddy logging",MaterialRoot+"mud_surface.png",MaterialRoot+"mud_surface.png","res://assets/art/roads/dirt/reference/muddy_logging_road.png"),
+            new("Dry logging",MaterialRoot+"dirt_surface.png",MaterialRoot+"dirt_surface.png","res://assets/art/roads/dirt/reference/logging_road_straight.png")],
+        "Farm Track"=>[
+            new("Farm track",MaterialRoot+"farm_track_surface.png",MaterialRoot+"farm_track_surface.png","res://assets/art/roads/dirt/reference/farm_track_straight.png"),
+            new("Two track",MaterialRoot+"two_track_surface.png",MaterialRoot+"two_track_surface.png","res://assets/art/roads/dirt/reference/two_track_road.png")],
+        "Footpath"=>[new("Winding path",MaterialRoot+"footpath_surface.png",MaterialRoot+"footpath_surface.png","res://assets/art/roads/dirt/reference/footpath_winding.png")],
+        _=>[
+            new("Dry dirt",MaterialRoot+"dirt_surface.png",MaterialRoot+"dirt_surface.png","res://assets/art/roads/dirt/reference/dirt_straight.png"),
+            new("Two track",MaterialRoot+"two_track_surface.png",MaterialRoot+"two_track_surface.png","res://assets/art/roads/dirt/reference/two_track_road.png"),
+            new("Muddy",MaterialRoot+"mud_surface.png",MaterialRoot+"mud_surface.png","res://assets/art/roads/dirt/reference/muddy_logging_road.png")]
+    };
+    public static RoadFlavorDefinition Get(string? profile,string? flavor)
+    {
+        IReadOnlyList<RoadFlavorDefinition> choices=ForProfile(profile);
+        return choices.FirstOrDefault(item=>item.Id==flavor)??choices[0];
+    }
+}
+
 /// <summary>Single source of road-type behavior for editor, runtime and validation.</summary>
 public static class RoadProfiles
 {
@@ -39,10 +71,10 @@ public static class RoadProfiles
         new("Town Road",1.8f,RoadSmoothingMode.Linear,2.4f,1.25f,new("505353"),new("716b61"),Asphalt,RoadMarkingStyle.DoubleCenter,.6f,1.2f),
         new("County Road",2.2f,RoadSmoothingMode.CatmullRom,2.8f,1.3f,new("535656"),new("756e62"),WornAsphalt,RoadMarkingStyle.DoubleCenter,.75f,3f),
         new("Rural Asphalt Road",1.55f,RoadSmoothingMode.CatmullRom,2.5f,1.28f,new("555958"),new("746b5d"),WornAsphalt,RoadMarkingStyle.SingleCenter,.65f,2.2f),
-        new("Dirt Road",1.35f,RoadSmoothingMode.CatmullRom,2.25f,1.36f,new("967650"),new("6e6049"),Dirt,RoadMarkingStyle.None,.6f,1.8f),
-        new("Farm Track",.95f,RoadSmoothingMode.CatmullRom,2f,1.42f,new("8f724e"),new("5e5542"),Dirt,RoadMarkingStyle.FarmRuts,.5f,1.4f),
-        new("Logging Road",1.45f,RoadSmoothingMode.CatmullRom,2.2f,1.42f,new("765d43"),new("514838"),Mud,RoadMarkingStyle.LoggingRuts,.65f,2f),
-        new("Footpath",.42f,RoadSmoothingMode.CatmullRom,1.8f,1.55f,new("987b56"),new("66704d"),Dirt,RoadMarkingStyle.None,.35f,.6f)
+        new("Dirt Road",1.35f,RoadSmoothingMode.CatmullRom,3.5f,1.15f,new("967650"),new("6e6049"),Dirt,RoadMarkingStyle.None,.6f,1.8f),
+        new("Farm Track",.95f,RoadSmoothingMode.CatmullRom,3.25f,1.18f,new("8f724e"),new("5e5542"),Dirt,RoadMarkingStyle.FarmRuts,.5f,1.4f),
+        new("Logging Road",1.45f,RoadSmoothingMode.CatmullRom,3.4f,1.18f,new("765d43"),new("514838"),Mud,RoadMarkingStyle.LoggingRuts,.65f,2f),
+        new("Footpath",.42f,RoadSmoothingMode.CatmullRom,3.5f,1.22f,new("987b56"),new("66704d"),Dirt,RoadMarkingStyle.None,.35f,.6f)
     ];
 
     public static RoadProfileDefinition Get(string? id)

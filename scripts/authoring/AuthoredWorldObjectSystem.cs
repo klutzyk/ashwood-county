@@ -65,7 +65,6 @@ public partial class AuthoredWorldObjectVisual : Node2D
     {
         _data=data;_texture=TextureRegistry.Get(data.AssetPath);
         Position=IsometricGrid.GridToScreen(new Vector2(data.X,data.Y));
-        RotationDegrees=data.RotationDegrees;
         ZIndex=0;
     }
 
@@ -74,6 +73,7 @@ public partial class AuthoredWorldObjectVisual : Node2D
     {
         Vector2 size=_texture.GetSize()*new Vector2(Mathf.Max(.02f,_data.Scale),Mathf.Max(.02f,_data.ScaleY>0?_data.ScaleY:_data.Scale));
         Vector2 origin=new(-size.X*Mathf.Clamp(_data.AnchorX,0,1),-size.Y*Mathf.Clamp(_data.AnchorY,0,1));
-        DrawTextureRect(_texture,new Rect2(origin,size),false);
+        bool mirror=Mathf.PosMod(_data.RotationDegrees,360)>=90&&Mathf.PosMod(_data.RotationDegrees,360)<270;
+        if(mirror){DrawSetTransform(Vector2.Zero,0,new Vector2(-1,1));DrawTextureRect(_texture,new Rect2(new Vector2(-(origin.X+size.X),origin.Y),size),false);DrawSetTransform(Vector2.Zero);}else DrawTextureRect(_texture,new Rect2(origin,size),false);
     }
 }

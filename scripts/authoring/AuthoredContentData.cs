@@ -26,6 +26,7 @@ public sealed class AuthoredPathData
     public string Id { get; set; } = string.Empty;
     public string DisplayName { get; set; } = "Authored Road";
     public string PathType { get; set; } = "Rural Road";
+    public string Flavor { get; set; } = string.Empty;
     public string LineKind { get; set; } = "Road";
     public string AssetPath { get; set; } = string.Empty;
     public float Width { get; set; } = 1.2f;

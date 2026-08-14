@@ -151,7 +151,7 @@ def material_sample(source_name: str, output_name: str, box: tuple[int, int, int
     high = rgb.max(axis=2)
     low = rgb.min(axis=2)
     saturation = (high - low) / np.maximum(1, high)
-    if kind == "asphalt":
+    if kind.startswith("asphalt"):
         valid = (rgba[:, :, 3] > 180) & (high < 92) & (saturation < .12)
     else:
         valid = (rgba[:, :, 3] > 180) & (rgb[:, :, 0] > rgb[:, :, 1] + 14) & (rgb[:, :, 1] > rgb[:, :, 2] + 10) & (rgb[:, :, 0] < 205)
@@ -159,19 +159,63 @@ def material_sample(source_name: str, output_name: str, box: tuple[int, int, int
     # vegetation without inventing a second visual source.
     _, indices = ndimage.distance_transform_edt(~valid, return_indices=True)
     rgba[:, :, :3] = rgba[indices[0], indices[1], :3]
-    if kind == "dirt":
-        source_rgb = rgba[:, :, :3].astype(np.float32)
-        base = ndimage.gaussian_filter(source_rgb, sigma=(6, 6, 0))
-        fine = source_rgb - ndimage.gaussian_filter(source_rgb, sigma=(1.2, 1.2, 0))
-        rgba[:, :, :3] = np.clip(base + fine * .28, 0, 255).astype(np.uint8)
-    # Symmetric edge composition makes opposite texture boundaries identical,
-    # avoiding a visible repeat seam when Godot's along-road V coordinate wraps.
+    # Preserve the source grain. Only cross-fade a narrow border so repeated UVs
+    # meet cleanly; the previous whole-image mirror average caused the soft,
+    # airbrushed dirt seen in the Studio.
     rgb = rgba[:, :, :3].astype(np.float32)
-    rgba[:, :, :3] = ((rgb + rgb[:, ::-1] + rgb[::-1, :] + rgb[::-1, ::-1]) * .25).astype(np.uint8)
+    edge = max(4, min(rgb.shape[0], rgb.shape[1]) // 10)
+    for i in range(edge):
+        t = (1-i / max(1, edge - 1)) * .5
+        top, bottom = rgb[i].copy(), rgb[-1-i].copy()
+        rgb[i] = top * (1-t) + bottom * t
+        rgb[-1-i] = bottom * (1-t) + top * t
+        left, right = rgb[:, i].copy(), rgb[:, -1-i].copy()
+        rgb[:, i] = left * (1-t) + right * t
+        rgb[:, -1-i] = right * (1-t) + left * t
+    rgba[:, :, :3] = np.clip(rgb,0,255).astype(np.uint8)
     rgba[:, :, 3] = 255
     destination = ROOT / output_name
     destination.parent.mkdir(parents=True, exist_ok=True)
-    Image.fromarray(rgba, "RGBA").resize((128, 128), Image.Resampling.LANCZOS).save(destination, optimize=True)
+    Image.fromarray(rgba, "RGBA").resize((256, 256), Image.Resampling.LANCZOS).save(destination, optimize=True)
+
+
+def aligned_road_sample(source_name: str, output_name: str,
+                        box: tuple[int, int, int, int], angle: float,
+                        width: int, kind: str, include_verge: bool = False) -> None:
+    """Rotate a supplied straight road so its long axis matches spline UV V.
+
+    The source sheets present straight roads diagonally. Feeding that diagonal
+    square directly into a spline made straight authored roads look slanted and
+    produced rectangular seams on bends. This keeps the source pixels but first
+    normalizes their direction, then crops a continuous axial strip.
+    """
+    source = Image.open(SHEETS / source_name).convert("RGBA").crop(box)
+    rotated = source.rotate(angle,Image.Resampling.BICUBIC,expand=True)
+    cx, cy = rotated.width // 2, rotated.height // 2
+    height = min(300,rotated.height-8)
+    sample = rotated.crop((cx-width//2,cy-height//2,cx+width//2,cy+height//2))
+    rgba = np.asarray(sample).copy()
+    rgb = rgba[:, :, :3].astype(np.float32)
+    if not include_verge:
+        high, low = rgb.max(axis=2), rgb.min(axis=2)
+        valid = ((rgba[:, :, 3] > 180) &
+                 (rgb[:, :, 0] > rgb[:, :, 1] + 10) &
+                 (rgb[:, :, 1] > rgb[:, :, 2] + 7) &
+                 (rgb[:, :, 0] < 215))
+        _, indices = ndimage.distance_transform_edt(~valid,return_indices=True)
+        rgba[:, :, :3] = rgba[indices[0],indices[1],:3]
+    else:
+        valid = rgba[:, :, 3] > 180
+        _, indices = ndimage.distance_transform_edt(~valid,return_indices=True)
+        rgba[:, :, :3] = rgba[indices[0],indices[1],:3]
+    # Build a palindromic V tile. Its first/last rows and midpoint meet exactly,
+    # eliminating the rectangular repeat bands without averaging away detail or
+    # mirroring across U (which would cross the tire tracks).
+    rgba[:, :, 3]=255
+    destination=ROOT/output_name;destination.parent.mkdir(parents=True,exist_ok=True)
+    half=np.asarray(Image.fromarray(rgba,"RGBA").resize((256,128),Image.Resampling.LANCZOS))
+    tile=np.concatenate([half,half[::-1]],axis=0)
+    Image.fromarray(tile,"RGBA").save(destination,optimize=True)
 
 
 def main() -> None:
@@ -179,9 +223,14 @@ def main() -> None:
         extract(entry)
     material_sample("asphalt_sheet.png", "assets/art/roads/materials/asphalt_surface.png", (112, 142, 192, 222), "asphalt")
     material_sample("asphalt_sheet.png", "assets/art/roads/materials/asphalt_worn_surface.png", (965, 135, 1045, 215), "asphalt")
-    material_sample("dirt_road_sheet.png", "assets/art/roads/materials/dirt_surface.png", (208, 132, 256, 180), "dirt")
-    material_sample("dirt_road_sheet.png", "assets/art/roads/materials/mud_surface.png", (955, 770, 1003, 818), "dirt")
-    print(f"Extracted {len(ITEMS)} clean components and 4 spline material samples from five immutable sheets.")
+    material_sample("asphalt_sheet.png", "assets/art/roads/materials/asphalt_shoulder.png", (75, 125, 155, 205), "asphalt")
+    aligned_road_sample("dirt_road_sheet.png", "assets/art/roads/materials/dirt_surface.png", (0, 0, 435, 305), 62, 150, "dirt")
+    aligned_road_sample("dirt_road_sheet.png", "assets/art/roads/materials/farm_track_surface.png", (430, 0, 840, 315), 62, 145, "dirt")
+    aligned_road_sample("dirt_road_sheet.png", "assets/art/roads/materials/mud_surface.png", (765, 615, 1185, 990), 62, 150, "dirt")
+    aligned_road_sample("dirt_road_sheet.png", "assets/art/roads/materials/two_track_surface.png", (1155, 625, 1536, 990), 62, 135, "dirt")
+    aligned_road_sample("dirt_road_sheet.png", "assets/art/roads/materials/footpath_surface.png", (0, 0, 435, 305), 62, 54, "dirt")
+    aligned_road_sample("dirt_road_sheet.png", "assets/art/roads/materials/dirt_shoulder.png", (0, 0, 435, 305), 62, 230, "dirt", True)
+    print(f"Extracted {len(ITEMS)} clean components and 9 detailed spline material samples from five immutable sheets.")
 
 
 if __name__ == "__main__":
