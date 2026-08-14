@@ -18,8 +18,8 @@ public partial class AuthoringStudioHost:Node
     private OptionButton _location=null!,_radius=null!,_category=null!,_gameplay=null!,_selectedGameplay=null!,_loot=null!;
     private LineEdit _search=null!,_name=null!,_roomA=null!,_roomB=null!;
     private GridContainer _assetGrid=null!;private Label _status=null!,_selectionTitle=null!,_id=null!,_validation=null!;
-    private SpinBox _x=null!,_y=null!,_width=null!,_height=null!,_target=null!,_anchorX=null!,_anchorY=null!,_duration=null!;
-    private Label _xLabel=null!,_yLabel=null!,_widthLabel=null!,_heightLabel=null!,_targetLabel=null!,_anchorXLabel=null!,_anchorYLabel=null!;
+    private SpinBox _x=null!,_y=null!,_width=null!,_height=null!,_target=null!,_visualWidth=null!,_rotation=null!,_anchorX=null!,_anchorY=null!,_duration=null!;
+    private Label _xLabel=null!,_yLabel=null!,_widthLabel=null!,_heightLabel=null!,_targetLabel=null!,_visualWidthLabel=null!,_anchorXLabel=null!,_anchorYLabel=null!;
     private CheckBox _collision=null!,_snap=null!,_keepAspect=null!;private Button _editInterior=null!,_exitInterior=null!,_apply=null!;private StudioCountyMinimap _minimap=null!;
     private CountyLocationDefinition[] _locations=[];private bool _refreshingInspector;
 
@@ -81,16 +81,16 @@ public partial class AuthoringStudioHost:Node
     private void BuildToolbar(Control root)
     {
         PanelContainer panel=Panel(root,310,10,-330,96);VBoxContainer rows=new();panel.AddChild(rows);HBoxContainer tools=new();HBoxContainer actions=new();rows.AddChild(tools);rows.AddChild(actions);
-        tools.AddChild(Button("SELECT",()=>_canvas.SetTool(AuthoringTool.Select)));tools.AddChild(Button("PLACE",()=>_canvas.SetTool(AuthoringTool.Place)));tools.AddChild(Button("FLOOR/ROOM",()=>_canvas.SetTool(AuthoringTool.Room)));tools.AddChild(Button("WALL",()=>_canvas.SetTool(AuthoringTool.Wall)));tools.AddChild(Button("DOOR",()=>_canvas.SetTool(AuthoringTool.Door)));tools.AddChild(Button("WINDOWS",ShowWindowAssets));
+        tools.AddChild(Button("SELECT [Q]",()=>_canvas.SetTool(AuthoringTool.Select)));tools.AddChild(Button("PLACE",()=>_canvas.SetTool(AuthoringTool.Place)));tools.AddChild(Button("FLOOR/ROOM",()=>_canvas.SetTool(AuthoringTool.Room)));tools.AddChild(Button("WALL",()=>_canvas.SetTool(AuthoringTool.Wall)));tools.AddChild(Button("DOOR",()=>_canvas.SetTool(AuthoringTool.Door)));tools.AddChild(Button("WINDOWS",ShowWindowAssets));
         _snap=new CheckBox{Text="SNAP 0.25",ButtonPressed=true};_snap.Toggled+=value=>_canvas.SnapEnabled=value;tools.AddChild(_snap);
-        actions.AddChild(Button("UNDO",_canvas.Undo));actions.AddChild(Button("REDO",_canvas.Redo));actions.AddChild(Button("DUPLICATE",_canvas.DuplicateSelection));actions.AddChild(Button("DELETE",_canvas.DeleteSelection));actions.AddChild(Button("SAVE",_canvas.Save));actions.AddChild(Button("PLAYTEST",BeginPlaytest));
+        actions.AddChild(Button("UNDO",_canvas.Undo));actions.AddChild(Button("REDO",_canvas.Redo));actions.AddChild(Button("DUPLICATE",_canvas.DuplicateSelection));actions.AddChild(Button("ROTATE [R]",()=>_canvas.RotateSelection()));actions.AddChild(Button("DELETE [E]",_canvas.DeleteSelection));actions.AddChild(Button("SAVE",_canvas.Save));actions.AddChild(Button("PLAYTEST",BeginPlaytest));
     }
 
     private void BuildInspector(Control root)
     {
         PanelContainer panel=Panel(root,-320,10,-10,-10,false,true);VBoxContainer box=ScrollableVBox(panel);
         _selectionTitle=Label("SELECTION INSPECTOR","HudTitle");box.AddChild(_selectionTitle);_id=Label("No selection","HudTiny");box.AddChild(_id);
-        _name=Field(box,"NAME");_selectedGameplay=new OptionButton();foreach(string type in new[]{"Decoration","Building","Door","Container","Bed","Scavenge Source","Landmark","Zombie Spawn","Resource"})_selectedGameplay.AddItem(type);box.AddChild(Labeled("GAMEPLAY TYPE",_selectedGameplay));_x=Number(box,"X",out _xLabel);_y=Number(box,"Y",out _yLabel);_width=Number(box,"WIDTH",out _widthLabel,.05,100);_height=Number(box,"HEIGHT",out _heightLabel,.05,100);_target=Number(box,"VISUAL HEIGHT",out _targetLabel,1,1000);
+        _name=Field(box,"NAME");_selectedGameplay=new OptionButton();foreach(string type in new[]{"Decoration","Building","Door","Container","Bed","Scavenge Source","Landmark","Zombie Spawn","Resource"})_selectedGameplay.AddItem(type);box.AddChild(Labeled("GAMEPLAY TYPE",_selectedGameplay));_x=Number(box,"X",out _xLabel);_y=Number(box,"Y",out _yLabel);_width=Number(box,"WIDTH",out _widthLabel,.05,100);_height=Number(box,"HEIGHT",out _heightLabel,.05,100);_target=Number(box,"VISUAL HEIGHT",out _targetLabel,.01,2000);_visualWidth=Number(box,"VISUAL WIDTH",out _visualWidthLabel,.01,2000);_rotation=Number(box,"ROTATION (DEGREES)",out _,1,360);
         _anchorX=Number(box,"ANCHOR X",out _anchorXLabel,.01,500);_anchorY=Number(box,"ANCHOR Y",out _anchorYLabel,.01,500);
         _roomA=Field(box,"ROOM / SIDE A");_roomB=Field(box,"ROOM / SIDE B");
         _collision=new CheckBox{Text="BLOCKS MOVEMENT / COLLISION"};box.AddChild(_collision);
@@ -102,7 +102,7 @@ public partial class AuthoringStudioHost:Node
         _exitInterior=Button("RETURN TO WORLD EDIT",()=>{_canvas.ExitInterior();RefreshInspector();});box.AddChild(_exitInterior);
         box.AddChild(new HSeparator());HBoxContainer validationButtons=new();validationButtons.AddChild(Button("VALIDATE",RunValidation));validationButtons.AddChild(Button("TEST ENTRANCE",TestEntrance));box.AddChild(validationButtons);
         _validation=Label("Select a building and enter Interior Edit.","HudMuted");_validation.AutowrapMode=TextServer.AutowrapMode.WordSmart;_validation.SizeFlagsVertical=Control.SizeFlags.ExpandFill;box.AddChild(_validation);
-        box.AddChild(Label("SHORTCUTS  Delete  Ctrl+Z  Ctrl+Y  Ctrl+D  Esc","HudTiny"));
+        box.AddChild(Label("SHORTCUTS  Q Select  E Delete  R Rotate  Ctrl+Z  Ctrl+Y  Ctrl+D  Esc","HudTiny"));
     }
 
     private void BuildStatus(Control root)
@@ -129,7 +129,7 @@ public partial class AuthoringStudioHost:Node
     private void RefreshInspector()
     {
         if(_name is null)return;_refreshingInspector=true;object? data=_canvas.GetSelectedData();bool selected=data is not null;_apply.Disabled=!selected;
-        foreach(Control control in new Control[]{_name,_selectedGameplay,_x,_y,_width,_height,_target,_anchorX,_anchorY,_roomA,_roomB,_collision,_keepAspect,_loot,_duration})SetFieldVisible(control,selected);
+        foreach(Control control in new Control[]{_name,_selectedGameplay,_x,_y,_width,_height,_target,_visualWidth,_rotation,_anchorX,_anchorY,_roomA,_roomB,_collision,_keepAspect,_loot,_duration})SetFieldVisible(control,selected);
         _editInterior.Visible=data is AuthoredBuildingData&&!_canvas.IsInteriorMode;_exitInterior.Visible=_canvas.IsInteriorMode;
         if(data is null){_selectionTitle.Text=_canvas.IsInteriorMode?"INTERIOR INSPECTOR":"SELECTION INSPECTOR";_id.Text="No selection";_refreshingInspector=false;return;}
         _id.Text=$"{_canvas.PrimarySelection.Kind.ToString().ToUpperInvariant()}  •  {GetId(data)}";_selectionTitle.Text="SELECTION INSPECTOR";_name.Text=GetName(data);
@@ -138,11 +138,11 @@ public partial class AuthoringStudioHost:Node
 
     private void ConfigureInspector(object data)
     {
-        SetFieldVisible(_roomA,false);SetFieldVisible(_roomB,false);SetFieldVisible(_loot,false);SetFieldVisible(_duration,false);SetFieldVisible(_collision,false);SetFieldVisible(_keepAspect,false);SetFieldVisible(_selectedGameplay,false);SetFieldVisible(_target,true);SetFieldVisible(_anchorX,false);SetFieldVisible(_anchorY,false);_targetLabel.Text="VISUAL HEIGHT";
+        SetFieldVisible(_roomA,false);SetFieldVisible(_roomB,false);SetFieldVisible(_loot,false);SetFieldVisible(_duration,false);SetFieldVisible(_collision,false);SetFieldVisible(_keepAspect,false);SetFieldVisible(_selectedGameplay,false);SetFieldVisible(_target,true);SetFieldVisible(_visualWidth,false);SetFieldVisible(_rotation,false);SetFieldVisible(_anchorX,false);SetFieldVisible(_anchorY,false);_targetLabel.Text="VISUAL HEIGHT";
         switch(data)
         {
-            case AuthoredWorldObjectData item:SetNumbers(item.X,item.Y,item.ScaleY>0?item.ScaleY:item.Scale,0,item.Scale,item.AnchorX,item.AnchorY);Labels("X","Y","SCALE Y","","ANCHOR X","ANCHOR Y");_targetLabel.Text="SCALE X";SetFieldVisible(_selectedGameplay,true);SelectText(_selectedGameplay,item.GameplayType);SetFieldVisible(_width,true);SetFieldVisible(_height,false);SetFieldVisible(_anchorX,true);SetFieldVisible(_anchorY,true);SetFieldVisible(_collision,true);SetFieldVisible(_keepAspect,true);_collision.ButtonPressed=item.Collision;break;
-            case AuthoredBuildingData item:SetNumbers(item.ExteriorX,item.ExteriorY,item.FootprintWidth,item.FootprintHeight,item.ExteriorTargetHeight,item.FootprintX,item.FootprintY);Labels("EXTERIOR X","EXTERIOR Y","FOOTPRINT W","FOOTPRINT H","FOOTPRINT X","FOOTPRINT Y");SetFieldVisible(_anchorX,true);SetFieldVisible(_anchorY,true);break;
+            case AuthoredWorldObjectData item:SetNumbers(item.X,item.Y,0,0,item.Scale,item.AnchorX,item.AnchorY);_visualWidth.Value=item.ScaleY>0?item.ScaleY:item.Scale;_rotation.Value=item.RotationDegrees;Labels("X","Y","","","ANCHOR X","ANCHOR Y");_targetLabel.Text="SCALE X";_visualWidthLabel.Text="SCALE Y";SetFieldVisible(_selectedGameplay,true);SelectText(_selectedGameplay,item.GameplayType);SetFieldVisible(_width,false);SetFieldVisible(_height,false);SetFieldVisible(_visualWidth,true);SetFieldVisible(_rotation,true);SetFieldVisible(_anchorX,true);SetFieldVisible(_anchorY,true);SetFieldVisible(_collision,true);SetFieldVisible(_keepAspect,true);_collision.ButtonPressed=item.Collision;break;
+            case AuthoredBuildingData item:SetNumbers(item.ExteriorX,item.ExteriorY,item.FootprintWidth,item.FootprintHeight,item.ExteriorTargetHeight,item.FootprintX,item.FootprintY);_visualWidth.Value=item.ExteriorTargetWidth>0?item.ExteriorTargetWidth:BuildingVisualWidth(item);_rotation.Value=item.ExteriorRotationDegrees;_visualWidthLabel.Text="VISUAL WIDTH";Labels("EXTERIOR X","EXTERIOR Y","FOOTPRINT W","FOOTPRINT H","FOOTPRINT X","FOOTPRINT Y");SetFieldVisible(_visualWidth,true);SetFieldVisible(_rotation,true);SetFieldVisible(_keepAspect,true);SetFieldVisible(_anchorX,true);SetFieldVisible(_anchorY,true);break;
             case AuthoredRoomData item:SetNumbers(item.X,item.Y,item.Width,item.Height,0,0,0);SetFieldVisible(_target,false);Labels("X","Y","WIDTH","HEIGHT","","");break;
             case AuthoredWallData item:SetNumbers(item.StartX,item.StartY,item.EndX,item.EndY,0,0,0);SetFieldVisible(_target,false);Labels("START X","START Y","END X","END Y","","");break;
             case AuthoredDoorData item:SetNumbers(item.X,item.Y,item.InsideArrivalX,item.InsideArrivalY,84,item.OutsideApproachX,item.OutsideApproachY);Labels("DOOR X","DOOR Y","INSIDE ARRIVAL X","INSIDE ARRIVAL Y","OUTSIDE APPROACH X","OUTSIDE APPROACH Y");SetFieldVisible(_anchorX,true);SetFieldVisible(_anchorY,true);SetFieldVisible(_roomA,true);SetFieldVisible(_roomB,true);_roomA.Text=item.RoomAId;_roomB.Text=item.RoomBId;break;
@@ -157,9 +157,9 @@ public partial class AuthoringStudioHost:Node
         if(_refreshingInspector)return;object? data=_canvas.GetSelectedData();if(data is null)return;_canvas.BeginInspectorMutation();SetName(data,_name.Text);
         switch(data)
         {
-            case AuthoredWorldObjectData item:item.X=(float)_x.Value;item.Y=(float)_y.Value;item.Scale=(float)_target.Value;item.ScaleY=_keepAspect.ButtonPressed?item.Scale:(float)_width.Value;item.AnchorX=(float)_anchorX.Value;item.AnchorY=(float)_anchorY.Value;item.Collision=_collision.ButtonPressed;item.GameplayType=_selectedGameplay.GetItemText(_selectedGameplay.Selected);break;
+            case AuthoredWorldObjectData item:item.X=(float)_x.Value;item.Y=(float)_y.Value;item.Scale=(float)_target.Value;item.ScaleY=_keepAspect.ButtonPressed?item.Scale:(float)_visualWidth.Value;item.RotationDegrees=(float)_rotation.Value;item.AnchorX=(float)_anchorX.Value;item.AnchorY=(float)_anchorY.Value;item.Collision=_collision.ButtonPressed;item.GameplayType=_selectedGameplay.GetItemText(_selectedGameplay.Selected);break;
             case AuthoredBuildingData item:
-                float previousFootprintX=item.FootprintX,previousFootprintY=item.FootprintY;Vector2 delta=new((float)_x.Value-item.ExteriorX,(float)_y.Value-item.ExteriorY);AuthoringStudioCanvas.TranslateBuilding(item,delta);item.FootprintWidth=(float)_width.Value;item.FootprintHeight=(float)_height.Value;item.ExteriorTargetHeight=(float)_target.Value;
+                float previousFootprintX=item.FootprintX,previousFootprintY=item.FootprintY;Vector2 delta=new((float)_x.Value-item.ExteriorX,(float)_y.Value-item.ExteriorY);AuthoringStudioCanvas.TranslateBuilding(item,delta);item.FootprintWidth=(float)_width.Value;item.FootprintHeight=(float)_height.Value;item.ExteriorTargetHeight=(float)_target.Value;item.ExteriorTargetWidth=_keepAspect.ButtonPressed?0:(float)_visualWidth.Value;item.ExteriorRotationDegrees=(float)_rotation.Value;
                 if(!Mathf.IsEqualApprox((float)_anchorX.Value,previousFootprintX))item.FootprintX=(float)_anchorX.Value;if(!Mathf.IsEqualApprox((float)_anchorY.Value,previousFootprintY))item.FootprintY=(float)_anchorY.Value;break;
             case AuthoredRoomData item:item.X=(float)_x.Value;item.Y=(float)_y.Value;item.Width=(float)_width.Value;item.Height=(float)_height.Value;break;
             case AuthoredWallData item:item.StartX=(float)_x.Value;item.StartY=(float)_y.Value;item.EndX=(float)_width.Value;item.EndY=(float)_height.Value;break;
@@ -217,6 +217,7 @@ public partial class AuthoringStudioHost:Node
     private static string GetId(object data)=>data switch{AuthoredWorldObjectData x=>x.Id,AuthoredBuildingData x=>x.Id,AuthoredRoomData x=>x.Id,AuthoredWallData x=>x.Id,AuthoredDoorData x=>x.Id,AuthoredFurnitureData x=>x.Id,AuthoredContainerData x=>x.Id,AuthoredBedData x=>x.Id,_=>string.Empty};
     private static string GetName(object data)=>data switch{AuthoredWorldObjectData x=>x.DisplayName,AuthoredBuildingData x=>x.DisplayName,AuthoredRoomData x=>x.DisplayName,AuthoredDoorData x=>x.DisplayName,AuthoredFurnitureData x=>x.DisplayName,AuthoredContainerData x=>x.DisplayName,AuthoredBedData x=>x.DisplayName,AuthoredWallData=>"Wall",_=>string.Empty};
     private static void SetName(object data,string value){switch(data){case AuthoredWorldObjectData x:x.DisplayName=value;break;case AuthoredBuildingData x:x.DisplayName=value;break;case AuthoredRoomData x:x.DisplayName=value;break;case AuthoredDoorData x:x.DisplayName=value;break;case AuthoredFurnitureData x:x.DisplayName=value;break;case AuthoredContainerData x:x.DisplayName=value;break;case AuthoredBedData x:x.DisplayName=value;break;}}
+    private static float BuildingVisualWidth(AuthoredBuildingData item){if(!ResourceLoader.Exists(item.ExteriorAssetPath))return item.ExteriorTargetHeight;Texture2D texture=TextureRegistry.Get(item.ExteriorAssetPath);return texture.GetWidth()*(item.ExteriorTargetHeight/Mathf.Max(1,texture.GetHeight()));}
     private static string Short(string value,int length)=>value.Length<=length?value:value[..(length-1)]+"…";
 }
 

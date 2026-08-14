@@ -119,6 +119,14 @@ public partial class AuthoringStudioCanvas : Node2D
         _selection.Clear();foreach(StudioSelection selection in replacements)_selection.Add(selection);Changed("Duplicated selection");
     }
 
+    public void RotateSelection(float degrees=90)
+    {
+        if(GetSelectedData() is not AuthoredWorldObjectData&&GetSelectedData() is not AuthoredBuildingData)return;Checkpoint();
+        if(GetSelectedData() is AuthoredWorldObjectData item)item.RotationDegrees=Mathf.PosMod(item.RotationDegrees+degrees,360);
+        else if(GetSelectedData() is AuthoredBuildingData building)building.ExteriorRotationDegrees=Mathf.PosMod(building.ExteriorRotationDegrees+degrees,360);
+        Changed("Rotated selection");
+    }
+
     public IReadOnlyList<AuthoringValidationIssue> ValidateInterior()
     {
         if(_interiorBuilding is null)return [];
@@ -174,6 +182,9 @@ public partial class AuthoringStudioCanvas : Node2D
 
     private void HandleShortcut(InputEventKey key)
     {
+        if(key.Keycode==Key.Q){SetTool(AuthoringTool.Select);return;}
+        if(key.Keycode==Key.E){DeleteSelection();return;}
+        if(key.Keycode==Key.R){RotateSelection();return;}
         if(key.Keycode==Key.Escape){SetTool(AuthoringTool.Select);return;}
         if(key.Keycode==Key.Delete){DeleteSelection();return;}
         if(key.CtrlPressed&&key.Keycode==Key.Z){Undo();return;}
@@ -190,9 +201,9 @@ public partial class AuthoringStudioCanvas : Node2D
             case AuthoringTool.Door:PlaceDoor(grid);break;
             default:
                 StudioResizeHandle resize=ResizeHandleAt(worldPoint);
-                if(resize!=StudioResizeHandle.None&&GetSelectedData() is AuthoredWorldObjectData selectedItem)
+                if(resize!=StudioResizeHandle.None)
                 {
-                    _resizeHandle=resize;_resizeStartWorld=worldPoint;_resizeOriginalScale=new(selectedItem.Scale,selectedItem.ScaleY>0?selectedItem.ScaleY:selectedItem.Scale);_resizeStartRect=SpriteRect(selectedItem.AssetPath,new(selectedItem.X,selectedItem.Y),0,selectedItem.Scale,new(selectedItem.AnchorX,selectedItem.AnchorY),selectedItem.ScaleY);_resizeSnapshot=AuthoredContentRepository.Serialize(_document);return;
+                    _resizeHandle=resize;_resizeStartWorld=worldPoint;_resizeStartRect=SelectedResizeRect();_resizeOriginalScale=GetSelectedData() switch{AuthoredWorldObjectData selectedItem=>new(selectedItem.Scale,selectedItem.ScaleY>0?selectedItem.ScaleY:selectedItem.Scale),AuthoredBuildingData selectedBuilding=>new(selectedBuilding.ExteriorTargetWidth>0?selectedBuilding.ExteriorTargetWidth:_resizeStartRect.Size.X,selectedBuilding.ExteriorTargetHeight),_=>Vector2.One};_resizeSnapshot=AuthoredContentRepository.Serialize(_document);return;
                 }
                 StudioSelection hit=HitTest(grid,worldPoint);
                 if(hit.Kind!=StudioSelectionKind.None)
@@ -224,7 +235,7 @@ public partial class AuthoringStudioCanvas : Node2D
 
     private void ResizeSelection(Vector2 worldPoint)
     {
-        if(GetSelectedData() is not AuthoredWorldObjectData item)return;Vector2 delta=worldPoint-_resizeStartWorld;float fx=1,fy=1;
+        object? selected=GetSelectedData();if(selected is not AuthoredWorldObjectData&&selected is not AuthoredBuildingData)return;Vector2 delta=(worldPoint-_resizeStartWorld).Rotated(-Mathf.DegToRad(SelectedRotation()));float fx=1,fy=1;
         if(_resizeHandle is StudioResizeHandle.Left or StudioResizeHandle.TopLeft or StudioResizeHandle.BottomLeft)fx=1-delta.X/Mathf.Max(1,_resizeStartRect.Size.X);
         if(_resizeHandle is StudioResizeHandle.Right or StudioResizeHandle.TopRight or StudioResizeHandle.BottomRight)fx=1+delta.X/Mathf.Max(1,_resizeStartRect.Size.X);
         if(_resizeHandle is StudioResizeHandle.Top or StudioResizeHandle.TopLeft or StudioResizeHandle.TopRight)fy=1-delta.Y/Mathf.Max(1,_resizeStartRect.Size.Y);
@@ -234,7 +245,9 @@ public partial class AuthoringStudioCanvas : Node2D
             float factor=_resizeHandle is StudioResizeHandle.Left or StudioResizeHandle.Right?fx:_resizeHandle is StudioResizeHandle.Top or StudioResizeHandle.Bottom?fy:Mathf.Abs(fx-1)>Mathf.Abs(fy-1)?fx:fy;
             fx=factor;fy=factor;
         }
-        item.Scale=Mathf.Max(.02f,_resizeOriginalScale.X*fx);item.ScaleY=Mathf.Max(.02f,_resizeOriginalScale.Y*fy);RebuildVisuals();SelectionChanged?.Invoke();
+        if(selected is AuthoredWorldObjectData item){item.Scale=Mathf.Max(.02f,_resizeOriginalScale.X*fx);item.ScaleY=Mathf.Max(.02f,_resizeOriginalScale.Y*fy);}
+        else if(selected is AuthoredBuildingData building){building.ExteriorTargetWidth=Mathf.Max(8,_resizeOriginalScale.X*fx);building.ExteriorTargetHeight=Mathf.Max(8,_resizeOriginalScale.Y*fy);}
+        RebuildVisuals();SelectionChanged?.Invoke();
     }
 
     private void Place(Vector2 grid)
@@ -361,8 +374,8 @@ public partial class AuthoringStudioCanvas : Node2D
         }
         else
         {
-            foreach(AuthoredWorldObjectData visualItem in _document.WorldObjects.Where(InLoadedArea).OrderByDescending(item=>item.X+item.Y))if(SpriteContains(visualItem.AssetPath,new(visualItem.X,visualItem.Y),0,visualItem.Scale,new(visualItem.AnchorX,visualItem.AnchorY),worldPoint,visualItem.ScaleY))return new(StudioSelectionKind.WorldObject,visualItem.Id);
-            foreach(AuthoredBuildingData visualBuilding in _document.Buildings.Where(InLoadedArea).OrderByDescending(item=>item.ExteriorX+item.ExteriorY))if(SpriteContains(visualBuilding.ExteriorAssetPath,new(visualBuilding.ExteriorX,visualBuilding.ExteriorY),visualBuilding.ExteriorTargetHeight,0,new(.5f,1),worldPoint))return new(StudioSelectionKind.Building,visualBuilding.Id);
+            foreach(AuthoredWorldObjectData visualItem in _document.WorldObjects.Where(InLoadedArea).OrderByDescending(item=>item.X+item.Y))if(SpriteContains(visualItem.AssetPath,new(visualItem.X,visualItem.Y),0,visualItem.Scale,new(visualItem.AnchorX,visualItem.AnchorY),worldPoint,visualItem.ScaleY,0,visualItem.RotationDegrees))return new(StudioSelectionKind.WorldObject,visualItem.Id);
+            foreach(AuthoredBuildingData visualBuilding in _document.Buildings.Where(InLoadedArea).OrderByDescending(item=>item.ExteriorX+item.ExteriorY))if(SpriteContains(visualBuilding.ExteriorAssetPath,new(visualBuilding.ExteriorX,visualBuilding.ExteriorY),visualBuilding.ExteriorTargetHeight,0,new(.5f,1),worldPoint,0,visualBuilding.ExteriorTargetWidth,visualBuilding.ExteriorRotationDegrees))return new(StudioSelectionKind.Building,visualBuilding.Id);
             AuthoredWorldObjectData? item=_document.WorldObjects.Where(InLoadedArea).OrderByDescending(item=>item.X+item.Y).FirstOrDefault(item=>new Vector2(item.X,item.Y).DistanceTo(grid)<.75f);if(item is not null)return new(StudioSelectionKind.WorldObject,item.Id);
             AuthoredBuildingData? building=_document.Buildings.Where(InLoadedArea).OrderByDescending(item=>item.ExteriorX+item.ExteriorY).FirstOrDefault(item=>new Rect2(item.FootprintX,item.FootprintY,item.FootprintWidth,item.FootprintHeight).HasPoint(grid));if(building is not null)return new(StudioSelectionKind.Building,building.Id);
         }
@@ -371,15 +384,24 @@ public partial class AuthoringStudioCanvas : Node2D
 
     private StudioResizeHandle ResizeHandleAt(Vector2 worldPoint)
     {
-        if(GetSelectedData() is not AuthoredWorldObjectData item)return StudioResizeHandle.None;Rect2 rect=SpriteRect(item.AssetPath,new(item.X,item.Y),0,item.Scale,new(item.AnchorX,item.AnchorY),item.ScaleY);Vector2 center=rect.GetCenter();
+        if(GetSelectedData() is not AuthoredWorldObjectData&&GetSelectedData() is not AuthoredBuildingData)return StudioResizeHandle.None;Rect2 rect=SelectedResizeRect();Vector2 center=rect.GetCenter(),pivot=SelectedPivot();float rotation=Mathf.DegToRad(SelectedRotation());
         (StudioResizeHandle Handle,Vector2 Point)[] handles=[(StudioResizeHandle.TopLeft,rect.Position),(StudioResizeHandle.Top,new(center.X,rect.Position.Y)),(StudioResizeHandle.TopRight,new(rect.End.X,rect.Position.Y)),(StudioResizeHandle.Left,new(rect.Position.X,center.Y)),(StudioResizeHandle.Right,new(rect.End.X,center.Y)),(StudioResizeHandle.BottomLeft,new(rect.Position.X,rect.End.Y)),(StudioResizeHandle.Bottom,new(center.X,rect.End.Y)),(StudioResizeHandle.BottomRight,rect.End)];
-        foreach((StudioResizeHandle handle,Vector2 point) in handles)if(worldPoint.DistanceTo(point)<=12)return handle;return StudioResizeHandle.None;
+        foreach((StudioResizeHandle handle,Vector2 point) in handles)if(worldPoint.DistanceTo(pivot+(point-pivot).Rotated(rotation))<=12)return handle;return StudioResizeHandle.None;
     }
 
-    private static bool SpriteContains(string path,Vector2 grid,float targetHeight,float scale,Vector2 anchor,Vector2 worldPoint,float scaleY=0)=>SpriteRect(path,grid,targetHeight,scale,anchor,scaleY).Grow(3).HasPoint(worldPoint);
-    private static Rect2 SpriteRect(string path,Vector2 grid,float targetHeight,float scale,Vector2 anchor,float scaleY=0)
+    private Rect2 SelectedResizeRect()=>GetSelectedData() switch
     {
-        if(string.IsNullOrWhiteSpace(path)||!ResourceLoader.Exists(path))return new Rect2();Texture2D texture=TextureRegistry.Get(path);Vector2 visualScale=targetHeight>0?Vector2.One*(targetHeight/Mathf.Max(1,texture.GetHeight())):new Vector2(Mathf.Max(.02f,scale),Mathf.Max(.02f,scaleY>0?scaleY:scale));Vector2 size=texture.GetSize()*visualScale;
+        AuthoredWorldObjectData item=>SpriteRect(item.AssetPath,new(item.X,item.Y),0,item.Scale,new(item.AnchorX,item.AnchorY),item.ScaleY),
+        AuthoredBuildingData building=>SpriteRect(building.ExteriorAssetPath,new(building.ExteriorX,building.ExteriorY),building.ExteriorTargetHeight,0,new(.5f,1),0,building.ExteriorTargetWidth),
+        _=>new Rect2()
+    };
+    private float SelectedRotation()=>GetSelectedData() switch{AuthoredWorldObjectData item=>item.RotationDegrees,AuthoredBuildingData building=>building.ExteriorRotationDegrees,_=>0};
+    private Vector2 SelectedPivot()=>GetSelectedData() switch{AuthoredWorldObjectData item=>IsometricGrid.GridToScreen(new(item.X,item.Y)),AuthoredBuildingData building=>IsometricGrid.GridToScreen(new(building.ExteriorX,building.ExteriorY)),_=>Vector2.Zero};
+
+    private static bool SpriteContains(string path,Vector2 grid,float targetHeight,float scale,Vector2 anchor,Vector2 worldPoint,float scaleY=0,float targetWidth=0,float rotationDegrees=0){Vector2 pivot=IsometricGrid.GridToScreen(grid);Vector2 unrotated=pivot+(worldPoint-pivot).Rotated(-Mathf.DegToRad(rotationDegrees));return SpriteRect(path,grid,targetHeight,scale,anchor,scaleY,targetWidth).Grow(3).HasPoint(unrotated);}
+    private static Rect2 SpriteRect(string path,Vector2 grid,float targetHeight,float scale,Vector2 anchor,float scaleY=0,float targetWidth=0)
+    {
+        if(string.IsNullOrWhiteSpace(path)||!ResourceLoader.Exists(path))return new Rect2();Texture2D texture=TextureRegistry.Get(path);Vector2 visualScale=targetHeight>0?new Vector2(targetWidth>0?targetWidth/Mathf.Max(1,texture.GetWidth()):targetHeight/Mathf.Max(1,texture.GetHeight()),targetHeight/Mathf.Max(1,texture.GetHeight())):new Vector2(Mathf.Max(.02f,scale),Mathf.Max(.02f,scaleY>0?scaleY:scale));Vector2 size=texture.GetSize()*visualScale;
         return new Rect2(IsometricGrid.GridToScreen(grid)-size*anchor,size);
     }
 
@@ -439,13 +461,13 @@ public partial class AuthoringStudioCanvas : Node2D
 
     private void BuildWorldVisuals()
     {
-        foreach(AuthoredWorldObjectData item in _document.WorldObjects.Where(InLoadedArea))AddSprite(item.AssetPath,new(item.X,item.Y),0,item.Scale,new(item.AnchorX,item.AnchorY),new(StudioSelectionKind.WorldObject,item.Id),Colors.White,item.ScaleY);
-        foreach(AuthoredBuildingData building in _document.Buildings.Where(InLoadedArea))AddSprite(building.ExteriorAssetPath,new(building.ExteriorX,building.ExteriorY),building.ExteriorTargetHeight,0,new(.5f,1),new(StudioSelectionKind.Building,building.Id));
+        foreach(AuthoredWorldObjectData item in _document.WorldObjects.Where(InLoadedArea))AddSprite(item.AssetPath,new(item.X,item.Y),0,item.Scale,new(item.AnchorX,item.AnchorY),new(StudioSelectionKind.WorldObject,item.Id),Colors.White,item.ScaleY,0,item.RotationDegrees);
+        foreach(AuthoredBuildingData building in _document.Buildings.Where(InLoadedArea))AddSprite(building.ExteriorAssetPath,new(building.ExteriorX,building.ExteriorY),building.ExteriorTargetHeight,0,new(.5f,1),new(StudioSelectionKind.Building,building.Id),Colors.White,0,building.ExteriorTargetWidth,building.ExteriorRotationDegrees);
     }
 
     private void BuildInteriorVisuals(AuthoredBuildingData building)
     {
-        AddSprite(building.ExteriorAssetPath,new(building.ExteriorX,building.ExteriorY),building.ExteriorTargetHeight,0,new(.5f,1),new(StudioSelectionKind.Building,building.Id),new Color(1,1,1,.18f));
+        AddSprite(building.ExteriorAssetPath,new(building.ExteriorX,building.ExteriorY),building.ExteriorTargetHeight,0,new(.5f,1),new(StudioSelectionKind.Building,building.Id),new Color(1,1,1,.18f),0,building.ExteriorTargetWidth,building.ExteriorRotationDegrees);
         InteriorBuildingDefinition definition=AuthoredInteriorConverter.Convert(building);
         foreach(RoomDefinition room in definition.Rooms){InteriorFloorVisual floor=new();floor.Initialize(room);AddVisual(floor);}
         foreach(WallDefinition wall in definition.Walls){InteriorWallVisual visual=new();visual.Initialize(wall);AddVisual(visual);}
@@ -455,9 +477,9 @@ public partial class AuthoringStudioCanvas : Node2D
         foreach(AuthoredDoorData item in building.Doors)AddSprite(item.ClosedTexturePath,new(item.X,item.Y),84,0,new(.5f,1),new(StudioSelectionKind.Door,item.Id));
     }
 
-    private void AddSprite(string path,Vector2 grid,float targetHeight,float scale,Vector2 anchor,StudioSelection selection,Color? tint=null,float scaleY=0)
+    private void AddSprite(string path,Vector2 grid,float targetHeight,float scale,Vector2 anchor,StudioSelection selection,Color? tint=null,float scaleY=0,float targetWidth=0,float rotationDegrees=0)
     {
-        if(string.IsNullOrWhiteSpace(path)||!ResourceLoader.Exists(path))return;StudioSpriteVisual visual=new();visual.Initialize(path,grid,targetHeight,scale,scaleY,anchor,tint??Colors.White,_selection.Contains(selection),selection.Kind==StudioSelectionKind.WorldObject);AddVisual(visual);
+        if(string.IsNullOrWhiteSpace(path)||!ResourceLoader.Exists(path))return;StudioSpriteVisual visual=new();visual.Initialize(path,grid,targetHeight,targetWidth,scale,scaleY,anchor,tint??Colors.White,_selection.Contains(selection),selection.Kind is StudioSelectionKind.WorldObject or StudioSelectionKind.Building,rotationDegrees);AddVisual(visual);
     }
     private void AddVisual(Node node){AddChild(node);_visuals.Add(node);}
 
@@ -503,8 +525,8 @@ public partial class AuthoringStudioCanvas : Node2D
 
 public partial class StudioSpriteVisual:Node2D
 {
-    private Texture2D _texture=null!;private float _height;private float _scale;private float _scaleY;private Vector2 _anchor;private Color _tint;private bool _selected;private bool _resizable;
-    public void Initialize(string path,Vector2 grid,float targetHeight,float scale,float scaleY,Vector2 anchor,Color tint,bool selected,bool resizable){_texture=TextureRegistry.Get(path);_height=targetHeight;_scale=scale;_scaleY=scaleY;_anchor=anchor;_tint=tint;_selected=selected;_resizable=resizable;Position=IsometricGrid.GridToScreen(grid);ZIndex=0;}
+    private Texture2D _texture=null!;private float _height;private float _targetWidth;private float _scale;private float _scaleY;private Vector2 _anchor;private Color _tint;private bool _selected;private bool _resizable;
+    public void Initialize(string path,Vector2 grid,float targetHeight,float targetWidth,float scale,float scaleY,Vector2 anchor,Color tint,bool selected,bool resizable,float rotationDegrees){_texture=TextureRegistry.Get(path);_height=targetHeight;_targetWidth=targetWidth;_scale=scale;_scaleY=scaleY;_anchor=anchor;_tint=tint;_selected=selected;_resizable=resizable;Position=IsometricGrid.GridToScreen(grid);RotationDegrees=rotationDegrees;ZIndex=0;}
     public override void _Ready()=>QueueRedraw();
-    public override void _Draw(){Vector2 scale=_height>0?Vector2.One*(_height/Mathf.Max(1,_texture.GetHeight())):new Vector2(Mathf.Max(.02f,_scale),Mathf.Max(.02f,_scaleY>0?_scaleY:_scale));Vector2 size=_texture.GetSize()*scale;Rect2 rect=new(-size.X*_anchor.X,-size.Y*_anchor.Y,size.X,size.Y);DrawTextureRect(_texture,rect,false,_tint);if(_selected){Color color=new("f0c96d");DrawRect(rect,color,false,3);if(_resizable){Vector2 center=rect.GetCenter();foreach(Vector2 point in new[]{rect.Position,new Vector2(center.X,rect.Position.Y),new Vector2(rect.End.X,rect.Position.Y),new Vector2(rect.Position.X,center.Y),new Vector2(rect.End.X,center.Y),new Vector2(rect.Position.X,rect.End.Y),new Vector2(center.X,rect.End.Y),rect.End})DrawRect(new Rect2(point-new Vector2(5,5),new Vector2(10,10)),color,true);}}}
+    public override void _Draw(){Vector2 scale=_height>0?new Vector2(_targetWidth>0?_targetWidth/Mathf.Max(1,_texture.GetWidth()):_height/Mathf.Max(1,_texture.GetHeight()),_height/Mathf.Max(1,_texture.GetHeight())):new Vector2(Mathf.Max(.02f,_scale),Mathf.Max(.02f,_scaleY>0?_scaleY:_scale));Vector2 size=_texture.GetSize()*scale;Rect2 rect=new(-size.X*_anchor.X,-size.Y*_anchor.Y,size.X,size.Y);DrawTextureRect(_texture,rect,false,_tint);if(_selected){Color color=new("f0c96d");DrawRect(rect,color,false,3);if(_resizable){Vector2 center=rect.GetCenter();foreach(Vector2 point in new[]{rect.Position,new Vector2(center.X,rect.Position.Y),new Vector2(rect.End.X,rect.Position.Y),new Vector2(rect.Position.X,center.Y),new Vector2(rect.End.X,center.Y),new Vector2(rect.Position.X,rect.End.Y),new Vector2(center.X,rect.End.Y),rect.End})DrawRect(new Rect2(point-new Vector2(5,5),new Vector2(10,10)),color,true);}}}
 }

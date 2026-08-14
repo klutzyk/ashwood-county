@@ -30,6 +30,7 @@ public sealed class AuthoredWorldObjectData
     public float Y { get; set; }
     public float Scale { get; set; } = 1;
     public float ScaleY { get; set; }
+    public float RotationDegrees { get; set; }
     public float AnchorX { get; set; } = .5f;
     public float AnchorY { get; set; } = 1;
     public bool Collision { get; set; }
@@ -43,6 +44,8 @@ public sealed class AuthoredBuildingData
     public float ExteriorX { get; set; }
     public float ExteriorY { get; set; }
     public float ExteriorTargetHeight { get; set; } = 420;
+    public float ExteriorTargetWidth { get; set; }
+    public float ExteriorRotationDegrees { get; set; }
     public float FootprintX { get; set; }
     public float FootprintY { get; set; }
     public float FootprintWidth { get; set; } = 8;
@@ -193,7 +196,7 @@ public static class AuthoredInteriorConverter
     public static InteriorBuildingDefinition Convert(AuthoredBuildingData source) => new(
         source.Id, source.DisplayName, new Vector2(source.ExteriorX,source.ExteriorY),
         new Rect2(source.FootprintX,source.FootprintY,source.FootprintWidth,source.FootprintHeight),
-        source.ExteriorAssetPath,source.ExteriorTargetHeight,
+        source.ExteriorAssetPath,source.ExteriorTargetHeight,source.ExteriorTargetWidth,source.ExteriorRotationDegrees,
         source.Rooms.Select(room=>new RoomDefinition(room.Id,room.DisplayName,new Rect2(room.X,room.Y,room.Width,room.Height),room.FloorTexturePath,ParseColor(room.FloorTint))).ToArray(),
         source.Walls.Select(wall=>new WallDefinition(wall.Start(),wall.End(),wall.TexturePath,wall.FlipVisual)).ToArray(),
         source.Doors.Select(door=>new DoorDefinition(door.Id,door.DisplayName,new Vector2(door.X,door.Y),door.RoomAId,door.RoomBId,door.Exterior,door.ClosedTexturePath,door.OpenTexturePath,ParseDoorState(door.InitialState),new Vector2(door.OutsideApproachX,door.OutsideApproachY),new Vector2(door.InsideArrivalX,door.InsideArrivalY),door.WallId)).ToArray(),

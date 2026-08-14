@@ -65,6 +65,7 @@ public partial class AuthoredWorldObjectVisual : Node2D
     {
         _data=data;_texture=TextureRegistry.Get(data.AssetPath);
         Position=IsometricGrid.GridToScreen(new Vector2(data.X,data.Y));
+        RotationDegrees=data.RotationDegrees;
         ZIndex=0;
     }
 

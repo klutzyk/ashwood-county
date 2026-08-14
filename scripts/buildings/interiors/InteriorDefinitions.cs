@@ -48,7 +48,7 @@ public sealed class LootTableDefinition(string id,int rolls,params LootOption[] 
 }
 
 public sealed record InteriorBuildingDefinition(
-    string Id,string DisplayName,Vector2 ExteriorAnchor,Rect2 Footprint,string ExteriorTexturePath,float ExteriorTargetHeight,
+    string Id,string DisplayName,Vector2 ExteriorAnchor,Rect2 Footprint,string ExteriorTexturePath,float ExteriorTargetHeight,float ExteriorTargetWidth,float ExteriorRotationDegrees,
     IReadOnlyList<RoomDefinition> Rooms,IReadOnlyList<WallDefinition> Walls,IReadOnlyList<DoorDefinition> Doors,
     IReadOnlyList<FurnitureDefinition> Furniture,IReadOnlyList<ContainerDefinition> Containers,IReadOnlyList<BedDefinition> Beds);
 
