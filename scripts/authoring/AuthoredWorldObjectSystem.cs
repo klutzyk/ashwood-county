@@ -71,7 +71,7 @@ public partial class AuthoredWorldObjectVisual : Node2D
     public override void _Ready()=>QueueRedraw();
     public override void _Draw()
     {
-        Vector2 size=_texture.GetSize()*Mathf.Max(.02f,_data.Scale);
+        Vector2 size=_texture.GetSize()*new Vector2(Mathf.Max(.02f,_data.Scale),Mathf.Max(.02f,_data.ScaleY>0?_data.ScaleY:_data.Scale));
         Vector2 origin=new(-size.X*Mathf.Clamp(_data.AnchorX,0,1),-size.Y*Mathf.Clamp(_data.AnchorY,0,1));
         DrawTextureRect(_texture,new Rect2(origin,size),false);
     }

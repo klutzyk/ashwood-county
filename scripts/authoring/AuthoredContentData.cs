@@ -29,6 +29,7 @@ public sealed class AuthoredWorldObjectData
     public float X { get; set; }
     public float Y { get; set; }
     public float Scale { get; set; } = 1;
+    public float ScaleY { get; set; }
     public float AnchorX { get; set; } = .5f;
     public float AnchorY { get; set; } = 1;
     public bool Collision { get; set; }

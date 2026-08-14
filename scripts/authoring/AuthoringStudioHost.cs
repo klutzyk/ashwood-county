@@ -20,7 +20,7 @@ public partial class AuthoringStudioHost:Node
     private GridContainer _assetGrid=null!;private Label _status=null!,_selectionTitle=null!,_id=null!,_validation=null!;
     private SpinBox _x=null!,_y=null!,_width=null!,_height=null!,_target=null!,_anchorX=null!,_anchorY=null!,_duration=null!;
     private Label _xLabel=null!,_yLabel=null!,_widthLabel=null!,_heightLabel=null!,_targetLabel=null!,_anchorXLabel=null!,_anchorYLabel=null!;
-    private CheckBox _collision=null!,_snap=null!;private Button _editInterior=null!,_exitInterior=null!,_apply=null!;private StudioCountyMinimap _minimap=null!;
+    private CheckBox _collision=null!,_snap=null!,_keepAspect=null!;private Button _editInterior=null!,_exitInterior=null!,_apply=null!;private StudioCountyMinimap _minimap=null!;
     private CountyLocationDefinition[] _locations=[];private bool _refreshingInspector;
 
     public override void _Ready()
@@ -60,7 +60,7 @@ public partial class AuthoringStudioHost:Node
     private void BuildUi()
     {
         CanvasLayer layer=new(){Name="StudioUI",Layer=30};AddChild(layer);
-        Control root=new(){Name="Root",Theme=AshwoodTheme.Create(),LayoutMode=1};root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);layer.AddChild(root);
+        Control root=new(){Name="Root",Theme=AshwoodTheme.Create(),LayoutMode=1,MouseFilter=Control.MouseFilterEnum.Ignore};root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);layer.AddChild(root);
         BuildLeftPanel(root);BuildToolbar(root);BuildInspector(root);BuildStatus(root);
     }
 
@@ -94,6 +94,7 @@ public partial class AuthoringStudioHost:Node
         _anchorX=Number(box,"ANCHOR X",out _anchorXLabel,.01,500);_anchorY=Number(box,"ANCHOR Y",out _anchorYLabel,.01,500);
         _roomA=Field(box,"ROOM / SIDE A");_roomB=Field(box,"ROOM / SIDE B");
         _collision=new CheckBox{Text="BLOCKS MOVEMENT / COLLISION"};box.AddChild(_collision);
+        _keepAspect=new CheckBox{Text="KEEP ASPECT RATIO",ButtonPressed=true};_keepAspect.Toggled+=value=>_canvas.KeepAspectRatio=value;box.AddChild(_keepAspect);
         _loot=new OptionButton();foreach(string preset in AuthoredInteriorConverter.LootPresetNames)_loot.AddItem(preset);box.AddChild(Labeled("LOOT TABLE",_loot));
         _duration=Number(box,"SEARCH SECONDS",out _,.1,60);
         _apply=Button("APPLY CHANGES",ApplyInspector);box.AddChild(_apply);
@@ -128,7 +129,7 @@ public partial class AuthoringStudioHost:Node
     private void RefreshInspector()
     {
         if(_name is null)return;_refreshingInspector=true;object? data=_canvas.GetSelectedData();bool selected=data is not null;_apply.Disabled=!selected;
-        foreach(Control control in new Control[]{_name,_selectedGameplay,_x,_y,_width,_height,_target,_anchorX,_anchorY,_roomA,_roomB,_collision,_loot,_duration})SetFieldVisible(control,selected);
+        foreach(Control control in new Control[]{_name,_selectedGameplay,_x,_y,_width,_height,_target,_anchorX,_anchorY,_roomA,_roomB,_collision,_keepAspect,_loot,_duration})SetFieldVisible(control,selected);
         _editInterior.Visible=data is AuthoredBuildingData&&!_canvas.IsInteriorMode;_exitInterior.Visible=_canvas.IsInteriorMode;
         if(data is null){_selectionTitle.Text=_canvas.IsInteriorMode?"INTERIOR INSPECTOR":"SELECTION INSPECTOR";_id.Text="No selection";_refreshingInspector=false;return;}
         _id.Text=$"{_canvas.PrimarySelection.Kind.ToString().ToUpperInvariant()}  •  {GetId(data)}";_selectionTitle.Text="SELECTION INSPECTOR";_name.Text=GetName(data);
@@ -137,10 +138,10 @@ public partial class AuthoringStudioHost:Node
 
     private void ConfigureInspector(object data)
     {
-        SetFieldVisible(_roomA,false);SetFieldVisible(_roomB,false);SetFieldVisible(_loot,false);SetFieldVisible(_duration,false);SetFieldVisible(_collision,false);SetFieldVisible(_selectedGameplay,false);SetFieldVisible(_target,true);SetFieldVisible(_anchorX,false);SetFieldVisible(_anchorY,false);_targetLabel.Text="VISUAL HEIGHT";
+        SetFieldVisible(_roomA,false);SetFieldVisible(_roomB,false);SetFieldVisible(_loot,false);SetFieldVisible(_duration,false);SetFieldVisible(_collision,false);SetFieldVisible(_keepAspect,false);SetFieldVisible(_selectedGameplay,false);SetFieldVisible(_target,true);SetFieldVisible(_anchorX,false);SetFieldVisible(_anchorY,false);_targetLabel.Text="VISUAL HEIGHT";
         switch(data)
         {
-            case AuthoredWorldObjectData item:SetNumbers(item.X,item.Y,0,0,item.Scale,item.AnchorX,item.AnchorY);Labels("X","Y","","","ANCHOR X","ANCHOR Y");_targetLabel.Text="SCALE";SetFieldVisible(_selectedGameplay,true);SelectText(_selectedGameplay,item.GameplayType);SetFieldVisible(_width,false);SetFieldVisible(_height,false);SetFieldVisible(_anchorX,true);SetFieldVisible(_anchorY,true);SetFieldVisible(_collision,true);_collision.ButtonPressed=item.Collision;break;
+            case AuthoredWorldObjectData item:SetNumbers(item.X,item.Y,item.ScaleY>0?item.ScaleY:item.Scale,0,item.Scale,item.AnchorX,item.AnchorY);Labels("X","Y","SCALE Y","","ANCHOR X","ANCHOR Y");_targetLabel.Text="SCALE X";SetFieldVisible(_selectedGameplay,true);SelectText(_selectedGameplay,item.GameplayType);SetFieldVisible(_width,true);SetFieldVisible(_height,false);SetFieldVisible(_anchorX,true);SetFieldVisible(_anchorY,true);SetFieldVisible(_collision,true);SetFieldVisible(_keepAspect,true);_collision.ButtonPressed=item.Collision;break;
             case AuthoredBuildingData item:SetNumbers(item.ExteriorX,item.ExteriorY,item.FootprintWidth,item.FootprintHeight,item.ExteriorTargetHeight,item.FootprintX,item.FootprintY);Labels("EXTERIOR X","EXTERIOR Y","FOOTPRINT W","FOOTPRINT H","FOOTPRINT X","FOOTPRINT Y");SetFieldVisible(_anchorX,true);SetFieldVisible(_anchorY,true);break;
             case AuthoredRoomData item:SetNumbers(item.X,item.Y,item.Width,item.Height,0,0,0);SetFieldVisible(_target,false);Labels("X","Y","WIDTH","HEIGHT","","");break;
             case AuthoredWallData item:SetNumbers(item.StartX,item.StartY,item.EndX,item.EndY,0,0,0);SetFieldVisible(_target,false);Labels("START X","START Y","END X","END Y","","");break;
@@ -156,7 +157,7 @@ public partial class AuthoringStudioHost:Node
         if(_refreshingInspector)return;object? data=_canvas.GetSelectedData();if(data is null)return;_canvas.BeginInspectorMutation();SetName(data,_name.Text);
         switch(data)
         {
-            case AuthoredWorldObjectData item:item.X=(float)_x.Value;item.Y=(float)_y.Value;item.Scale=(float)_target.Value;item.AnchorX=(float)_anchorX.Value;item.AnchorY=(float)_anchorY.Value;item.Collision=_collision.ButtonPressed;item.GameplayType=_selectedGameplay.GetItemText(_selectedGameplay.Selected);break;
+            case AuthoredWorldObjectData item:item.X=(float)_x.Value;item.Y=(float)_y.Value;item.Scale=(float)_target.Value;item.ScaleY=_keepAspect.ButtonPressed?item.Scale:(float)_width.Value;item.AnchorX=(float)_anchorX.Value;item.AnchorY=(float)_anchorY.Value;item.Collision=_collision.ButtonPressed;item.GameplayType=_selectedGameplay.GetItemText(_selectedGameplay.Selected);break;
             case AuthoredBuildingData item:
                 float previousFootprintX=item.FootprintX,previousFootprintY=item.FootprintY;Vector2 delta=new((float)_x.Value-item.ExteriorX,(float)_y.Value-item.ExteriorY);AuthoringStudioCanvas.TranslateBuilding(item,delta);item.FootprintWidth=(float)_width.Value;item.FootprintHeight=(float)_height.Value;item.ExteriorTargetHeight=(float)_target.Value;
                 if(!Mathf.IsEqualApprox((float)_anchorX.Value,previousFootprintX))item.FootprintX=(float)_anchorX.Value;if(!Mathf.IsEqualApprox((float)_anchorY.Value,previousFootprintY))item.FootprintY=(float)_anchorY.Value;break;

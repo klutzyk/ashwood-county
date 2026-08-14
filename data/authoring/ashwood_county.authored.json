@@ -627,6 +627,24 @@
           "targetHeight": 82
         }
       ]
+    },
+    {
+      "id": "building_dd986b6abb",
+      "displayName": "Survival Cabin",
+      "exteriorAssetPath": "res://assets/art/buildings/survival_cabin.png",
+      "exteriorX": 203,
+      "exteriorY": 140.25,
+      "exteriorTargetHeight": 526.68,
+      "footprintX": 200,
+      "footprintY": 137.75,
+      "footprintWidth": 6,
+      "footprintHeight": 5,
+      "rooms": [],
+      "walls": [],
+      "doors": [],
+      "furniture": [],
+      "containers": [],
+      "beds": []
     }
   ]
 }

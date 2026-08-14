@@ -12,6 +12,7 @@ namespace AshwoodCounty.Authoring;
 
 public enum AuthoringTool { Select,Place,Room,Wall,Door }
 public enum StudioSelectionKind { None,WorldObject,Building,Room,Wall,Door,Furniture,Container,Bed }
+public enum StudioResizeHandle { None,Left,Right,Top,Bottom,TopLeft,TopRight,BottomLeft,BottomRight }
 public readonly record struct StudioSelection(StudioSelectionKind Kind,string Id);
 
 /// <summary>Interactive canvas for both chunk-scoped county objects and one building interior.</summary>
@@ -38,6 +39,11 @@ public partial class AuthoringStudioCanvas : Node2D
     private Vector2? _toolStart;
     private IReadOnlyList<AuthoringValidationIssue> _issues=[];
     private IReadOnlyList<Vector2> _testRoute=[];
+    private StudioResizeHandle _resizeHandle;
+    private Vector2 _resizeStartWorld;
+    private Vector2 _resizeOriginalScale;
+    private Rect2 _resizeStartRect;
+    private string? _resizeSnapshot;
 
     public AuthoringTool Tool { get; private set; }=AuthoringTool.Select;
     public string PlacementGameplayType { get; set; }="Decoration";
@@ -46,6 +52,7 @@ public partial class AuthoringStudioCanvas : Node2D
     public IReadOnlyCollection<StudioSelection> Selection=>_selection;
     public StudioSelection PrimarySelection=>_selection.LastOrDefault();
     public bool IsInteriorMode=>_interiorBuilding is not null;
+    public bool KeepAspectRatio { get; set; }=true;
     public bool SnapEnabled { get=>_snap; set{_snap=value;QueueRedraw();} }
 
     public void Initialize(IsometricWorld world,AuthoredCountyDocument document)
@@ -150,14 +157,19 @@ public partial class AuthoringStudioCanvas : Node2D
     public override void _UnhandledInput(InputEvent inputEvent)
     {
         if(inputEvent is InputEventKey key&&key.Pressed&&!key.Echo){HandleShortcut(key);return;}
-        Vector2 grid=Snap(_world.ScreenToGridPosition(GetViewport().GetMousePosition()));
+        Vector2 rawGrid=_world.ScreenToGridPosition(GetViewport().GetMousePosition());
+        Vector2 grid=Snap(rawGrid);
         if(inputEvent is InputEventMouseButton mouse&&mouse.ButtonIndex==MouseButton.Left)
         {
-            if(mouse.Pressed)BeginPointer(grid,mouse.CtrlPressed||mouse.ShiftPressed);
+            if(mouse.Pressed)BeginPointer(grid,IsometricGrid.GridToScreen(rawGrid),mouse.CtrlPressed||mouse.ShiftPressed);
             else EndPointer(grid,mouse.CtrlPressed||mouse.ShiftPressed);
             GetViewport().SetInputAsHandled();
         }
-        else if(inputEvent is InputEventMouseMotion&&_dragStart is not null&&Tool==AuthoringTool.Select)MoveSelection(grid-_dragStart.Value);
+        else if(inputEvent is InputEventMouseMotion&&Tool==AuthoringTool.Select)
+        {
+            if(_resizeHandle!=StudioResizeHandle.None)ResizeSelection(IsometricGrid.GridToScreen(rawGrid));
+            else if(_dragStart is not null)MoveSelection(grid-_dragStart.Value);
+        }
     }
 
     private void HandleShortcut(InputEventKey key)
@@ -169,7 +181,7 @@ public partial class AuthoringStudioCanvas : Node2D
         if(key.CtrlPressed&&key.Keycode==Key.D){DuplicateSelection();return;}
     }
 
-    private void BeginPointer(Vector2 grid,bool additive)
+    private void BeginPointer(Vector2 grid,Vector2 worldPoint,bool additive)
     {
         switch(Tool)
         {
@@ -177,7 +189,12 @@ public partial class AuthoringStudioCanvas : Node2D
             case AuthoringTool.Room:case AuthoringTool.Wall:_toolStart=grid;break;
             case AuthoringTool.Door:PlaceDoor(grid);break;
             default:
-                StudioSelection hit=HitTest(grid);
+                StudioResizeHandle resize=ResizeHandleAt(worldPoint);
+                if(resize!=StudioResizeHandle.None&&GetSelectedData() is AuthoredWorldObjectData selectedItem)
+                {
+                    _resizeHandle=resize;_resizeStartWorld=worldPoint;_resizeOriginalScale=new(selectedItem.Scale,selectedItem.ScaleY>0?selectedItem.ScaleY:selectedItem.Scale);_resizeStartRect=SpriteRect(selectedItem.AssetPath,new(selectedItem.X,selectedItem.Y),0,selectedItem.Scale,new(selectedItem.AnchorX,selectedItem.AnchorY),selectedItem.ScaleY);_resizeSnapshot=AuthoredContentRepository.Serialize(_document);return;
+                }
+                StudioSelection hit=HitTest(grid,worldPoint);
                 if(hit.Kind!=StudioSelectionKind.None)
                 {
                     if(!additive&&!_selection.Contains(hit))_selection.Clear();_selection.Add(hit);SelectionChanged?.Invoke();
@@ -190,6 +207,11 @@ public partial class AuthoringStudioCanvas : Node2D
 
     private void EndPointer(Vector2 grid,bool additive)
     {
+        if(_resizeHandle!=StudioResizeHandle.None)
+        {
+            if(_resizeSnapshot is not null&&_resizeSnapshot!=AuthoredContentRepository.Serialize(_document)){_undo.Push(_resizeSnapshot);_redo.Clear();Changed("Scaled selection",false);}
+            _resizeHandle=StudioResizeHandle.None;_resizeSnapshot=null;return;
+        }
         if(Tool==AuthoringTool.Room&&_toolStart is Vector2 roomStart){CreateRoom(roomStart,grid);_toolStart=null;return;}
         if(Tool==AuthoringTool.Wall&&_toolStart is Vector2 wallStart){CreateWall(wallStart,grid);_toolStart=null;return;}
         if(_dragStart is not null)
@@ -198,6 +220,21 @@ public partial class AuthoringStudioCanvas : Node2D
             _dragStart=null;_dragSnapshot=null;return;
         }
         if(_boxStart is Vector2 box){BoxSelect(new Rect2(Min(box,grid),(grid-box).Abs()),additive);_boxStart=null;}
+    }
+
+    private void ResizeSelection(Vector2 worldPoint)
+    {
+        if(GetSelectedData() is not AuthoredWorldObjectData item)return;Vector2 delta=worldPoint-_resizeStartWorld;float fx=1,fy=1;
+        if(_resizeHandle is StudioResizeHandle.Left or StudioResizeHandle.TopLeft or StudioResizeHandle.BottomLeft)fx=1-delta.X/Mathf.Max(1,_resizeStartRect.Size.X);
+        if(_resizeHandle is StudioResizeHandle.Right or StudioResizeHandle.TopRight or StudioResizeHandle.BottomRight)fx=1+delta.X/Mathf.Max(1,_resizeStartRect.Size.X);
+        if(_resizeHandle is StudioResizeHandle.Top or StudioResizeHandle.TopLeft or StudioResizeHandle.TopRight)fy=1-delta.Y/Mathf.Max(1,_resizeStartRect.Size.Y);
+        if(_resizeHandle is StudioResizeHandle.Bottom or StudioResizeHandle.BottomLeft or StudioResizeHandle.BottomRight)fy=1+delta.Y/Mathf.Max(1,_resizeStartRect.Size.Y);
+        if(KeepAspectRatio)
+        {
+            float factor=_resizeHandle is StudioResizeHandle.Left or StudioResizeHandle.Right?fx:_resizeHandle is StudioResizeHandle.Top or StudioResizeHandle.Bottom?fy:Mathf.Abs(fx-1)>Mathf.Abs(fy-1)?fx:fy;
+            fx=factor;fy=factor;
+        }
+        item.Scale=Mathf.Max(.02f,_resizeOriginalScale.X*fx);item.ScaleY=Mathf.Max(.02f,_resizeOriginalScale.Y*fy);RebuildVisuals();SelectionChanged?.Invoke();
     }
 
     private void Place(Vector2 grid)
@@ -307,10 +344,14 @@ public partial class AuthoringStudioCanvas : Node2D
         SelectionChanged?.Invoke();RebuildVisuals();
     }
 
-    private StudioSelection HitTest(Vector2 grid)
+    private StudioSelection HitTest(Vector2 grid,Vector2 worldPoint)
     {
         if(IsInteriorMode&&_interiorBuilding is not null)
         {
+            foreach(AuthoredDoorData item in _interiorBuilding.Doors.OrderByDescending(item=>item.X+item.Y))if(SpriteContains(item.ClosedTexturePath,new(item.X,item.Y),84,0,new(.5f,1),worldPoint))return new(StudioSelectionKind.Door,item.Id);
+            foreach(AuthoredContainerData item in _interiorBuilding.Containers.OrderByDescending(item=>item.X+item.Y))if(SpriteContains(item.AssetPath,new(item.X,item.Y),item.TargetHeight,0,new(.5f,1),worldPoint))return new(StudioSelectionKind.Container,item.Id);
+            foreach(AuthoredBedData item in _interiorBuilding.Beds.OrderByDescending(item=>item.X+item.Y))if(SpriteContains(item.AssetPath,new(item.X,item.Y),item.TargetHeight,0,new(.5f,1),worldPoint))return new(StudioSelectionKind.Bed,item.Id);
+            foreach(AuthoredFurnitureData item in _interiorBuilding.Furniture.OrderByDescending(item=>item.X+item.Y))if(SpriteContains(item.AssetPath,new(item.X,item.Y),item.TargetHeight,0,new(.5f,1),worldPoint))return new(StudioSelectionKind.Furniture,item.Id);
             foreach(AuthoredDoorData item in _interiorBuilding.Doors.OrderByDescending(item=>item.Y))if(new Vector2(item.X,item.Y).DistanceTo(grid)<.55f)return new(StudioSelectionKind.Door,item.Id);
             foreach(AuthoredContainerData item in _interiorBuilding.Containers.OrderByDescending(item=>item.Y))if(new Rect2(item.X-item.Width*.5f,item.Y-item.Height*.5f,item.Width,item.Height).Grow(.18f).HasPoint(grid))return new(StudioSelectionKind.Container,item.Id);
             foreach(AuthoredBedData item in _interiorBuilding.Beds.OrderByDescending(item=>item.Y))if(new Rect2(item.X-item.Width*.5f,item.Y-item.Height*.5f,item.Width,item.Height).Grow(.18f).HasPoint(grid))return new(StudioSelectionKind.Bed,item.Id);
@@ -320,10 +361,26 @@ public partial class AuthoringStudioCanvas : Node2D
         }
         else
         {
+            foreach(AuthoredWorldObjectData visualItem in _document.WorldObjects.Where(InLoadedArea).OrderByDescending(item=>item.X+item.Y))if(SpriteContains(visualItem.AssetPath,new(visualItem.X,visualItem.Y),0,visualItem.Scale,new(visualItem.AnchorX,visualItem.AnchorY),worldPoint,visualItem.ScaleY))return new(StudioSelectionKind.WorldObject,visualItem.Id);
+            foreach(AuthoredBuildingData visualBuilding in _document.Buildings.Where(InLoadedArea).OrderByDescending(item=>item.ExteriorX+item.ExteriorY))if(SpriteContains(visualBuilding.ExteriorAssetPath,new(visualBuilding.ExteriorX,visualBuilding.ExteriorY),visualBuilding.ExteriorTargetHeight,0,new(.5f,1),worldPoint))return new(StudioSelectionKind.Building,visualBuilding.Id);
             AuthoredWorldObjectData? item=_document.WorldObjects.Where(InLoadedArea).OrderByDescending(item=>item.X+item.Y).FirstOrDefault(item=>new Vector2(item.X,item.Y).DistanceTo(grid)<.75f);if(item is not null)return new(StudioSelectionKind.WorldObject,item.Id);
             AuthoredBuildingData? building=_document.Buildings.Where(InLoadedArea).OrderByDescending(item=>item.ExteriorX+item.ExteriorY).FirstOrDefault(item=>new Rect2(item.FootprintX,item.FootprintY,item.FootprintWidth,item.FootprintHeight).HasPoint(grid));if(building is not null)return new(StudioSelectionKind.Building,building.Id);
         }
         return default;
+    }
+
+    private StudioResizeHandle ResizeHandleAt(Vector2 worldPoint)
+    {
+        if(GetSelectedData() is not AuthoredWorldObjectData item)return StudioResizeHandle.None;Rect2 rect=SpriteRect(item.AssetPath,new(item.X,item.Y),0,item.Scale,new(item.AnchorX,item.AnchorY),item.ScaleY);Vector2 center=rect.GetCenter();
+        (StudioResizeHandle Handle,Vector2 Point)[] handles=[(StudioResizeHandle.TopLeft,rect.Position),(StudioResizeHandle.Top,new(center.X,rect.Position.Y)),(StudioResizeHandle.TopRight,new(rect.End.X,rect.Position.Y)),(StudioResizeHandle.Left,new(rect.Position.X,center.Y)),(StudioResizeHandle.Right,new(rect.End.X,center.Y)),(StudioResizeHandle.BottomLeft,new(rect.Position.X,rect.End.Y)),(StudioResizeHandle.Bottom,new(center.X,rect.End.Y)),(StudioResizeHandle.BottomRight,rect.End)];
+        foreach((StudioResizeHandle handle,Vector2 point) in handles)if(worldPoint.DistanceTo(point)<=12)return handle;return StudioResizeHandle.None;
+    }
+
+    private static bool SpriteContains(string path,Vector2 grid,float targetHeight,float scale,Vector2 anchor,Vector2 worldPoint,float scaleY=0)=>SpriteRect(path,grid,targetHeight,scale,anchor,scaleY).Grow(3).HasPoint(worldPoint);
+    private static Rect2 SpriteRect(string path,Vector2 grid,float targetHeight,float scale,Vector2 anchor,float scaleY=0)
+    {
+        if(string.IsNullOrWhiteSpace(path)||!ResourceLoader.Exists(path))return new Rect2();Texture2D texture=TextureRegistry.Get(path);Vector2 visualScale=targetHeight>0?Vector2.One*(targetHeight/Mathf.Max(1,texture.GetHeight())):new Vector2(Mathf.Max(.02f,scale),Mathf.Max(.02f,scaleY>0?scaleY:scale));Vector2 size=texture.GetSize()*visualScale;
+        return new Rect2(IsometricGrid.GridToScreen(grid)-size*anchor,size);
     }
 
     private object? GetData(StudioSelection selection)
@@ -382,7 +439,7 @@ public partial class AuthoringStudioCanvas : Node2D
 
     private void BuildWorldVisuals()
     {
-        foreach(AuthoredWorldObjectData item in _document.WorldObjects.Where(InLoadedArea))AddSprite(item.AssetPath,new(item.X,item.Y),0,item.Scale,new(item.AnchorX,item.AnchorY),new(StudioSelectionKind.WorldObject,item.Id));
+        foreach(AuthoredWorldObjectData item in _document.WorldObjects.Where(InLoadedArea))AddSprite(item.AssetPath,new(item.X,item.Y),0,item.Scale,new(item.AnchorX,item.AnchorY),new(StudioSelectionKind.WorldObject,item.Id),Colors.White,item.ScaleY);
         foreach(AuthoredBuildingData building in _document.Buildings.Where(InLoadedArea))AddSprite(building.ExteriorAssetPath,new(building.ExteriorX,building.ExteriorY),building.ExteriorTargetHeight,0,new(.5f,1),new(StudioSelectionKind.Building,building.Id));
     }
 
@@ -398,9 +455,9 @@ public partial class AuthoringStudioCanvas : Node2D
         foreach(AuthoredDoorData item in building.Doors)AddSprite(item.ClosedTexturePath,new(item.X,item.Y),84,0,new(.5f,1),new(StudioSelectionKind.Door,item.Id));
     }
 
-    private void AddSprite(string path,Vector2 grid,float targetHeight,float scale,Vector2 anchor,StudioSelection selection,Color? tint=null)
+    private void AddSprite(string path,Vector2 grid,float targetHeight,float scale,Vector2 anchor,StudioSelection selection,Color? tint=null,float scaleY=0)
     {
-        if(string.IsNullOrWhiteSpace(path)||!ResourceLoader.Exists(path))return;StudioSpriteVisual visual=new();visual.Initialize(path,grid,targetHeight,scale,anchor,tint??Colors.White,_selection.Contains(selection));AddVisual(visual);
+        if(string.IsNullOrWhiteSpace(path)||!ResourceLoader.Exists(path))return;StudioSpriteVisual visual=new();visual.Initialize(path,grid,targetHeight,scale,scaleY,anchor,tint??Colors.White,_selection.Contains(selection),selection.Kind==StudioSelectionKind.WorldObject);AddVisual(visual);
     }
     private void AddVisual(Node node){AddChild(node);_visuals.Add(node);}
 
@@ -446,8 +503,8 @@ public partial class AuthoringStudioCanvas : Node2D
 
 public partial class StudioSpriteVisual:Node2D
 {
-    private Texture2D _texture=null!;private float _height;private float _scale;private Vector2 _anchor;private Color _tint;private bool _selected;
-    public void Initialize(string path,Vector2 grid,float targetHeight,float scale,Vector2 anchor,Color tint,bool selected){_texture=TextureRegistry.Get(path);_height=targetHeight;_scale=scale;_anchor=anchor;_tint=tint;_selected=selected;Position=IsometricGrid.GridToScreen(grid);ZIndex=0;}
+    private Texture2D _texture=null!;private float _height;private float _scale;private float _scaleY;private Vector2 _anchor;private Color _tint;private bool _selected;private bool _resizable;
+    public void Initialize(string path,Vector2 grid,float targetHeight,float scale,float scaleY,Vector2 anchor,Color tint,bool selected,bool resizable){_texture=TextureRegistry.Get(path);_height=targetHeight;_scale=scale;_scaleY=scaleY;_anchor=anchor;_tint=tint;_selected=selected;_resizable=resizable;Position=IsometricGrid.GridToScreen(grid);ZIndex=0;}
     public override void _Ready()=>QueueRedraw();
-    public override void _Draw(){float scale=_height>0?_height/Mathf.Max(1,_texture.GetHeight()):Mathf.Max(.02f,_scale);Vector2 size=_texture.GetSize()*scale;Rect2 rect=new(-size.X*_anchor.X,-size.Y*_anchor.Y,size.X,size.Y);DrawTextureRect(_texture,rect,false,_tint);if(_selected)DrawRect(rect,new Color("f0c96d"),false,3);}
+    public override void _Draw(){Vector2 scale=_height>0?Vector2.One*(_height/Mathf.Max(1,_texture.GetHeight())):new Vector2(Mathf.Max(.02f,_scale),Mathf.Max(.02f,_scaleY>0?_scaleY:_scale));Vector2 size=_texture.GetSize()*scale;Rect2 rect=new(-size.X*_anchor.X,-size.Y*_anchor.Y,size.X,size.Y);DrawTextureRect(_texture,rect,false,_tint);if(_selected){Color color=new("f0c96d");DrawRect(rect,color,false,3);if(_resizable){Vector2 center=rect.GetCenter();foreach(Vector2 point in new[]{rect.Position,new Vector2(center.X,rect.Position.Y),new Vector2(rect.End.X,rect.Position.Y),new Vector2(rect.Position.X,center.Y),new Vector2(rect.End.X,center.Y),new Vector2(rect.Position.X,rect.End.Y),new Vector2(center.X,rect.End.Y),rect.End})DrawRect(new Rect2(point-new Vector2(5,5),new Vector2(10,10)),color,true);}}}
 }
