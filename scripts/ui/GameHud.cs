@@ -140,13 +140,15 @@ public partial class GameHud : CanvasLayer
         notificationColumn.CustomMinimumSize = new Vector2(326, 0);
         notificationColumn.SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin;
         _toastPanel = Panel("HudToastPanel");
-        _toastPanel.CustomMinimumSize = new Vector2(205, 0);
+        _toastPanel.CustomMinimumSize = new Vector2(326, 0);
         _toastPanel.SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin;
         _toastPanel.Visible = false;
         HBoxContainer toastRow = Layout<HBoxContainer>();
         toastRow.AddChild(Icon("county", 20));
         _toast = Text(string.Empty, "HudMuted");
         _toast.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        _toast.CustomMinimumSize = new Vector2(268, 0);
+        _toast.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         toastRow.AddChild(_toast);
         _toastPanel.AddChild(toastRow);
         notificationColumn.AddChild(_toastPanel);

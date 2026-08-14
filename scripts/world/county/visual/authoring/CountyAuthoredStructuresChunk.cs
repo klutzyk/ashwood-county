@@ -129,7 +129,8 @@ public partial class CountyAuthoredStructuresChunk : Node2D
     [
         new(new(221, 122), 0), new(new(232, 122), 1), new(new(276, 122), 2), new(new(286, 122), 3, true),
         new(new(221, 133), 4), new(new(232, 133), 5, true), new(new(286, 133), 6),
-        new(new(220, 155), 7, true), new(new(231, 155), 0), new(new(276, 155), 1), new(new(286, 155), 2, true),
+        // (220,155) is the streamed reference interior and owns its exterior.
+        new(new(231, 155), 0), new(new(276, 155), 1), new(new(286, 155), 2, true),
         new(new(220, 166), 3), new(new(231, 166), 4), new(new(242, 166), 5, true), new(new(276, 166), 6), new(new(286, 166), 7),
         new(new(264, 121), 1, true), new(new(264, 166), 4),
         // Second homes within selected larger blocks prevent the town from

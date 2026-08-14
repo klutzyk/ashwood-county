@@ -1,4 +1,6 @@
 using AshwoodCounty.World.Fog;
+using AshwoodCounty.Buildings.Interiors;
+using AshwoodCounty.UI;
 using Godot;
 
 namespace AshwoodCounty.World.County;
@@ -20,5 +22,19 @@ public partial class CountyRuntimeBootstrap : Node
             CountyFogOfWar fog=new(){Name="CountyFog",CountySize=new Vector2I(384,320),ChunkSize=20,SurvivorRevealRadius=8};
             world.AddChild(fog);
         }
+        Callable.From(CreateInteriorSystems).CallDeferred();
+    }
+
+    private void CreateInteriorSystems()
+    {
+        Node root=GetParent();
+        if(root.GetNodeOrNull<InteriorNavigationService>("InteriorNavigationService") is null)
+            root.AddChild(new InteriorNavigationService{Name="InteriorNavigationService"});
+        if(root.GetNodeOrNull<InteriorBuildingSystem>("InteriorBuildingSystem") is null)
+            root.AddChild(new InteriorBuildingSystem{Name="InteriorBuildingSystem"});
+        if(root.GetNodeOrNull<InteriorContextHud>("InteriorContextHud") is null)
+            root.AddChild(new InteriorContextHud{Name="InteriorContextHud"});
+        if(root.GetNodeOrNull<InteriorVerticalSliceValidation>("InteriorVerticalSliceValidation") is null)
+            root.AddChild(new InteriorVerticalSliceValidation{Name="InteriorVerticalSliceValidation"});
     }
 }

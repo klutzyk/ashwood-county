@@ -5,6 +5,8 @@ using AshwoodCounty.Resources;
 using AshwoodCounty.Units;
 using AshwoodCounty.World;
 using AshwoodCounty.Threats;
+using AshwoodCounty.Buildings.Interiors;
+using AshwoodCounty.UI;
 using Godot;
 
 namespace AshwoodCounty.Systems;
@@ -184,6 +186,36 @@ public partial class SurvivorSelectionController : CanvasLayer
 
         if (_selectedSurvivors.Count == 0)
         {
+            return;
+        }
+
+        InteriorContainerRuntime container = GetTree().GetNodesInGroup(InteriorContainerRuntime.GroupName)
+            .OfType<InteriorContainerRuntime>().Where(item => item.Visible && item.ContainsScreenPoint(screenPosition))
+            .OrderBy(item => item.Position.Y).LastOrDefault();
+        if (container is not null)
+        {
+            if (container.IsSearched)
+                (GetTree().GetFirstNodeInGroup(GameHud.GroupName) as GameHud)?.Notify($"{container.DisplayName.ToUpperInvariant()}\nAlready searched");
+            else
+                _selectedSurvivors.Where(s => s.IsAlive).MinBy(s => s.SimulationPosition.DistanceSquaredTo(container.InteractionPosition))?.IssueSearchContainerOrder(container);
+            return;
+        }
+
+        InteriorBedRuntime bed = GetTree().GetNodesInGroup(InteriorBedRuntime.GroupName)
+            .OfType<InteriorBedRuntime>().Where(item => item.Visible && item.ContainsScreenPoint(screenPosition))
+            .OrderBy(item => item.Position.Y).LastOrDefault();
+        if (bed is not null)
+        {
+            _selectedSurvivors.Where(s => s.IsAlive).MinBy(s => s.SimulationPosition.DistanceSquaredTo(bed.InteractionPosition))?.IssueBedRestOrder(bed);
+            return;
+        }
+
+        InteriorDoorRuntime door = GetTree().GetNodesInGroup(InteriorDoorRuntime.GroupName)
+            .OfType<InteriorDoorRuntime>().Where(item => item.Visible && item.ContainsScreenPoint(screenPosition))
+            .OrderBy(item => item.Position.Y).LastOrDefault();
+        if (door is not null)
+        {
+            _selectedSurvivors.Where(s => s.IsAlive).MinBy(s => s.SimulationPosition.DistanceSquaredTo(door.InteractionPosition))?.IssueDoorOrder(door);
             return;
         }
 

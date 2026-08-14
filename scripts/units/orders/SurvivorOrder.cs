@@ -10,7 +10,10 @@ public enum SurvivorOrderType
     Scavenge,
     Rest,
     Treat,
-    AttackZombie
+    AttackZombie,
+    SearchContainer,
+    UseBed,
+    UseDoor
 }
 
 public interface ISurvivorOrder

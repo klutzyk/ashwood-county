@@ -6,6 +6,7 @@ using AshwoodCounty.Units.Orders;
 using AshwoodCounty.World;
 using Godot;
 using AshwoodCounty.Threats;
+using AshwoodCounty.Buildings.Interiors;
 
 namespace AshwoodCounty.Units;
 
@@ -83,6 +84,9 @@ public partial class Survivor : Node2D
         SurvivorOrderType.Rest => "Resting",
         SurvivorOrderType.Treat => "Providing treatment",
         SurvivorOrderType.AttackZombie => "Fighting",
+        SurvivorOrderType.SearchContainer => "Searching a container",
+        SurvivorOrderType.UseBed => "Resting in bed",
+        SurvivorOrderType.UseDoor => "Using a door",
         _ when _dead => "Dead",
         _ => NeedsMeal ? "Idle • Hungry" : "Idle"
     };
@@ -180,6 +184,9 @@ public partial class Survivor : Node2D
     }
 
     public void IssueAutonomousRestOrder(CompletedBuilding shelter) => AssignOrder(new RestOrder(shelter), true);
+    public void IssueSearchContainerOrder(InteriorContainerRuntime container) => AssignOrder(new SearchInteriorContainerOrder(container), false);
+    public void IssueBedRestOrder(InteriorBedRuntime bed) => AssignOrder(new UseInteriorBedOrder(bed), false);
+    public void IssueDoorOrder(InteriorDoorRuntime door) => AssignOrder(new UseInteriorDoorOrder(door), false);
     public void IssueAutonomousTreatOrder(Survivor patient, SettlementInventory inventory) => AssignOrder(new TreatOrder(patient, inventory, (target, amount) => target.ReceiveTreatment(amount)), true);
     public void ReceiveTreatment(float amount) { if (!_dead) { _health = Mathf.Min(MaxHealth, _health + Mathf.Max(0, amount)); RefreshVisual(); } }
 
