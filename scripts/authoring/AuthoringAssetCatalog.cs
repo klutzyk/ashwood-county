@@ -31,6 +31,7 @@ public static class AuthoringAssetCatalog
                ||normalized.Contains("/ui/",StringComparison.OrdinalIgnoreCase)
                ||normalized.Contains("/characters/",StringComparison.OrdinalIgnoreCase)
                ||normalized.Contains("/zombies/",StringComparison.OrdinalIgnoreCase))continue;
+            if(normalized.Contains("/reference/",StringComparison.OrdinalIgnoreCase)||normalized.Contains("/roads/materials/",StringComparison.OrdinalIgnoreCase))continue;
             int marker=normalized.IndexOf("/assets/art/",StringComparison.OrdinalIgnoreCase);
             if(marker<0)continue;
             string path="res://"+normalized[(marker+1)..];
@@ -48,6 +49,9 @@ public static class AuthoringAssetCatalog
 
     private static string CategoryFor(string path)
     {
+        if(path.Contains("/bridges/"))return "Bridges";
+        if(path.Contains("/water/"))return "Waterside";
+        if(path.Contains("/rail/"))return "Railway";
         if(path.Contains("/interiors/"))return "Interiors";
         if(path.Contains("/buildings/"))return "Buildings";
         if(path.Contains("/environment/")||path.Contains("/vegetation/"))return "Environment";
@@ -78,6 +82,11 @@ public static class AuthoringAssetCatalog
     private static bool IsComposite(string path)=>new[]{"abandoned_pickup_01","scrap_pile_01","corrugated_shed_01","ruined_shed_01","dock_rowboat_01","dock_01.png","rowboat_01","garden_plot_01","laundry_yard_01","mailbox_tree_01","ridge_viewpoint_01","campfire_01","rusty_barrel_01","cones_barrier_01","stockpile_01"}.Any(path.Contains);
     private static string SourceFor(string path)
     {
+        if(path.Contains("/bridges/"))return "bridge_sheet.png";
+        if(path.Contains("/water/"))return "waterside_sheet.png";
+        if(path.Contains("/rail/"))return "railway_sheet.png";
+        if(path.Contains("/roads/asphalt/")||new[]{"guardrail_clean","traffic_cone_large","traffic_cone_small","traffic_cone_fallen","street_light_clean","manhole_clean","storm_drain_clean"}.Any(path.Contains))return "asphalt_sheet.png";
+        if(path.Contains("/roads/dirt/"))return "dirt_road_sheet.png";
         if(path.Contains("/interiors/residential/"))return "residential_interior_kit_01.png";
         if(path.Contains("/buildings/residential/"))return path.Contains("abandoned")?"houses (abandoned).png":"houses.png";
         if(path.Contains("/buildings/rural/")||path.Contains("/props/rural/"))return "rural_structures.png";

@@ -53,6 +53,7 @@ public partial class AuthoringStudioCanvas : Node2D
     private readonly RandomNumberGenerator _brushRandom=new();
     private readonly List<Vector2> _pathPoints=[];
     private int _roadPointIndex=-1;
+    private int _selectedRoadPointIndex=-1;
     private string? _roadSnapshot;
     private bool _structureLine;
     private AuthoringAssetEntry? _lineAsset;
@@ -68,6 +69,7 @@ public partial class AuthoringStudioCanvas : Node2D
     public AuthoredBuildingData? InteriorBuilding=>_interiorBuilding;
     public IReadOnlyCollection<StudioSelection> Selection=>_selection;
     public StudioSelection PrimarySelection=>_selection.LastOrDefault();
+    public int SelectedRoadPointIndex=>_selectedRoadPointIndex;
     public bool IsInteriorMode=>_interiorBuilding is not null;
     public bool IsDirty=>_dirty;
     public bool KeepAspectRatio { get; set; }=true;
@@ -78,12 +80,14 @@ public partial class AuthoringStudioCanvas : Node2D
     public string PathType { get; set; }="Rural Road";
     public float PathWidth { get; set; }=1.2f;
     public string PathAssetPath { get; set; }=string.Empty;
+    public bool RoadDebugEnabled { get; set; }
     public bool SnapEnabled { get=>_snap; set{_snap=value;QueueRedraw();} }
 
     public void Initialize(IsometricWorld world,AuthoredCountyDocument document)
     {
         _world=world;_document=document;_savedSnapshot=AuthoredContentRepository.Serialize(document);ZAsRelative=false;ZIndex=20;YSortEnabled=true;
     }
+    public void UseTransientValidationDocument(AuthoredCountyDocument document){_document=document;_selection.Clear();RebuildVisuals();QueueRedraw();}
 
     public override void _Ready(){RebuildVisuals();SetProcess(true);}
     public override void _Process(double delta){QueueRedraw();}
@@ -106,9 +110,19 @@ public partial class AuthoringStudioCanvas : Node2D
     public void BeginStructureLineTool(AuthoringAssetEntry asset){if(_lockedLayers.Contains("Props")){StatusChanged?.Invoke("Props layer is locked.");return;}_structureLine=true;_lineAsset=asset;_pathPoints.Clear();SetTool(AuthoringTool.Road);StatusChanged?.Invoke($"LINE TOOL — {asset.Name}; click points, Enter to finish");}
     public void FinishPath()
     {
-        if(_pathPoints.Count<2){_pathPoints.Clear();QueueRedraw();return;}Checkpoint();_document.Paths.Add(new AuthoredPathData{Id=StableId(_structureLine?"line":"road"),DisplayName=_structureLine?_lineAsset?.Name??"Structure Line":PathType,PathType=PathType,LineKind=_structureLine?"Structure":"Road",AssetPath=_structureLine?_lineAsset?.Path??string.Empty:PathAssetPath,Width=Mathf.Max(.15f,PathWidth),SegmentSpacing=Mathf.Max(.35f,PathWidth),SegmentScale=_structureLine?_lineAsset?.DefaultScale??.35f:1,Points=_pathPoints.Select(AuthoredPointData.From).ToList()});_pathPoints.Clear();Changed(_structureLine?"Created structure line":"Created road/path");
+        if(_pathPoints.Count<2){_pathPoints.Clear();QueueRedraw();return;}Checkpoint();string id=StableId(_structureLine?"line":"road");_document.Paths.Add(new AuthoredPathData{Id=id,DisplayName=_structureLine?_lineAsset?.Name??"Structure Line":RoadProfiles.Normalize(PathType),PathType=_structureLine?PathType:RoadProfiles.Normalize(PathType),LineKind=_structureLine?"Structure":"Road",AssetPath=_structureLine?_lineAsset?.Path??string.Empty:PathAssetPath,Width=Mathf.Max(.15f,PathWidth),SegmentSpacing=Mathf.Max(.35f,PathWidth),SegmentScale=_structureLine?_lineAsset?.DefaultScale??.35f:1,VariationSeed=StableSeed(id),Points=_pathPoints.Select(AuthoredPointData.From).ToList()});_pathPoints.Clear();Changed(_structureLine?"Created structure line":"Created spline road");
     }
-    public void AddPathPoint(Vector2 point){_pathPoints.Add(Snap(point));QueueRedraw();}
+    public void AddPathPoint(Vector2 point){Vector2 basePoint=Snap(point);if(TryBridgeSocket(basePoint,PathType,out BridgeSocket socket,out Vector2 approach)){if(_pathPoints.Count>0&&_pathPoints[^1].DistanceTo(approach)>.2f)_pathPoints.Add(Snap(approach));if(_pathPoints.Count==0||_pathPoints[^1].DistanceTo(socket.Position)>.05f)_pathPoints.Add(socket.Position);}else{Vector2 snapped=SnapRoadPoint(basePoint,null,PathType);if(_pathPoints.Count==0||_pathPoints[^1].DistanceTo(snapped)>.05f)_pathPoints.Add(snapped);}QueueRedraw();}
+    public void ExtendSelectedRoad()
+    {
+        if(GetSelectedData() is not AuthoredPathData path||path.LineKind!="Road"||path.Points.Count<2){StatusChanged?.Invoke("Select a road first.");return;}
+        bool fromStart=_selectedRoadPointIndex==0;Vector2 endpoint=fromStart?path.Points[0].Vector:path.Points[^1].Vector;PathType=RoadProfiles.Get(path.PathType).Id;PathWidth=path.Width;_structureLine=false;_lineAsset=null;_pathPoints.Clear();_pathPoints.Add(endpoint);SetTool(AuthoringTool.Road);StatusChanged?.Invoke($"EXTEND {path.DisplayName.ToUpperInvariant()} — click more control points, Enter to finish");
+    }
+    public void SplitSelectedRoad()
+    {
+        if(GetSelectedData() is not AuthoredPathData path||path.LineKind!="Road"||_selectedRoadPointIndex<=0||_selectedRoadPointIndex>=path.Points.Count-1){StatusChanged?.Invoke("Select an internal road control point before splitting.");return;}Checkpoint();AuthoredCountyDocument shell=new(){Paths=[path]};AuthoredPathData second=AuthoredContentRepository.Deserialize(AuthoredContentRepository.Serialize(shell)).Paths[0];List<AuthoredPointData> original=path.Points.ToList();path.Points=original.Take(_selectedRoadPointIndex+1).ToList();second.Id=StableId("road");second.DisplayName=path.DisplayName+" Part B";second.Points=original.Skip(_selectedRoadPointIndex).Select(point=>new AuthoredPointData{X=point.X,Y=point.Y,WidthScale=point.WidthScale}).ToList();second.VariationSeed=StableSeed(second.Id);_document.Paths.Add(second);_selectedRoadPointIndex=path.Points.Count-1;Changed("Split road at control point");
+    }
+    public void ToggleRoadDebug(bool enabled){RoadDebugEnabled=enabled;QueueRedraw();StatusChanged?.Invoke($"Road graph debug {(enabled?"shown":"hidden")}");}
     public void ApplyBrushDab(Vector2 point){BeginBrush(point);EndPointer(point,false);}
     public void SelectBuilding(string id){if(_document.Buildings.All(building=>building.Id!=id))return;_selection.Clear();_selection.Add(new(StudioSelectionKind.Building,id));RebuildVisuals();SelectionChanged?.Invoke();}
     public void RestoreWorldSelection(string kind,string id){if(Enum.TryParse(kind,true,out StudioSelectionKind parsed)&&GetData(new(parsed,id)) is not null){_selection.Clear();_selection.Add(new(parsed,id));RebuildVisuals();SelectionChanged?.Invoke();}}
@@ -218,8 +232,9 @@ public partial class AuthoringStudioCanvas : Node2D
         Vector2 grid=Snap(rawGrid);
         if(inputEvent is InputEventMouseButton mouse&&mouse.ButtonIndex==MouseButton.Left)
         {
+            if(mouse.Pressed&&mouse.DoubleClick&&Tool==AuthoringTool.Road){AddPathPoint(grid);FinishPath();GetViewport().SetInputAsHandled();return;}
             _pointerDown=mouse.Pressed;
-            if(mouse.Pressed)BeginPointer(grid,IsometricGrid.GridToScreen(rawGrid),mouse.CtrlPressed||mouse.ShiftPressed);
+            if(mouse.Pressed)BeginPointer(grid,IsometricGrid.GridToScreen(rawGrid),mouse.CtrlPressed||mouse.ShiftPressed,mouse.CtrlPressed);
             else EndPointer(grid,mouse.CtrlPressed||mouse.ShiftPressed);
             GetViewport().SetInputAsHandled();
         }
@@ -239,13 +254,13 @@ public partial class AuthoringStudioCanvas : Node2D
         if(key.Keycode==Key.R){RotateSelection();return;}
         if(key.Keycode==Key.Enter&&Tool==AuthoringTool.Road){FinishPath();return;}
         if(key.Keycode==Key.Escape){if(_pathPoints.Count>0){_pathPoints.Clear();QueueRedraw();}else SetTool(AuthoringTool.Select);return;}
-        if(key.Keycode==Key.Delete){DeleteSelection();return;}
+        if(key.Keycode==Key.Delete){if(!DeleteSelectedRoadPoint())DeleteSelection();return;}
         if(key.CtrlPressed&&key.Keycode==Key.Z){Undo();return;}
         if(key.CtrlPressed&&key.Keycode==Key.Y){Redo();return;}
         if(key.CtrlPressed&&key.Keycode==Key.D){DuplicateSelection();return;}
     }
 
-    private void BeginPointer(Vector2 grid,Vector2 worldPoint,bool additive)
+    private void BeginPointer(Vector2 grid,Vector2 worldPoint,bool additive,bool insertRoadPoint)
     {
         switch(Tool)
         {
@@ -255,6 +270,7 @@ public partial class AuthoringStudioCanvas : Node2D
             case AuthoringTool.Room:case AuthoringTool.Wall:_toolStart=grid;break;
             case AuthoringTool.Door:PlaceDoor(grid);break;
             default:
+                if(insertRoadPoint&&TryInsertRoadPoint(grid))return;
                 int roadPoint=RoadPointAt(grid);if(roadPoint>=0){_roadPointIndex=roadPoint;_roadSnapshot=AuthoredContentRepository.Serialize(_document);return;}
                 StudioResizeHandle resize=ResizeHandleAt(worldPoint);
                 if(resize!=StudioResizeHandle.None)
@@ -264,7 +280,7 @@ public partial class AuthoringStudioCanvas : Node2D
                 StudioSelection hit=HitTest(grid,worldPoint);
                 if(hit.Kind!=StudioSelectionKind.None)
                 {
-                    if(!additive&&!_selection.Contains(hit))_selection.Clear();_selection.Add(hit);SelectionChanged?.Invoke();
+                    string previousRoadId=PrimarySelection.Kind==StudioSelectionKind.Road?PrimarySelection.Id:string.Empty;if(!additive&&!_selection.Contains(hit))_selection.Clear();_selection.Add(hit);if(hit.Kind!=StudioSelectionKind.Road||previousRoadId!=hit.Id)_selectedRoadPointIndex=-1;else if(GetSelectedData() is AuthoredPathData selectedRoad&&_selectedRoadPointIndex>=selectedRoad.Points.Count)_selectedRoadPointIndex=-1;SelectionChanged?.Invoke();
                     _dragStart=grid;_dragSnapshot=AuthoredContentRepository.Serialize(_document);
                 }
                 else{if(!additive)_selection.Clear();_boxStart=grid;SelectionChanged?.Invoke();}
@@ -297,9 +313,17 @@ public partial class AuthoringStudioCanvas : Node2D
 
     private int RoadPointAt(Vector2 grid)
     {
-        if(GetSelectedData() is not AuthoredPathData path)return -1;for(int i=0;i<path.Points.Count;i++)if(path.Points[i].Vector.DistanceTo(grid)<.55f)return i;return -1;
+        if(GetSelectedData() is not AuthoredPathData path)return -1;for(int i=0;i<path.Points.Count;i++)if(path.Points[i].Vector.DistanceTo(grid)<.55f){_selectedRoadPointIndex=i;QueueRedraw();return i;}return -1;
     }
-    private void MoveRoadPoint(Vector2 grid){if(GetSelectedData() is not AuthoredPathData path||_roadPointIndex>=path.Points.Count)return;path.Points[_roadPointIndex]=AuthoredPointData.From(grid);DocumentChanged?.Invoke();QueueRedraw();SelectionChanged?.Invoke();}
+    private void MoveRoadPoint(Vector2 grid){if(GetSelectedData() is not AuthoredPathData path||_roadPointIndex>=path.Points.Count)return;if(TryBridgeSocket(grid,path.PathType,out BridgeSocket socket,out Vector2 approach)){path.Points[_roadPointIndex]=AuthoredPointData.From(socket.Position);if(_roadPointIndex==0&&path.Points.Count>1)path.Points[1]=AuthoredPointData.From(approach);else if(_roadPointIndex==path.Points.Count-1&&path.Points.Count>1)path.Points[^2]=AuthoredPointData.From(approach);}else path.Points[_roadPointIndex]=AuthoredPointData.From(SnapRoadPoint(grid,path.Id,path.PathType));DocumentChanged?.Invoke();QueueRedraw();SelectionChanged?.Invoke();}
+    private bool TryInsertRoadPoint(Vector2 grid)
+    {
+        if(GetSelectedData() is not AuthoredPathData path||path.LineKind!="Road"||path.Points.Any(point=>point.Vector.DistanceTo(grid)<.55f))return false;string before=AuthoredContentRepository.Serialize(_document);int inserted=RoadSplineGeometry.InsertControlPoint(path,Snap(grid));if(inserted<0)return false;_undo.Push(before);_redo.Clear();_selectedRoadPointIndex=inserted;Changed("Inserted road control point");return true;
+    }
+    private bool DeleteSelectedRoadPoint()
+    {
+        if(GetSelectedData() is not AuthoredPathData path||_selectedRoadPointIndex<0||_selectedRoadPointIndex>=path.Points.Count)return false;string before=AuthoredContentRepository.Serialize(_document);if(!RoadSplineGeometry.RemoveControlPoint(path,_selectedRoadPointIndex))return false;_undo.Push(before);_redo.Clear();_selectedRoadPointIndex=Mathf.Clamp(_selectedRoadPointIndex,0,path.Points.Count-1);Changed("Deleted road control point");return true;
+    }
 
     private void BeginBrush(Vector2 grid){_strokeSnapshot=AuthoredContentRepository.Serialize(_document);_lastBrushPoint=null;ApplyBrush(grid);}
     private void ContinueBrush(Vector2 grid){if(_lastBrushPoint is null||_lastBrushPoint.Value.DistanceTo(grid)>=Mathf.Max(.35f,BrushRadius*.28f))ApplyBrush(grid);}
@@ -474,7 +498,7 @@ public partial class AuthoringStudioCanvas : Node2D
             if(!_hiddenLayers.Contains("Buildings")&&!_lockedLayers.Contains("Buildings"))foreach(AuthoredBuildingData visualBuilding in _document.Buildings.Where(InLoadedArea).OrderByDescending(item=>item.ExteriorX+item.ExteriorY))if(SpriteContains(visualBuilding.ExteriorAssetPath,new(visualBuilding.ExteriorX,visualBuilding.ExteriorY),visualBuilding.ExteriorTargetHeight,0,new(.5f,1),worldPoint,0,visualBuilding.ExteriorTargetWidth,visualBuilding.ExteriorRotationDegrees))return new(StudioSelectionKind.Building,visualBuilding.Id);
             AuthoredWorldObjectData? item=_document.WorldObjects.Where(InLoadedArea).Where(item=>LayerEditable(item)).OrderByDescending(item=>item.X+item.Y).FirstOrDefault(item=>new Vector2(item.X,item.Y).DistanceTo(grid)<.75f);if(item is not null)return new(StudioSelectionKind.WorldObject,item.Id);
             if(!_hiddenLayers.Contains("Buildings")&&!_lockedLayers.Contains("Buildings")){AuthoredBuildingData? building=_document.Buildings.Where(InLoadedArea).OrderByDescending(item=>item.ExteriorX+item.ExteriorY).FirstOrDefault(item=>new Rect2(item.FootprintX,item.FootprintY,item.FootprintWidth,item.FootprintHeight).HasPoint(grid));if(building is not null)return new(StudioSelectionKind.Building,building.Id);}
-            if(!_hiddenLayers.Contains("Roads")&&!_lockedLayers.Contains("Roads")){AuthoredPathData? path=_document.Paths.LastOrDefault(path=>path.Points.Zip(path.Points.Skip(1),(a,b)=>DistanceToSegment(grid,a.Vector,b.Vector)).Any(distance=>distance<Mathf.Max(.35f,path.Width*.35f)));if(path is not null)return new(StudioSelectionKind.Road,path.Id);}
+            if(!_hiddenLayers.Contains("Roads")&&!_lockedLayers.Contains("Roads")){AuthoredPathData? path=_document.Paths.LastOrDefault(path=>{RoadSplineGeometry.ClosestPoint(path,grid,out _,out float distance);return distance<Mathf.Max(.35f,path.Width*.4f);});if(path is not null)return new(StudioSelectionKind.Road,path.Id);}
         }
         return default;
     }
@@ -595,8 +619,9 @@ public partial class AuthoringStudioCanvas : Node2D
         foreach(AuthoringValidationIssue issue in _issues){Color color=issue.Severity==AuthoringValidationSeverity.Invalid?new Color("e34b45"):issue.Severity==AuthoringValidationSeverity.Warning?new Color("e5b84f"):new Color("65c878");Vector2 point=IsometricGrid.GridToScreen(issue.Position);DrawCircle(point,12,color);DrawCircle(point,5,new Color("151a16"));}
         if(!IsInteriorMode&&!_hiddenLayers.Contains("Gameplay"))foreach(AuthoredWorldObjectData item in _document.WorldObjects.Where(InLoadedArea).Where(item=>item.GameplayType!="Decoration")){Vector2 point=IsometricGrid.GridToScreen(new(item.X,item.Y));Color color=item.GameplayType.Contains("Zombie")?new Color("d85b51"):item.GameplayType.Contains("Landmark")?new Color("e0bc62"):new Color("70b8dc");DrawPolyline([point+new Vector2(0,-17),point+new Vector2(17,0),point+new Vector2(0,17),point+new Vector2(-17,0),point+new Vector2(0,-17)],color,3,true);DrawString(ThemeDB.FallbackFont,point+new Vector2(22,5),item.GameplayType,HorizontalAlignment.Left,160,12,color);}
         if(_testRoute.Count>1)DrawPolyline(_testRoute.Select(IsometricGrid.GridToScreen).ToArray(),new Color("66dd82"),5,true);
-        if(GetSelectedData() is AuthoredPathData selectedPath){Vector2[] pathPoints=selectedPath.Points.Select(point=>IsometricGrid.GridToScreen(point.Vector)).ToArray();if(pathPoints.Length>1)DrawPolyline(pathPoints,new Color("f0c96d"),5,true);foreach(Vector2 point in pathPoints){DrawCircle(point,9,new Color("f0c96d"));DrawCircle(point,4,new Color("263027"));}}
-        if(Tool==AuthoringTool.Road&&_pathPoints.Count>0){List<Vector2> preview=_pathPoints.Select(IsometricGrid.GridToScreen).ToList();preview.Add(IsometricGrid.GridToScreen(Snap(_world.ScreenToGridPosition(GetViewport().GetMousePosition()))));DrawPolyline(preview.ToArray(),new Color("e1bd69d8"),Mathf.Max(4,PathWidth*IsometricGrid.TileHeight),true);foreach(Vector2 point in preview.Take(preview.Count-1))DrawCircle(point,7,new Color("f0c96d"));}
+        if(GetSelectedData() is AuthoredPathData selectedPath){IReadOnlyList<RoadSplineSample> spline=RoadSplineGeometry.Sample(selectedPath);if(spline.Count>1)DrawPolyline(spline.Select(point=>point.CanvasPosition).ToArray(),new Color("f0c96d"),4,true);Vector2[] pathPoints=selectedPath.Points.Select(point=>IsometricGrid.GridToScreen(point.Vector)).ToArray();if(pathPoints.Length>1)DrawPolyline(pathPoints,new Color("f0c96d66"),1.5f,true);for(int i=0;i<pathPoints.Length;i++){DrawCircle(pathPoints[i],i==_selectedRoadPointIndex?11:8,new Color("f0c96d"));DrawCircle(pathPoints[i],4,new Color("263027"));}}
+        if(Tool==AuthoringTool.Road&&_pathPoints.Count>0){List<AuthoredPointData> controls=_pathPoints.Select(AuthoredPointData.From).ToList();Vector2 mouse=Snap(_world.ScreenToGridPosition(GetViewport().GetMousePosition()));if(TryBridgeSocket(mouse,PathType,out BridgeSocket socket,out Vector2 approach)){if(controls[^1].Vector.DistanceTo(approach)>.2f)controls.Add(AuthoredPointData.From(Snap(approach)));controls.Add(AuthoredPointData.From(socket.Position));}else controls.Add(AuthoredPointData.From(SnapRoadPoint(mouse,null,PathType)));AuthoredPathData previewPath=new(){PathType=PathType,Width=PathWidth,Points=controls};IReadOnlyList<RoadSplineSample> preview=RoadSplineGeometry.Sample(previewPath);DrawPolyline(preview.Select(point=>point.CanvasPosition).ToArray(),new Color("e1bd69d8"),Mathf.Max(4,PathWidth*IsometricGrid.TileHeight),true);foreach(Vector2 point in _pathPoints.Select(IsometricGrid.GridToScreen))DrawCircle(point,7,new Color("f0c96d"));if(TryBridgeSocket(mouse,PathType,out BridgeSocket snapSocket,out _))DrawRect(new Rect2(IsometricGrid.GridToScreen(snapSocket.Position)-new Vector2(8,8),new Vector2(16,16)),new Color("d68af1"),false,3);}
+        if(RoadDebugEnabled&&!IsInteriorMode)DrawRoadDebug();
         if(Tool==AuthoringTool.Place&&_placementAsset is not null){Vector2 grid=Snap(_world.ScreenToGridPosition(GetViewport().GetMousePosition()));Vector2 point=IsometricGrid.GridToScreen(grid);DrawCircle(point,10,new Color("e5c46caa"));}
         if(Tool is AuthoringTool.Terrain or AuthoringTool.Scatter or AuthoringTool.Erase)DrawBrushPreview(_world.ScreenToGridPosition(GetViewport().GetMousePosition()));
     }
@@ -604,6 +629,13 @@ public partial class AuthoringStudioCanvas : Node2D
     private void DrawBrushPreview(Vector2 center)
     {
         Vector2[] points=new Vector2[33];for(int i=0;i<points.Length;i++){float angle=Mathf.Tau*i/(points.Length-1);points[i]=IsometricGrid.GridToScreen(center+Vector2.FromAngle(angle)*BrushRadius);}Color color=Tool==AuthoringTool.Erase?new Color("e85b55d8"):Tool==AuthoringTool.Terrain?new Color("d7b65ed8"):new Color("76c986d8");DrawPolyline(points,color,3,true);DrawCircle(IsometricGrid.GridToScreen(center),5,color);
+    }
+
+    private void DrawRoadDebug()
+    {
+        RoadNetworkGraph graph=RoadNetworkGraph.Build(_document);foreach(AuthoredPathData path in _document.Paths.Where(path=>path.LineKind=="Road")){IReadOnlyList<RoadSplineSample> samples=RoadSplineGeometry.Sample(path);int stride=Mathf.Max(1,samples.Count/22);for(int i=0;i<samples.Count;i+=stride){DrawCircle(samples[i].CanvasPosition,2.5f,new Color("5fd3f0cc"));DrawLine(samples[i].CanvasPosition,samples[i].CanvasPosition+samples[i].CanvasTangent*12,new Color("5fd3f080"),1);}if(samples.Count>0){RoadProfileDefinition profile=RoadProfiles.Get(path.PathType);DrawString(ThemeDB.FallbackFont,samples[0].CanvasPosition+new Vector2(8,-12),$"{profile.Id}  W {path.Width:0.00}",HorizontalAlignment.Left,180,11,new Color("7edcf2"));}}
+        foreach(RoadGraphNode node in graph.Nodes){Vector2 point=IsometricGrid.GridToScreen(node.Position);Color color=node.BridgeSocket?new Color("c98af1"):node.Degree>=3?new Color("f06e63"):new Color("69d98a");DrawCircle(point,8,color);DrawString(ThemeDB.FallbackFont,point+new Vector2(10,-8),$"{node.JunctionKind} ({node.Degree})",HorizontalAlignment.Left,150,11,color);}
+        foreach(BridgeSocket socket in RoadNetworkGraph.BridgeSockets(_document)){Vector2 point=IsometricGrid.GridToScreen(socket.Position);DrawRect(new Rect2(point-new Vector2(6,6),new Vector2(12,12)),new Color("c98af1"),false,2);}
     }
 
     private void DrawGridRect(Rect2 rect,Color color,float width){Vector2[] points=IsometricGrid.ProjectRectangle(rect.Position,rect.Size);DrawPolyline([points[0],points[1],points[2],points[3],points[0]],color,width,true);}
@@ -616,7 +648,23 @@ public partial class AuthoringStudioCanvas : Node2D
     private Rect2 LoadedGridBounds(){Vector2I center=CountyCoordinateSpace.GridToChunk(_loadedCenter);Vector2 start=new((center.X-_loadedRadius)*CountyCoordinateSpace.ChunkSize,(center.Y-_loadedRadius)*CountyCoordinateSpace.ChunkSize);float size=(_loadedRadius*2+1)*CountyCoordinateSpace.ChunkSize;return new Rect2(start,new Vector2(size,size)).Intersection(CountyCoordinateSpace.GridBounds);}
     private AuthoredRoomData? RoomAt(Vector2 grid)=>_interiorBuilding?.Rooms.FirstOrDefault(room=>new Rect2(room.X,room.Y,room.Width,room.Height).HasPoint(grid));
     private Vector2 Snap(Vector2 point)=>_snap?new Vector2(Mathf.Round(point.X*4)/4,Mathf.Round(point.Y*4)/4):point;
+    private Vector2 SnapRoadPoint(Vector2 point,string? excludePathId=null,string? roadProfile=null)
+    {
+        Vector2 best=point;float bestDistance=float.PositiveInfinity;
+        string normalized=RoadProfiles.Get(roadProfile??PathType).Id;foreach(BridgeSocket socket in RoadNetworkGraph.BridgeSockets(_document).Where(socket=>socket.SupportedProfiles.Contains(normalized))){float distance=point.DistanceTo(socket.Position);if(distance<bestDistance&&distance<=.9f){best=socket.Position;bestDistance=distance;}}
+        foreach(AuthoredPathData path in _document.Paths.Where(path=>path.LineKind=="Road"&&path.Id!=excludePathId&&path.Points.Count>1))
+        {
+            foreach(Vector2 endpoint in new[]{path.Points[0].Vector,path.Points[^1].Vector}){float distance=point.DistanceTo(endpoint);if(distance<bestDistance&&distance<=RoadProfiles.Get(path.PathType).SnapTolerance){best=endpoint;bestDistance=distance;}}
+            Vector2 candidate=RoadSplineGeometry.ClosestPoint(path,point,out _,out float segmentDistance);if(segmentDistance<bestDistance&&segmentDistance<=RoadProfiles.Get(path.PathType).SnapTolerance*.75f){best=candidate;bestDistance=segmentDistance;}
+        }
+        return Snap(best);
+    }
+    private bool TryBridgeSocket(Vector2 point,string roadProfile,out BridgeSocket socket,out Vector2 approach)
+    {
+        socket=default!;approach=point;string normalized=RoadProfiles.Get(roadProfile).Id;BridgeSocket? nearest=RoadNetworkGraph.BridgeSockets(_document).Where(candidate=>candidate.Position.DistanceTo(point)<=.9f&&candidate.SupportedProfiles.Contains(normalized)).MinBy(candidate=>candidate.Position.DistanceTo(point));if(nearest is null)return false;AuthoredWorldObjectData? bridge=_document.WorldObjects.FirstOrDefault(item=>item.Id==nearest.ObjectId);if(bridge is null)return false;socket=nearest;Vector2 outward=(socket.Position-new Vector2(bridge.X,bridge.Y)).Normalized();approach=socket.Position+outward*1.5f;return true;
+    }
     private static string StableId(string prefix)=>prefix+"_"+Guid.NewGuid().ToString("N")[..10];
+    private static int StableSeed(string value){unchecked{int hash=17;foreach(char c in value)hash=hash*31+c;return hash;}}
     private static string Title(string value)=>string.Join(' ',value.Split(' ').Select(word=>word.Length==0?word:char.ToUpperInvariant(word[0])+word[1..]));
     private static float AssetHeight(string path)=>path.Contains("bed_")?92:path.Contains("shelf")||path.Contains("fridge")||path.Contains("refrigerator")?90:74;
     public static void TranslateBuilding(AuthoredBuildingData building,Vector2 delta)

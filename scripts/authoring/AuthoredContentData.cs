@@ -14,7 +14,7 @@ namespace AshwoodCounty.Authoring;
 
 public sealed class AuthoredCountyDocument
 {
-    public int FormatVersion { get; set; } = 2;
+    public int FormatVersion { get; set; } = 3;
     public List<AuthoredTerrainStampData> TerrainStamps { get; set; } = [];
     public List<AuthoredPathData> Paths { get; set; } = [];
     public List<AuthoredWorldObjectData> WorldObjects { get; set; } = [];
@@ -31,6 +31,7 @@ public sealed class AuthoredPathData
     public float Width { get; set; } = 1.2f;
     public float SegmentSpacing { get; set; } = 1;
     public float SegmentScale { get; set; } = .35f;
+    public int VariationSeed { get; set; }
     public List<AuthoredPointData> Points { get; set; } = [];
 }
 
@@ -38,6 +39,7 @@ public sealed class AuthoredPointData
 {
     public float X { get; set; }
     public float Y { get; set; }
+    public float WidthScale { get; set; } = 1;
     public Vector2 Vector=>new(X,Y);
     public static AuthoredPointData From(Vector2 point)=>new(){X=point.X,Y=point.Y};
 }
@@ -199,7 +201,7 @@ public static class AuthoredContentRepository
         if (!Godot.FileAccess.FileExists(ResourcePath)) return new AuthoredCountyDocument();
         string json = Godot.FileAccess.GetFileAsString(ResourcePath);
         AuthoredCountyDocument? document = JsonSerializer.Deserialize<AuthoredCountyDocument>(json, Options);
-        document ??= new AuthoredCountyDocument();document.FormatVersion=Mathf.Max(2,document.FormatVersion);return document;
+        document ??= new AuthoredCountyDocument();return Upgrade(document);
     }
 
     public static void Save(AuthoredCountyDocument document)
@@ -219,10 +221,16 @@ public static class AuthoredContentRepository
     }
 
     public static bool HasRecovery()=>Godot.FileAccess.FileExists(RecoveryPath);
-    public static AuthoredCountyDocument? LoadRecovery(){if(!HasRecovery())return null;string json=Godot.FileAccess.GetFileAsString(RecoveryPath);return JsonSerializer.Deserialize<AuthoredCountyDocument>(json,Options);}
+    public static AuthoredCountyDocument? LoadRecovery(){if(!HasRecovery())return null;string json=Godot.FileAccess.GetFileAsString(RecoveryPath);AuthoredCountyDocument? document=JsonSerializer.Deserialize<AuthoredCountyDocument>(json,Options);return document is null?null:Upgrade(document);}
 
     public static string Serialize(AuthoredCountyDocument document) => JsonSerializer.Serialize(document, Options);
-    public static AuthoredCountyDocument Deserialize(string json){AuthoredCountyDocument document=JsonSerializer.Deserialize<AuthoredCountyDocument>(json,Options)??new AuthoredCountyDocument();document.FormatVersion=Mathf.Max(2,document.FormatVersion);return document;}
+    public static AuthoredCountyDocument Deserialize(string json)=>Upgrade(JsonSerializer.Deserialize<AuthoredCountyDocument>(json,Options)??new AuthoredCountyDocument());
+    private static AuthoredCountyDocument Upgrade(AuthoredCountyDocument document)
+    {
+        if(document.FormatVersion<3)foreach(AuthoredPathData path in document.Paths.Where(path=>path.LineKind=="Road")){path.PathType=RoadProfiles.Normalize(path.PathType);RoadProfileDefinition profile=RoadProfiles.Get(path.PathType);path.AssetPath=profile.SurfaceTexture;if(path.VariationSeed==0)path.VariationSeed=StableSeed(path.Id);foreach(AuthoredPointData point in path.Points)if(point.WidthScale<=0)point.WidthScale=1;}
+        document.FormatVersion=Mathf.Max(3,document.FormatVersion);return document;
+    }
+    private static int StableSeed(string value){unchecked{int hash=17;foreach(char c in value??string.Empty)hash=hash*31+c;return hash;}}
 }
 
 public static class AuthoredInteriorConverter

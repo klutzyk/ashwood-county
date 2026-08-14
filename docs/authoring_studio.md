@@ -54,6 +54,33 @@ interior restored.
 - Middle mouse/WASD: pan camera
 - Mouse wheel: zoom
 
+## Spline road workflow
+
+Open `PAINT`, choose one of the eight road profiles, set its width and press
+`START DRAWING ROAD`. Click county-space control points and press Enter or
+`FINISH PATH`. Highway, county and rural profiles use smoothed Catmull-Rom
+sampling; town roads remain intentionally angular. Roads are saved as compact
+control points, not placed sprite segments.
+
+- Drag a selected gold control point to reshape a road.
+- Ctrl-click a selected road segment to insert a control point.
+- Select a control point and press Delete to remove it (a two-point road is
+  protected; use E to delete the whole road).
+- Select an endpoint, then use `EXTEND SELECTED ROAD` to continue its profile.
+- Select an internal point and use `SPLIT AT SELECTED POINT` to create two
+  connected authored roads.
+- Double-click places the final point and finishes the road.
+- Endpoint, existing-road and bridge-socket snapping uses the active profile's
+  tolerance. Bridge snaps also create a short aligned approach control so the
+  spline enters the fixed bridge deck along its axis.
+- The inspector changes profile and width after placement.
+- `SHOW ROAD GRAPH / SPLINE DEBUG` reveals spline samples, inferred graph nodes,
+  tangents, profile/width labels, junction degree and bridge sockets.
+- Validation results are clickable and center the relevant county location.
+
+Normal runtime and the Studio use the same `RoadSplineGeometry`, road profiles,
+graph and `AuthoredPathVisual`; there is no second editor-only road renderer.
+
 Authored data is stored in
 `data/authoring/ashwood_county.authored.json`. The normal runtime reads this
 same file. World objects and building runtimes are instantiated only for active
