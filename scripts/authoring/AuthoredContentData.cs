@@ -14,9 +14,43 @@ namespace AshwoodCounty.Authoring;
 
 public sealed class AuthoredCountyDocument
 {
-    public int FormatVersion { get; set; } = 1;
+    public int FormatVersion { get; set; } = 2;
+    public List<AuthoredTerrainStampData> TerrainStamps { get; set; } = [];
+    public List<AuthoredPathData> Paths { get; set; } = [];
     public List<AuthoredWorldObjectData> WorldObjects { get; set; } = [];
     public List<AuthoredBuildingData> Buildings { get; set; } = [];
+}
+
+public sealed class AuthoredPathData
+{
+    public string Id { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = "Authored Road";
+    public string PathType { get; set; } = "Rural Road";
+    public string LineKind { get; set; } = "Road";
+    public string AssetPath { get; set; } = string.Empty;
+    public float Width { get; set; } = 1.2f;
+    public float SegmentSpacing { get; set; } = 1;
+    public float SegmentScale { get; set; } = .35f;
+    public List<AuthoredPointData> Points { get; set; } = [];
+}
+
+public sealed class AuthoredPointData
+{
+    public float X { get; set; }
+    public float Y { get; set; }
+    public Vector2 Vector=>new(X,Y);
+    public static AuthoredPointData From(Vector2 point)=>new(){X=point.X,Y=point.Y};
+}
+
+public sealed class AuthoredTerrainStampData
+{
+    public string Id { get; set; } = string.Empty;
+    public string AssetPath { get; set; } = string.Empty;
+    public float X { get; set; }
+    public float Y { get; set; }
+    public float Radius { get; set; } = 2;
+    public float Opacity { get; set; } = .72f;
+    public float RotationDegrees { get; set; }
 }
 
 public sealed class AuthoredWorldObjectData
@@ -34,6 +68,7 @@ public sealed class AuthoredWorldObjectData
     public float AnchorX { get; set; } = .5f;
     public float AnchorY { get; set; } = 1;
     public bool Collision { get; set; }
+    public bool BrushGenerated { get; set; }
 }
 
 public sealed class AuthoredBuildingData
@@ -150,6 +185,7 @@ public sealed class AuthoredBedData
 public static class AuthoredContentRepository
 {
     public const string ResourcePath = "res://data/authoring/ashwood_county.authored.json";
+    public const string RecoveryPath = "user://authoring/ashwood_county.recovery.json";
     private static readonly JsonSerializerOptions Options = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -163,7 +199,7 @@ public static class AuthoredContentRepository
         if (!Godot.FileAccess.FileExists(ResourcePath)) return new AuthoredCountyDocument();
         string json = Godot.FileAccess.GetFileAsString(ResourcePath);
         AuthoredCountyDocument? document = JsonSerializer.Deserialize<AuthoredCountyDocument>(json, Options);
-        return document ?? new AuthoredCountyDocument();
+        document ??= new AuthoredCountyDocument();document.FormatVersion=Mathf.Max(2,document.FormatVersion);return document;
     }
 
     public static void Save(AuthoredCountyDocument document)
@@ -175,9 +211,18 @@ public static class AuthoredContentRepository
         File.Move(temporary, absolute, true);
     }
 
+    public static void SaveRecovery(AuthoredCountyDocument document)
+    {
+        string absolute=ProjectSettings.GlobalizePath(RecoveryPath);Directory.CreateDirectory(Path.GetDirectoryName(absolute)!);
+        for(int generation=3;generation>=1;generation--){string source=generation==1?absolute:absolute+$".{generation-1}";string target=absolute+$".{generation}";if(File.Exists(source))File.Copy(source,target,true);}
+        string temporary=absolute+".tmp";File.WriteAllText(temporary,Serialize(document));File.Move(temporary,absolute,true);
+    }
+
+    public static bool HasRecovery()=>Godot.FileAccess.FileExists(RecoveryPath);
+    public static AuthoredCountyDocument? LoadRecovery(){if(!HasRecovery())return null;string json=Godot.FileAccess.GetFileAsString(RecoveryPath);return JsonSerializer.Deserialize<AuthoredCountyDocument>(json,Options);}
+
     public static string Serialize(AuthoredCountyDocument document) => JsonSerializer.Serialize(document, Options);
-    public static AuthoredCountyDocument Deserialize(string json) =>
-        JsonSerializer.Deserialize<AuthoredCountyDocument>(json, Options) ?? new AuthoredCountyDocument();
+    public static AuthoredCountyDocument Deserialize(string json){AuthoredCountyDocument document=JsonSerializer.Deserialize<AuthoredCountyDocument>(json,Options)??new AuthoredCountyDocument();document.FormatVersion=Mathf.Max(2,document.FormatVersion);return document;}
 }
 
 public static class AuthoredInteriorConverter

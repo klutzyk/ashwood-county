@@ -3,6 +3,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using AshwoodCounty.Buildings.Interiors;
+using AshwoodCounty.World.County;
 using Godot;
 
 namespace AshwoodCounty.Authoring;
@@ -12,6 +13,17 @@ public sealed record AuthoringValidationIssue(AuthoringValidationSeverity Severi
 
 public static class AuthoringValidation
 {
+    public static IReadOnlyList<AuthoringValidationIssue> ValidateWorld(AuthoredCountyDocument document)
+    {
+        List<AuthoringValidationIssue> issues=[];IEnumerable<(string Id,Vector2 Position,string Kind)> identities=document.WorldObjects.Select(item=>(item.Id,new Vector2(item.X,item.Y),"object")).Concat(document.Buildings.Select(item=>(item.Id,new Vector2(item.ExteriorX,item.ExteriorY),"building"))).Concat(document.Paths.Select(item=>(item.Id,item.Points.FirstOrDefault()?.Vector??Vector2.Zero,"road"))).Concat(document.TerrainStamps.Select(item=>(item.Id,new Vector2(item.X,item.Y),"terrain")));
+        foreach(IGrouping<string,(string Id,Vector2 Position,string Kind)> group in identities.Where(item=>!string.IsNullOrWhiteSpace(item.Id)).GroupBy(item=>item.Id).Where(group=>group.Count()>1))issues.Add(new(AuthoringValidationSeverity.Invalid,$"Duplicate stable ID '{group.Key}'.",group.First().Position));
+        foreach(AuthoredWorldObjectData item in document.WorldObjects){Vector2 position=new(item.X,item.Y);if(!CountyCoordinateSpace.GridBounds.HasPoint(position))issues.Add(new(AuthoringValidationSeverity.Invalid,$"{item.DisplayName} is outside the county.",position));if(string.IsNullOrWhiteSpace(item.AssetPath)||!ResourceLoader.Exists(item.AssetPath))issues.Add(new(AuthoringValidationSeverity.Invalid,$"{item.DisplayName} references a missing asset.",position));}
+        foreach(AuthoredBuildingData item in document.Buildings){Vector2 position=new(item.ExteriorX,item.ExteriorY);if(!CountyCoordinateSpace.GridBounds.HasPoint(position))issues.Add(new(AuthoringValidationSeverity.Invalid,$"{item.DisplayName} is outside the county.",position));if(string.IsNullOrWhiteSpace(item.ExteriorAssetPath)||!ResourceLoader.Exists(item.ExteriorAssetPath))issues.Add(new(AuthoringValidationSeverity.Invalid,$"{item.DisplayName} references a missing exterior asset.",position));if(item.Doors.Count==0)issues.Add(new(AuthoringValidationSeverity.Warning,$"{item.DisplayName} has no authored entrance.",position));}
+        foreach(AuthoredPathData path in document.Paths){Vector2 position=path.Points.FirstOrDefault()?.Vector??Vector2.Zero;if(path.Points.Count<2)issues.Add(new(AuthoringValidationSeverity.Invalid,$"Road '{path.DisplayName}' has fewer than two control points.",position));if(path.Width<=0)issues.Add(new(AuthoringValidationSeverity.Invalid,$"Road '{path.DisplayName}' has invalid width.",position));if(path.Points.Any(point=>!CountyCoordinateSpace.GridBounds.HasPoint(point.Vector)))issues.Add(new(AuthoringValidationSeverity.Invalid,$"Road '{path.DisplayName}' leaves the county bounds.",position));}
+        foreach(AuthoredTerrainStampData item in document.TerrainStamps)if(string.IsNullOrWhiteSpace(item.AssetPath)||!ResourceLoader.Exists(item.AssetPath))issues.Add(new(AuthoringValidationSeverity.Invalid,"Painted terrain references a missing asset.",new(item.X,item.Y)));
+        if(issues.Count==0)issues.Add(new(AuthoringValidationSeverity.Valid,$"World authoring data is valid ({document.WorldObjects.Count} objects, {document.TerrainStamps.Count} paint stamps, {document.Paths.Count} roads).",Vector2.Zero));return issues;
+    }
+
     public static IReadOnlyList<AuthoringValidationIssue> Validate(AuthoredBuildingData authored)
     {
         List<AuthoringValidationIssue> issues=[];

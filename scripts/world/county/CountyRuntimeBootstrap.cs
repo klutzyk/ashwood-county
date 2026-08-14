@@ -39,6 +39,8 @@ public partial class CountyRuntimeBootstrap : Node
             root.AddChild(new InteriorVerticalSliceValidation{Name="InteriorVerticalSliceValidation"});
         if(root.GetNodeOrNull<AuthoredWorldObjectSystem>("AuthoredWorldObjectSystem") is null)
             root.AddChild(new AuthoredWorldObjectSystem{Name="AuthoredWorldObjectSystem"});
+        if(root.GetNodeOrNull<AuthoredLandscapeSystem>("AuthoredLandscapeSystem") is null)
+            root.AddChild(new AuthoredLandscapeSystem{Name="AuthoredLandscapeSystem"});
         if(AuthoringSessionState.IsPlaytesting&&root.GetNodeOrNull<AuthoringPlaytestController>("AuthoringPlaytestController") is null)
             root.AddChild(new AuthoringPlaytestController{Name="AuthoringPlaytestController"});
     }

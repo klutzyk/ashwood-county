@@ -32,7 +32,7 @@ public static class AuthoringAssetCatalog
             string path="res://"+normalized[(marker+1)..];
             string category=CategoryFor(path);
             string subcategory=SubcategoryFor(path);
-            string name=System.IO.Path.GetFileNameWithoutExtension(path).Replace('_',' ');
+            string name=Title(System.IO.Path.GetFileNameWithoutExtension(path));
             float scale=path.Contains("/interiors/")?1f:path.Contains("/buildings/")?.42f:path.Contains("/vehicles/")?.48f:.55f;
             bool collision=category=="Buildings"||path.Contains("/trees/")||path.Contains("/rocks/")||IsLargeInterior(path);
             result.Add(new AuthoringAssetEntry(path,name,category,subcategory,scale,collision));

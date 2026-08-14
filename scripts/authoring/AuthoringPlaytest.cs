@@ -17,6 +17,10 @@ public static class AuthoringSessionState
     public static Vector2 Center { get; set; } = new(220,155);
     public static int Radius { get; set; } = 1;
     public static bool ReturnToInterior { get; set; }
+    public static string SelectionKind { get; set; } = string.Empty;
+    public static string SelectionId { get; set; } = string.Empty;
+    public static AuthoringTool ActiveTool { get; set; } = AuthoringTool.Select;
+    public static float Zoom { get; set; } = .52f;
     public static bool AutomatedPlaytestStarted { get; set; }
     public static bool AutomatedPlaytestReturned { get; set; }
     public static bool AutomatedPlaytestPassed { get; set; }
