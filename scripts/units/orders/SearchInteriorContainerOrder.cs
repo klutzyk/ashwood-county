@@ -1,8 +1,9 @@
 #nullable enable
 
+using System.Collections.Generic;
 using System.Linq;
 using AshwoodCounty.Buildings.Interiors;
-using AshwoodCounty.Resources;
+using AshwoodCounty.Items;
 using AshwoodCounty.UI;
 using Godot;
 
@@ -41,12 +42,11 @@ public sealed class SearchInteriorContainerOrder(InteriorContainerRuntime contai
         _elapsed += (float)delta * survivor.WorkSpeedMultiplier * survivor.SkillMultiplier(SurvivorSkill.Scavenging);
         container.ReportProgress(_survivorId, _elapsed / Mathf.Max(.1f, container.SearchDuration));
         if (_elapsed < container.SearchDuration) return;
-        SettlementInventory? inventory = survivor.GetTree().GetFirstNodeInGroup(SettlementInventory.GroupName) as SettlementInventory;
-        if (inventory is null) { Complete(); return; }
-        var found = container.CompleteSearch(_survivorId, inventory);
-        survivor.GainSkillExperience(SurvivorSkill.Scavenging, 3f + found.Sum(stack => stack.Amount));
-        string result = found.Count == 0 ? "Nothing useful" : string.Join("  •  ", found.Select(stack => $"{stack.Resource} +{stack.Amount}"));
+        IReadOnlyList<ItemStack> found = container.CompleteSearch(_survivorId);
+        survivor.GainSkillExperience(SurvivorSkill.Scavenging, 3f + found.Sum(stack => stack.Quantity));
+        string result = found.Count == 0 ? "Nothing useful" : string.Join("  -  ", found.Select(stack => $"{ItemCatalog.Get(stack.ItemId).DisplayName} x{stack.Quantity}"));
         (survivor.GetTree().GetFirstNodeInGroup(GameHud.GroupName) as GameHud)?.Notify($"{container.DisplayName.ToUpperInvariant()} SEARCHED\n{result}");
+        (survivor.GetTree().GetFirstNodeInGroup(GameHud.GroupName) as GameHud)?.ShowContainerLoot(container, survivor);
         _claimed = false;
         IsComplete = true;
     }

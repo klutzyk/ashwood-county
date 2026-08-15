@@ -31,7 +31,13 @@ building definition rather than a decoration. Select it and choose
   approach, interaction and arrival points.
 - Interior art can be placed as furniture, a container or a bed. Large assets
   default to blocking; clutter defaults to non-blocking and can be overridden.
-- Container presets use the normal Food, Materials and Medicine economy.
+- Container presets (LOOT TABLE dropdown) roll real itemized loot -
+  canned food, medical supplies, tools, materials, weapons and equipment -
+  from curated per-archetype tables in `AshwoodCounty.Items.ItemLootPresets`.
+  Consumable/junk items still contribute to the Food/Materials/Medicine
+  economy once a survivor deposits them at a stockpile (see
+  `docs/item_resource_relationship.md`); tools, weapons and equipment remain
+  real stored items.
 - The translucent exterior footprint and survivor-sized silhouette remain
   visible while editing.
 

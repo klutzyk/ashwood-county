@@ -30,6 +30,14 @@ public partial class SurvivorSelectionController : CanvasLayer
     public int SelectedCount => _selectedSurvivors.Count;
     public IReadOnlyList<Survivor> SelectedSurvivors => _selectedSurvivors;
 
+    /// <summary>Test-only selection hook for the ASHWOOD_VALIDATE_* automated validation scripts; not used by normal input handling.</summary>
+    internal void DebugSelectOnly(Survivor survivor)
+    {
+        foreach (Survivor previous in _selectedSurvivors) previous.SetSelected(false);
+        _selectedSurvivors.Clear();
+        SetSurvivorSelected(survivor, true);
+    }
+
     public override void _Ready()
     {
         _world = GetNode<IsometricWorld>("../World");

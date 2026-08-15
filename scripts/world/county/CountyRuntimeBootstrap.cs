@@ -37,6 +37,8 @@ public partial class CountyRuntimeBootstrap : Node
             root.AddChild(new InteriorContextHud{Name="InteriorContextHud"});
         if(root.GetNodeOrNull<InteriorVerticalSliceValidation>("InteriorVerticalSliceValidation") is null)
             root.AddChild(new InteriorVerticalSliceValidation{Name="InteriorVerticalSliceValidation"});
+        if(root.GetNodeOrNull<ItemVerticalSliceValidation>("ItemVerticalSliceValidation") is null)
+            root.AddChild(new ItemVerticalSliceValidation{Name="ItemVerticalSliceValidation"});
         if(root.GetNodeOrNull<AuthoredWorldObjectSystem>("AuthoredWorldObjectSystem") is null)
             root.AddChild(new AuthoredWorldObjectSystem{Name="AuthoredWorldObjectSystem"});
         if(root.GetNodeOrNull<AuthoredLandscapeSystem>("AuthoredLandscapeSystem") is null)

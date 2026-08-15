@@ -2,7 +2,7 @@
 
 using System;
 using System.Collections.Generic;
-using AshwoodCounty.Resources;
+using AshwoodCounty.Items;
 using AshwoodCounty.UI;
 using AshwoodCounty.Units;
 using AshwoodCounty.World;
@@ -91,6 +91,7 @@ public partial class InteriorContainerRuntime : Node2D, IInteriorInteractable
     public bool IsSearched => _state.Searched;
     public bool IsClaimed => _claimingSurvivor != 0;
     public float SearchProgress => _state.SearchProgress;
+    public IReadOnlyList<ItemStack> RemainingLoot => _state.RemainingLoot;
 
     public void Initialize(ContainerDefinition definition, ContainerRuntimeState state, InteriorBuildingRuntime building)
     {
@@ -118,23 +119,52 @@ public partial class InteriorContainerRuntime : Node2D, IInteriorInteractable
         QueueRedraw();
     }
 
-    public IReadOnlyList<LootStack> CompleteSearch(ulong survivorId, SettlementInventory inventory)
+    /// <summary>
+    /// Reveals this container's contents. Rolled exactly once, on first
+    /// completion, from a seed stable across the building+container id; a
+    /// second search (or a chunk unload/reload in between) never rerolls it.
+    /// Does NOT transfer anything into the survivor's inventory; that is a
+    /// separate, player-driven step via <see cref="TakeItem"/>/<see cref="TakeAll"/>
+    /// so a player can take some items and leave the rest for later.
+    /// </summary>
+    public IReadOnlyList<ItemStack> CompleteSearch(ulong survivorId)
     {
-        if (_claimingSurvivor != survivorId || IsSearched) return [];
+        if (_claimingSurvivor != survivorId || IsSearched) return _state.RemainingLoot;
         if (_state.RemainingLoot.Count == 0)
         {
             ulong seed = StableSeed(_building.Definition.Id + ":" + _definition.Id);
-            _state.RemainingLoot.AddRange(_definition.LootTable.Roll(seed));
+            _state.RemainingLoot.AddRange(_definition.ItemLootTable.Roll(seed));
         }
-        List<LootStack> found = [.. _state.RemainingLoot];
-        foreach (LootStack stack in found) inventory.Add(stack.Resource, stack.Amount);
-        _state.RemainingLoot.Clear();
         _state.Searched = true;
         _state.SearchProgress = 1;
         _claimingSurvivor = 0;
         _building.NotifyStateChanged();
         QueueRedraw();
-        return found;
+        return _state.RemainingLoot;
+    }
+
+    /// <summary>Moves up to <paramref name="quantity"/> of one revealed item into a survivor's inventory. Returns the amount actually taken (may be less, e.g. if the survivor is near capacity).</summary>
+    public int TakeItem(string itemId, int quantity, SurvivorInventory into)
+    {
+        if (quantity <= 0) return 0;
+        int index = _state.RemainingLoot.FindIndex(stack => stack.ItemId == itemId);
+        if (index < 0) return 0;
+        int available = _state.RemainingLoot[index].Quantity;
+        int added = into.TryAdd(itemId, Mathf.Min(quantity, available));
+        if (added <= 0) return 0;
+        int left = available - added;
+        if (left <= 0) _state.RemainingLoot.RemoveAt(index);
+        else _state.RemainingLoot[index] = _state.RemainingLoot[index] with { Quantity = left };
+        _building.NotifyStateChanged();
+        return added;
+    }
+
+    /// <summary>Takes as much of every remaining stack as the survivor can carry. Whatever does not fit stays in the container.</summary>
+    public int TakeAll(SurvivorInventory into)
+    {
+        int totalTaken = 0;
+        foreach (ItemStack stack in _state.RemainingLoot.ToArray()) totalTaken += TakeItem(stack.ItemId, stack.Quantity, into);
+        return totalTaken;
     }
 
     public void ReleaseClaim(ulong survivorId)

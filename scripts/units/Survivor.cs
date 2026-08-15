@@ -1,5 +1,6 @@
 using System.Linq;
 using AshwoodCounty.Buildings;
+using AshwoodCounty.Items;
 using AshwoodCounty.Jobs;
 using AshwoodCounty.Resources;
 using AshwoodCounty.Units.Orders;
@@ -47,6 +48,7 @@ public partial class Survivor : Node2D
     [Export] public float AutoDefenseRange { get; set; } = 2.2f;
     [Export] public float Energy { get; set; } = 100.0f;
     [Export] public float Morale { get; set; } = 72.0f;
+    [Export] public float BaseCarryCapacityKg { get; set; } = 20.0f;
 
     private CanvasItem _selectionIndicator = null!;
     private CanvasItem _visual = null!;
@@ -71,6 +73,7 @@ public partial class Survivor : Node2D
     public bool IsAlive => !_dead;
     public float Health => _health;
     public SurvivorProfile Profile { get; private set; } = new();
+    public SurvivorInventory Inventory { get; private set; } = new();
     public bool NeedsMeal => Hunger <= HungryThreshold;
     public bool IsCriticallyHungry => Hunger <= CriticalHungerThreshold;
     public float WorkSpeedMultiplier => (IsCriticallyHungry ? .65f : NeedsMeal ? .85f : 1.0f) * Mathf.Lerp(.65f, 1.05f, Energy / 100f);
@@ -103,6 +106,7 @@ public partial class Survivor : Node2D
         AddToGroup(GroupName);
         int profileIndex = int.TryParse(new string(Name.ToString().Where(char.IsDigit).ToArray()), out int parsed) ? Mathf.Max(0, parsed - 1) : GetIndex();
         Profile = SurvivorProfile.ForIndex(profileIndex);
+        Inventory.BaseCapacityKg = BaseCarryCapacityKg;
         _health = MaxHealth;
         _selectionIndicator = GetNode<CanvasItem>("SelectionIndicator");
         _visual = GetNode<CanvasItem>("Visual");
@@ -189,6 +193,19 @@ public partial class Survivor : Node2D
     public void IssueDoorOrder(InteriorDoorRuntime door) => AssignOrder(new UseInteriorDoorOrder(door), false);
     public void IssueAutonomousTreatOrder(Survivor patient, SettlementInventory inventory) => AssignOrder(new TreatOrder(patient, inventory, (target, amount) => target.ReceiveTreatment(amount)), true);
     public void ReceiveTreatment(float amount) { if (!_dead) { _health = Mathf.Min(MaxHealth, _health + Mathf.Max(0, amount)); RefreshVisual(); } }
+
+    /// <summary>Consumes one unit of a carried usable item (food restores Hunger, medical restores Health). Instant; no travel required since the item is already carried.</summary>
+    public bool UseItem(string itemId)
+    {
+        if (!ItemCatalog.TryGet(itemId, out ItemDefinition definition) || !definition.Usable || _dead) return false;
+        if (!Inventory.TryRemove(itemId, 1)) return false;
+        if (definition.NutritionValue > 0) Hunger = Mathf.Min(100, Hunger + definition.NutritionValue);
+        if (definition.HealValue > 0) { _health = Mathf.Min(MaxHealth, _health + definition.HealValue); RefreshVisual(); }
+        return true;
+    }
+
+    public bool EquipItem(string itemId) => Inventory.Equip(itemId);
+    public bool UnequipSlot(EquipmentSlot slot) => Inventory.Unequip(slot);
 
     public bool MoveTowardsGridPosition(Vector2 destination, double delta)
     {
