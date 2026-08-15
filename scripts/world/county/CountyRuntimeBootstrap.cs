@@ -35,10 +35,16 @@ public partial class CountyRuntimeBootstrap : Node
             root.AddChild(new InteriorBuildingSystem{Name="InteriorBuildingSystem"});
         if(root.GetNodeOrNull<InteriorContextHud>("InteriorContextHud") is null)
             root.AddChild(new InteriorContextHud{Name="InteriorContextHud"});
+        if(root.GetNodeOrNull<InteractableHoverController>("InteractableHoverController") is null)
+            root.AddChild(new InteractableHoverController{Name="InteractableHoverController"});
+        if(root.GetNodeOrNull<SearchProgressOverlay>("SearchProgressOverlay") is null)
+            root.AddChild(new SearchProgressOverlay{Name="SearchProgressOverlay"});
         if(root.GetNodeOrNull<InteriorVerticalSliceValidation>("InteriorVerticalSliceValidation") is null)
             root.AddChild(new InteriorVerticalSliceValidation{Name="InteriorVerticalSliceValidation"});
         if(root.GetNodeOrNull<ItemVerticalSliceValidation>("ItemVerticalSliceValidation") is null)
             root.AddChild(new ItemVerticalSliceValidation{Name="ItemVerticalSliceValidation"});
+        if(root.GetNodeOrNull<ScavengeInteractionValidation>("ScavengeInteractionValidation") is null)
+            root.AddChild(new ScavengeInteractionValidation{Name="ScavengeInteractionValidation"});
         if(root.GetNodeOrNull<AuthoredWorldObjectSystem>("AuthoredWorldObjectSystem") is null)
             root.AddChild(new AuthoredWorldObjectSystem{Name="AuthoredWorldObjectSystem"});
         if(root.GetNodeOrNull<AuthoredLandscapeSystem>("AuthoredLandscapeSystem") is null)

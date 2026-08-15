@@ -78,11 +78,15 @@ public partial class InteriorDoorRuntime : Node2D, IInteriorInteractable
 public partial class InteriorContainerRuntime : Node2D, IInteriorInteractable
 {
     public const string GroupName = "interior_containers";
+    private const float UnsearchedGlow = 0.30f;
+    private const float HoveredGlow = 0.62f;
     private ContainerDefinition _definition = null!;
     private ContainerRuntimeState _state = null!;
     private InteriorBuildingRuntime _building = null!;
     private Texture2D _texture = null!;
+    private Sprite2D _glowSprite = null!;
     private ulong _claimingSurvivor;
+    private bool _isHovered;
 
     public string Id => _definition.Id;
     public string DisplayName => _definition.DisplayName;
@@ -90,8 +94,20 @@ public partial class InteriorContainerRuntime : Node2D, IInteriorInteractable
     public float SearchDuration => _definition.SearchDuration;
     public bool IsSearched => _state.Searched;
     public bool IsClaimed => _claimingSurvivor != 0;
+    public bool IsHovered
+    {
+        get => _isHovered;
+        set
+        {
+            _isHovered = value;
+            QueueRedraw();
+            ApplyGlow(IsSearched ? 0f : IsHovered ? HoveredGlow : UnsearchedGlow);
+        }
+    }
     public float SearchProgress => _state.SearchProgress;
     public IReadOnlyList<ItemStack> RemainingLoot => _state.RemainingLoot;
+    public float GlowStrength { get; private set; }
+    public float ScreenDrawnHeight => GetDrawnSize().Y * Mathf.Abs(GetGlobalTransformWithCanvas().Scale.Y);
 
     public void Initialize(ContainerDefinition definition, ContainerRuntimeState state, InteriorBuildingRuntime building)
     {
@@ -101,6 +117,22 @@ public partial class InteriorContainerRuntime : Node2D, IInteriorInteractable
         _texture = TextureRegistry.Get(definition.TexturePath);
         Position = IsometricGrid.GridToScreen(definition.Position);
         ZIndex = 0;
+        ShaderMaterial glowMaterial = new()
+        {
+            Shader = GD.Load<Shader>("res://assets/shaders/searchable_glow.gdshader")
+        };
+        glowMaterial.SetShaderParameter("glow_tex", _texture);
+        float scale = _definition.TargetHeight / Mathf.Max(1f, _texture.GetHeight());
+        _glowSprite = new Sprite2D
+        {
+            Texture = _texture,
+            Centered = true,
+            Offset = new Vector2(0f, -_texture.GetHeight() * 0.5f),
+            Scale = new Vector2(scale, scale),
+            Material = glowMaterial
+        };
+        AddChild(_glowSprite);
+        ApplyGlow(UnsearchedGlow);
     }
 
     public override void _Ready() { AddToGroup(GroupName); QueueRedraw(); }
@@ -138,6 +170,7 @@ public partial class InteriorContainerRuntime : Node2D, IInteriorInteractable
         _state.Searched = true;
         _state.SearchProgress = 1;
         _claimingSurvivor = 0;
+        ApplyGlow(0f);
         _building.NotifyStateChanged();
         QueueRedraw();
         return _state.RemainingLoot;
@@ -175,19 +208,36 @@ public partial class InteriorContainerRuntime : Node2D, IInteriorInteractable
     public bool ContainsScreenPoint(Vector2 screenPoint)
     {
         Vector2 local = GetGlobalTransformWithCanvas().AffineInverse() * screenPoint;
-        return new Rect2(-45,-112,90,120).HasPoint(local);
+        Vector2 size = GetDrawnSize();
+        float padX = Mathf.Max(10f, size.X * .08f);
+        float padY = Mathf.Max(8f, size.Y * .06f);
+        Rect2 bounds = new(-size.X * .5f - padX, -size.Y - padY, size.X + padX * 2f, size.Y + padY + 12f);
+        return bounds.HasPoint(local);
     }
 
     public override void _Draw()
     {
-        float scale = _definition.TargetHeight / Mathf.Max(1,_texture.GetHeight());
-        Vector2 size = _texture.GetSize()*scale;
+        Vector2 size = GetDrawnSize();
         DrawTextureRect(_texture,new Rect2(-size.X*.5f,-size.Y,size.X,size.Y),false,IsSearched?new Color(.65f,.65f,.61f,.82f):Colors.White);
         if (IsClaimed && !IsSearched)
         {
-            DrawRect(new Rect2(-24,5,48,4),new Color(.08f,.09f,.07f,.82f));
-            DrawRect(new Rect2(-24,5,48*_state.SearchProgress,4),new Color("c8a45d"));
+            float pulse = 0.5f + 0.5f * Mathf.Sin((float)Time.GetTicksMsec() / 220.0f);
+            DrawRect(new Rect2(-size.X * .5f, -size.Y, size.X, size.Y), new Color(1f, 1f, 1f, 0.025f + 0.03f * pulse));
         }
+    }
+
+    private Vector2 GetDrawnSize()
+    {
+        float scale = _definition.TargetHeight / Mathf.Max(1, _texture.GetHeight());
+        return _texture.GetSize() * scale;
+    }
+
+    private void ApplyGlow(float strength)
+    {
+        GlowStrength = strength;
+        if (_glowSprite is null) return;
+        _glowSprite.Visible = strength > 0.01f;
+        ((ShaderMaterial)_glowSprite.Material).SetShaderParameter("glow_strength", strength);
     }
 
     private static ulong StableSeed(string text)

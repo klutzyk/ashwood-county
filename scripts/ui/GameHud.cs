@@ -66,6 +66,7 @@ public partial class GameHud : CanvasLayer
 
     private PanelContainer _lootPanel = null!;
     private Label _lootTitle = null!;
+    private Label _lootWeight = null!;
     private VBoxContainer _lootRows = null!;
     private InteriorContainerRuntime? _lootContainer;
     private Survivor? _lootSurvivor;
@@ -661,9 +662,10 @@ public partial class GameHud : CanvasLayer
 
     private Control BuildContainerLootPanel()
     {
-        _lootPanel = Panel("HudSurvivorPanel", new Vector2(300, 0));
+        _lootPanel = Panel("HudSurvivorPanel", new Vector2(320, 0));
         _lootPanel.Visible = false;
         VBoxContainer rows = Layout<VBoxContainer>();
+        rows.AddThemeConstantOverride("separation", 6);
         _lootPanel.AddChild(rows);
 
         HBoxContainer header = Layout<HBoxContainer>();
@@ -675,9 +677,13 @@ public partial class GameHud : CanvasLayer
         close.Pressed += CloseLootPanel;
         header.AddChild(close);
         rows.AddChild(header);
+
+        _lootWeight = Text("", "HudTiny");
+        rows.AddChild(_lootWeight);
         rows.AddChild(Separator(false));
 
         _lootRows = Layout<VBoxContainer>();
+        _lootRows.AddThemeConstantOverride("separation", 4);
         rows.AddChild(_lootRows);
         rows.AddChild(Separator(false));
 
@@ -702,6 +708,8 @@ public partial class GameHud : CanvasLayer
         _lootSurvivor = survivor;
         _lootTitle.Text = container.DisplayName.ToUpperInvariant();
         _lootPanel.Visible = true;
+        _lootPanel.Modulate = new Color(1, 1, 1, 0);
+        _lootPanel.CreateTween().TweenProperty(_lootPanel, "modulate:a", 1f, 0.18f);
         RefreshLootPanel();
     }
 
@@ -721,9 +729,12 @@ public partial class GameHud : CanvasLayer
         }
 
         foreach (Node child in _lootRows.GetChildren()) child.QueueFree();
+        _lootWeight.Text = $"CARRIED  {_lootSurvivor.Inventory.CurrentWeightKg:0.0} / {_lootSurvivor.Inventory.TotalCapacityKg:0.0} KG";
         if (_lootContainer.RemainingLoot.Count == 0)
         {
-            Label empty = Text("Nothing left here.", "HudMuted");
+            Label empty = Text("Nothing useful found.", "HudMuted");
+            empty.HorizontalAlignment = HorizontalAlignment.Center;
+            empty.CustomMinimumSize = new Vector2(0, 28);
             _lootRows.AddChild(empty);
             return;
         }
@@ -733,15 +744,16 @@ public partial class GameHud : CanvasLayer
         {
             ItemDefinition definition = ItemCatalog.Get(stack.ItemId);
             HBoxContainer row = Layout<HBoxContainer>();
-            row.AddChild(ItemIcon(definition.IconPath, 22));
+            row.AddChild(ItemIcon(definition.IconPath, 36));
             Label name = Text(definition.DisplayName, "HudMuted");
             name.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
             row.AddChild(name);
             Label qty = Text($"x{stack.Quantity}", "HudTiny");
-            qty.CustomMinimumSize = new Vector2(26, 0);
+            qty.CustomMinimumSize = new Vector2(30, 0);
+            qty.HorizontalAlignment = HorizontalAlignment.Right;
             row.AddChild(qty);
             Button take = HudButton("TAKE", "HudActionButton");
-            take.CustomMinimumSize = new Vector2(50, 22);
+            take.CustomMinimumSize = new Vector2(54, 24);
             string itemId = stack.ItemId;
             take.Pressed += () =>
             {

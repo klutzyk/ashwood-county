@@ -83,11 +83,11 @@ public partial class Survivor : Node2D
         SurvivorOrderType.HarvestResource => CarriedAmount > 0 ? "Carrying / Delivering" : "Chopping",
         SurvivorOrderType.Build => "Building",
         SurvivorOrderType.Eat => "Eating",
-        SurvivorOrderType.Scavenge => CarriedAmount > 0 ? "Delivering salvage" : "Scavenging",
+        SurvivorOrderType.Scavenge => CarriedAmount > 0 ? "Delivering salvage" : IsMoving ? "Moving to scavenge" : "Scavenging",
         SurvivorOrderType.Rest => "Resting",
         SurvivorOrderType.Treat => "Providing treatment",
         SurvivorOrderType.AttackZombie => "Fighting",
-        SurvivorOrderType.SearchContainer => "Searching a container",
+        SurvivorOrderType.SearchContainer => IsMoving ? "Moving to search" : "Searching a container",
         SurvivorOrderType.UseBed => "Resting in bed",
         SurvivorOrderType.UseDoor => "Using a door",
         _ when _dead => "Dead",
@@ -185,6 +185,11 @@ public partial class Survivor : Node2D
     public void IssueAutonomousScavengeOrder(ScavengeSource target, Stockpile stockpile, Vector2 interactionPosition, Vector2 deliveryPosition)
     {
         AssignOrder(new ScavengeOrder(target, stockpile, interactionPosition, deliveryPosition), true);
+    }
+
+    public void IssueScavengeOrder(ScavengeSource target, Stockpile stockpile, Vector2 interactionPosition, Vector2 deliveryPosition)
+    {
+        AssignOrder(new ScavengeOrder(target, stockpile, interactionPosition, deliveryPosition, notifyOnComplete: true), false);
     }
 
     public void IssueAutonomousRestOrder(CompletedBuilding shelter) => AssignOrder(new RestOrder(shelter), true);

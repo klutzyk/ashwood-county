@@ -192,20 +192,60 @@ public partial class SurvivorSelectionController : CanvasLayer
             return;
         }
 
-        if (_selectedSurvivors.Count == 0)
-        {
-            return;
-        }
-
         InteriorContainerRuntime container = GetTree().GetNodesInGroup(InteriorContainerRuntime.GroupName)
             .OfType<InteriorContainerRuntime>().Where(item => item.Visible && item.ContainsScreenPoint(screenPosition))
             .OrderBy(item => item.Position.Y).LastOrDefault();
         if (container is not null)
         {
             if (container.IsSearched)
-                (GetTree().GetFirstNodeInGroup(GameHud.GroupName) as GameHud)?.Notify($"{container.DisplayName.ToUpperInvariant()}\nAlready searched");
+            {
+                Notify($"{container.DisplayName.ToUpperInvariant()}\nAlready searched");
+            }
+            else if (container.IsClaimed)
+            {
+                Notify($"{container.DisplayName.ToUpperInvariant()}\nAlready being searched");
+            }
             else
-                _selectedSurvivors.Where(s => s.IsAlive).MinBy(s => s.SimulationPosition.DistanceSquaredTo(container.InteractionPosition))?.IssueSearchContainerOrder(container);
+            {
+                Survivor searcher = _selectedSurvivors.Where(s => s.IsAlive)
+                    .MinBy(s => s.SimulationPosition.DistanceSquaredTo(container.InteractionPosition))!;
+                if (searcher is null) Notify("SELECT A SURVIVOR\nRight-click a container to search it");
+                else searcher.IssueSearchContainerOrder(container);
+            }
+            return;
+        }
+
+        ScavengeSource scavengeTarget = GetScavengeSources()
+            .Where(source => source.Visible && source.ContainsScreenPoint(screenPosition))
+            .OrderBy(source => source.Position.Y)
+            .LastOrDefault();
+        if (scavengeTarget is not null)
+        {
+            if (scavengeTarget.IsDepleted)
+            {
+                Notify($"{HumanizeName(scavengeTarget.ResolvedDisplayName).ToUpperInvariant()}\nAlready cleared");
+            }
+            else if (_selectedSurvivors.Count == 0)
+            {
+                Notify("SELECT A SURVIVOR\nRight-click salvage to search it");
+            }
+            else if (scavengeTarget.IsClaimed)
+            {
+                Notify($"{HumanizeName(scavengeTarget.ResolvedDisplayName).ToUpperInvariant()}\nAlready being searched");
+            }
+            else
+            {
+                if (!scavengeTarget.IsDesignatedForScavenging) scavengeTarget.SetScavengeDesignated(true);
+                Survivor searcher = _selectedSurvivors.Where(s => s.IsAlive)
+                    .MinBy(s => s.SimulationPosition.DistanceSquaredTo(scavengeTarget.WorldPosition))!;
+                if (searcher is not null)
+                    searcher.IssueScavengeOrder(scavengeTarget, _stockpile, scavengeTarget.GetInteractionPosition(), _stockpile.GetInteractionPosition(0, 1));
+            }
+            return;
+        }
+
+        if (_selectedSurvivors.Count == 0)
+        {
             return;
         }
 
@@ -360,6 +400,21 @@ public partial class SurvivorSelectionController : CanvasLayer
             }
         }
     }
+
+    private IEnumerable<ScavengeSource> GetScavengeSources()
+    {
+        foreach (Node node in GetTree().GetNodesInGroup(ScavengeSource.GroupName))
+        {
+            if (node is ScavengeSource source)
+            {
+                yield return source;
+            }
+        }
+    }
+
+    private void Notify(string message) => (GetTree().GetFirstNodeInGroup(GameHud.GroupName) as GameHud)?.Notify(message);
+
+    private static string HumanizeName(string name) => System.Text.RegularExpressions.Regex.Replace(name, "([a-z])([A-Z])", "$1 $2");
 
     private static Rect2 MakeScreenRect(Vector2 start, Vector2 end)
     {

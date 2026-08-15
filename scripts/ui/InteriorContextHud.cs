@@ -58,6 +58,6 @@ public partial class InteriorContextHud : CanvasLayer
             .OfType<InteriorBuildingRuntime>().FirstOrDefault(candidate => candidate.Definition.Footprint.Grow(.35f).HasPoint(mouseGrid));
         _panel.Visible = building is not null;
         if (building is not null)
-            _label.Text = building.ContextSummary() + "\nRIGHT-CLICK DOORS, CONTAINERS OR BEDS";
+            _label.Text = building.ContextSummary();
     }
 }
