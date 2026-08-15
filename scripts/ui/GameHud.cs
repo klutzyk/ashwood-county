@@ -41,6 +41,7 @@ public partial class GameHud : CanvasLayer
     private readonly Dictionary<WorkCategory, Dictionary<WorkPriority, Button>> _priorityButtons = [];
 
     private Label _time = null!;
+    private Label _phase = null!;
     private Label _simulationState = null!;
     private Label _survivorName = null!;
     private Label _survivorMeta = null!;
@@ -60,6 +61,8 @@ public partial class GameHud : CanvasLayer
     private Label _inventoryWeight = null!;
     private Label _inventoryWeapon = null!;
     private Label _inventoryBackpack = null!;
+    private Label _inventoryLight = null!;
+    private Button _unequipLight = null!;
     private Button _unequipWeapon = null!;
     private Button _unequipBackpack = null!;
     private VBoxContainer _inventoryRows = null!;
@@ -70,6 +73,8 @@ public partial class GameHud : CanvasLayer
     private VBoxContainer _lootRows = null!;
     private InteriorContainerRuntime? _lootContainer;
     private Survivor? _lootSurvivor;
+    private string _lastLootSignature = "";
+    private string _lastInventorySignature = "";
 
     public override void _Ready()
     {
@@ -150,9 +155,12 @@ public partial class GameHud : CanvasLayer
         clock.TooltipText = "County day, local time, and current simulation speed.";
         _time = Text("DAY 1  09:00", "HudHeading");
         _time.HorizontalAlignment = HorizontalAlignment.Right;
+        _phase = Text("DAY", "HudTiny");
+        _phase.HorizontalAlignment = HorizontalAlignment.Right;
         _simulationState = Text("1x", "HudTiny");
         _simulationState.HorizontalAlignment = HorizontalAlignment.Right;
         clock.AddChild(_time);
+        clock.AddChild(_phase);
         clock.AddChild(_simulationState);
         bar.AddChild(clock);
 
@@ -399,6 +407,7 @@ public partial class GameHud : CanvasLayer
 
         content.AddChild(EquippedRow("WEAPON", out _inventoryWeapon, out _unequipWeapon, EquipmentSlot.Weapon));
         content.AddChild(EquippedRow("BACKPACK", out _inventoryBackpack, out _unequipBackpack, EquipmentSlot.Backpack));
+        content.AddChild(EquippedRow("LIGHT", out _inventoryLight, out _unequipLight, EquipmentSlot.Light));
         content.AddChild(Separator(false));
 
         _inventoryRows = Layout<VBoxContainer>();
@@ -718,6 +727,7 @@ public partial class GameHud : CanvasLayer
         _lootPanel.Visible = false;
         _lootContainer = null;
         _lootSurvivor = null;
+        _lastLootSignature = "";
     }
 
     private void RefreshLootPanel()
@@ -728,8 +738,22 @@ public partial class GameHud : CanvasLayer
             return;
         }
 
-        foreach (Node child in _lootRows.GetChildren()) child.QueueFree();
         _lootWeight.Text = $"CARRIED  {_lootSurvivor.Inventory.CurrentWeightKg:0.0} / {_lootSurvivor.Inventory.TotalCapacityKg:0.0} KG";
+
+        // Rows are only rebuilt when the revealed contents actually change.
+        // Rebuilding every refresh destroys the buttons under the cursor before
+        // a click can register, which made hover flicker and clicks fail.
+        string signature = $"{_lootContainer.Id}|{_lootSurvivor.GetInstanceId()}|"
+            + string.Join(",", _lootContainer.RemainingLoot.Select(stack => $"{stack.ItemId}x{stack.Quantity}"));
+        if (signature == _lastLootSignature) return;
+        _lastLootSignature = signature;
+        RebuildLootRows();
+    }
+
+    private void RebuildLootRows()
+    {
+        if (_lootContainer is null || _lootSurvivor is null) return;
+        foreach (Node child in _lootRows.GetChildren()) child.QueueFree();
         if (_lootContainer.RemainingLoot.Count == 0)
         {
             Label empty = Text("Nothing useful found.", "HudMuted");
@@ -791,6 +815,22 @@ public partial class GameHud : CanvasLayer
         _ => "Misc"
     };
 
+    private static string PhaseLabel(TimeOfDay phase) => phase switch
+    {
+        TimeOfDay.Dawn => "DAWN",
+        TimeOfDay.Day => "DAY",
+        TimeOfDay.Dusk => "DUSK",
+        _ => "NIGHT"
+    };
+
+    private static Color PhaseColor(TimeOfDay phase) => phase switch
+    {
+        TimeOfDay.Dawn => new Color("#e7b06a"),
+        TimeOfDay.Day => new Color("#c6d0a9"),
+        TimeOfDay.Dusk => new Color("#e08748"),
+        _ => new Color("#8fa4c9")
+    };
+
     public override void _Process(double delta)
     {
         if (_toastRemaining > 0)
@@ -809,6 +849,9 @@ public partial class GameHud : CanvasLayer
         }
 
         _time.Text = _clock.DisplayTime.ToUpperInvariant();
+        TimeOfDay timeOfDay = SurvivalCycle.Active?.Phase ?? TimeOfDay.Day;
+        _phase.Text = PhaseLabel(timeOfDay);
+        _phase.AddThemeColorOverride("font_color", PhaseColor(timeOfDay));
         _simulationState.Text = _simulation.IsPaused ? "PAUSED" : $"{_simulation.Speed}x SPEED";
         RefreshActionHint();
         RefreshSelection();
@@ -893,7 +936,20 @@ public partial class GameHud : CanvasLayer
 
         SetEquippedRow(inventory.EquippedWeaponId, _inventoryWeapon, _unequipWeapon);
         SetEquippedRow(inventory.EquippedBackpackId, _inventoryBackpack, _unequipBackpack);
+        SetEquippedRow(inventory.EquippedLightId, _inventoryLight, _unequipLight);
 
+        // Same stability rule as the loot panel: only rebuild item rows when the
+        // carried contents or equipped gear actually changed.
+        string signature = $"{survivor.GetInstanceId()}|{inventory.EquippedWeaponId}|{inventory.EquippedBackpackId}|{inventory.EquippedLightId}|{inventory.CurrentWeightKg:0.00}|"
+            + string.Join(",", inventory.Items.OrderBy(stack => stack.ItemId).Select(stack => $"{stack.ItemId}x{stack.Quantity}"));
+        if (signature == _lastInventorySignature) return;
+        _lastInventorySignature = signature;
+        RebuildInventoryRows(survivor);
+    }
+
+    private void RebuildInventoryRows(Survivor survivor)
+    {
+        SurvivorInventory inventory = survivor.Inventory;
         foreach (Node child in _inventoryRows.GetChildren()) child.QueueFree();
         if (inventory.Items.Count == 0)
         {
@@ -924,6 +980,7 @@ public partial class GameHud : CanvasLayer
         float clamped = Mathf.Clamp(value, 0, 100);
         _vitalBars[name].Value = clamped;
         _vitalValues[name].Text = $"{clamped:0}%";
+        _vitalBars[name].SelfModulate = clamped <= 30f ? new Color(1f, 0.62f, 0.42f) : Colors.White;
     }
 
     private static T Layout<T>() where T : Control, new()

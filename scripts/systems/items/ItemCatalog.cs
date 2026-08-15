@@ -58,7 +58,7 @@ public static class ItemCatalog
         new("duct_tape", "Duct Tape", "A roll of heavy-duty tape.", ItemCategory.Tool, .2f, 3, ["supply"], ResourceRelationship: new(ResourceType.Materials, 1)),
         new("electrical_tape", "Electrical Tape", "A roll of insulating tape.", ItemCategory.Tool, .15f, 3, ["supply"], ResourceRelationship: new(ResourceType.Materials, 1)),
         new("rope", "Rope", "A coil of sturdy rope.", ItemCategory.Tool, .8f, 2, ["supply"], ResourceRelationship: new(ResourceType.Materials, 1)),
-        new("flashlight", "Flashlight", "A battery-powered flashlight.", ItemCategory.Tool, .3f, 1, ["tool"]),
+        new("flashlight", "Flashlight", "A battery-powered flashlight.", ItemCategory.Tool, .3f, 1, ["tool"], Equippable: true, EquipmentSlot: EquipmentSlot.Light),
         new("batteries", "Batteries", "A pack of household batteries.", ItemCategory.Tool, .15f, 6, ["supply"], ResourceRelationship: new(ResourceType.Materials, 1)),
         new("zip_ties", "Zip Ties", "A bundle of cable ties.", ItemCategory.Tool, .1f, 5, ["supply"], ResourceRelationship: new(ResourceType.Materials, 1)),
         new("tarp", "Tarp", "A folded waterproof tarp.", ItemCategory.Tool, .9f, 2, ["supply"], ResourceRelationship: new(ResourceType.Materials, 1)),

@@ -1,7 +1,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using AshwoodCounty.Buildings;
+using AshwoodCounty.Items;
 using AshwoodCounty.Resources;
+using AshwoodCounty.Systems;
 using AshwoodCounty.Units;
 using Godot;
 
@@ -80,9 +82,15 @@ public partial class SettlementJobSystem : Node
 
     private void AssignIdleSurvivors()
     {
+        bool night = SurvivalCycle.IsNightActive();
         foreach (Survivor survivor in GetSurvivors().Where(unit => unit.IsAvailableForAutonomousWork))
         {
-            if (TryAssignEating(survivor) || TryAssignRest(survivor) || TryAssignTreatment(survivor) || TryAssignConstruction(survivor) || TryAssignScavenging(survivor) || TryAssignResource(survivor))
+            if (TryAssignEating(survivor) || TryAssignRest(survivor) || TryAssignTreatment(survivor))
+            {
+                continue;
+            }
+
+            if (!night && (TryAssignConstruction(survivor) || TryAssignScavenging(survivor) || TryAssignResource(survivor)))
             {
                 continue;
             }
@@ -117,8 +125,18 @@ public partial class SettlementJobSystem : Node
     private bool TryAssignEating(Survivor survivor)
     {
         ResolveStockpile();
-        if (!survivor.NeedsMeal || _stockpile is null || _inventory is null
-            || !_inventory.CanAfford(ResourceType.Food, 1)) return false;
+        if (!survivor.NeedsMeal) return false;
+
+        // Prefer an already-carried usable food item so scavenged food feeds
+        // the survivor directly instead of only being useful once deposited.
+        string carriedFood = survivor.Inventory.Items
+            .Where(stack => ItemCatalog.TryGet(stack.ItemId, out ItemDefinition definition)
+                && definition.Category == ItemCategory.Food && definition.Usable)
+            .Select(stack => stack.ItemId)
+            .FirstOrDefault()!;
+        if (carriedFood is not null && survivor.UseItem(carriedFood)) return true;
+
+        if (_stockpile is null || _inventory is null || !_inventory.CanAfford(ResourceType.Food, 1)) return false;
         _claimsBySurvivor[survivor.GetInstanceId()] = new SettlementJob(SettlementJobType.Eat, _stockpile);
         survivor.IssueAutonomousEatOrder(_inventory, _stockpile, _stockpile.GetInteractionPosition(0, 1));
         return true;

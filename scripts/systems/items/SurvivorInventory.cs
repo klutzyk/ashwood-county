@@ -21,6 +21,7 @@ public sealed class SurvivorInventory
     {
         [EquipmentSlot.Weapon] = null,
         [EquipmentSlot.Backpack] = null,
+        [EquipmentSlot.Light] = null,
     };
 
     public float BaseCapacityKg { get; set; } = 20f;
@@ -28,6 +29,7 @@ public sealed class SurvivorInventory
     public IReadOnlyList<ItemStack> Items => _items;
     public string? EquippedWeaponId => _equipped[EquipmentSlot.Weapon];
     public string? EquippedBackpackId => _equipped[EquipmentSlot.Backpack];
+    public string? EquippedLightId => _equipped[EquipmentSlot.Light];
     public string? Equipped(EquipmentSlot slot) => slot == EquipmentSlot.None ? null : _equipped[slot];
 
     public float TotalCapacityKg => BaseCapacityKg + BonusFor(EquippedBackpackId);
@@ -39,6 +41,7 @@ public sealed class SurvivorInventory
             float total = _items.Sum(stack => WeightOf(stack.ItemId) * stack.Quantity);
             total += WeightOf(EquippedWeaponId);
             total += WeightOf(EquippedBackpackId);
+            total += WeightOf(EquippedLightId);
             return total;
         }
     }

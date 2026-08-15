@@ -39,7 +39,9 @@ public partial class Survivor : Node2D
     [Export] public int CarryCapacityMaterials { get; set; } = 8;
     [Export] public int CarryCapacityMedicine { get; set; } = 4;
     [Export] public float Hunger { get; set; } = 82.0f;
-    [Export] public float HungerDepletionPerSecond { get; set; } = 0.22f;
+    [Export] public float HungerDepletionPerSecond { get; set; } = 0.07f;
+    [Export] public float EnergyDrainWhileWorking { get; set; } = 0.08f;
+    [Export] public float EnergyRecoveryIdle { get; set; } = 0.25f;
     [Export] public float HungryThreshold { get; set; } = 55.0f;
     [Export] public float CriticalHungerThreshold { get; set; } = 25.0f;
     [Export] public float MealRestoration { get; set; } = 48.0f;
@@ -68,6 +70,10 @@ public partial class Survivor : Node2D
     public ResourceType LastCarriedResourceType { get; private set; } = ResourceType.Wood;
     public Vector2 MovementVector { get; private set; }
     public bool IsMoving => MovementVector.LengthSquared() > 0.000001f;
+    public SurvivorDirection FacingDirection =>
+        GetNodeOrNull<DirectionalSurvivorVisual>("Visual") is { } visual
+            ? visual.DisplayedDirection
+            : SurvivorDirection.S;
     public bool IsAutonomousOrder => _isAutonomousOrder && _currentOrder is not null;
     public bool IsAvailableForAutonomousWork => _currentOrder is null;
     public bool IsAlive => !_dead;
@@ -107,6 +113,8 @@ public partial class Survivor : Node2D
         int profileIndex = int.TryParse(new string(Name.ToString().Where(char.IsDigit).ToArray()), out int parsed) ? Mathf.Max(0, parsed - 1) : GetIndex();
         Profile = SurvivorProfile.ForIndex(profileIndex);
         Inventory.BaseCapacityKg = BaseCarryCapacityKg;
+        // TEST: every survivor starts with a flashlight in their inventory.
+        Inventory.TryAdd("flashlight", 1);
         _health = MaxHealth;
         _selectionIndicator = GetNode<CanvasItem>("SelectionIndicator");
         _visual = GetNode<CanvasItem>("Visual");
@@ -123,7 +131,7 @@ public partial class Survivor : Node2D
 
         Hunger = Mathf.Max(0, Hunger - HungerDepletionPerSecond * (float)delta);
         bool working = _currentOrder is not null && CurrentOrderType is not SurvivorOrderType.Eat;
-        Energy = Mathf.Clamp(Energy + (working ? -0.32f : 0.20f) * (float)delta, 0, 100);
+        Energy = Mathf.Clamp(Energy + (working ? -EnergyDrainWhileWorking : EnergyRecoveryIdle) * (float)delta, 0, 100);
         Morale = Mathf.Clamp(Morale + (Hunger < 25 ? -0.08f : Hunger > 60 ? 0.015f : 0) * (float)delta, 0, 100);
         if(_dead)return;
         _defenseScanElapsed-=(float)delta;
@@ -252,6 +260,31 @@ public partial class Survivor : Node2D
     public bool AllowsWork(WorkCategory category) => Profile.Priority(category) != WorkPriority.Disabled;
     public float SkillMultiplier(SurvivorSkill skill) => 1f + (Profile.Skill(skill) - 1) * .06f;
     public void GainSkillExperience(SurvivorSkill skill, float amount) => Profile.AddExperience(skill, amount);
+
+    /// <summary>True when the survivor is inside a building or near an established shelter/outpost.</summary>
+    public bool IsSheltered()
+    {
+        foreach (Node node in GetTree().GetNodesInGroup(InteriorBuildingRuntime.GroupName))
+        {
+            if (node is InteriorBuildingRuntime building
+                && building.Definition.Footprint.Grow(-0.10f).HasPoint(SimulationPosition))
+            {
+                return true;
+            }
+        }
+
+        foreach (Node node in GetTree().GetNodesInGroup(CompletedBuilding.GroupName))
+        {
+            if (node is CompletedBuilding building
+                && (building.BuildingType == BuildingType.Shelter || building.BuildingType == BuildingType.Outpost)
+                && SimulationPosition.DistanceTo(building.OccupancyFootprint.Center) <= 2.6f)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     public void EatMeal()
     {

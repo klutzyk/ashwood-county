@@ -5,7 +5,7 @@ using AshwoodCounty.Resources;
 namespace AshwoodCounty.Items;
 
 public enum ItemCategory { Food, Medical, Tool, Material, MeleeWeapon, Equipment, Misc }
-public enum EquipmentSlot { None, Weapon, Backpack }
+public enum EquipmentSlot { None, Weapon, Backpack, Light }
 
 /// <summary>
 /// How a physical item is accounted for once deposited into settlement item

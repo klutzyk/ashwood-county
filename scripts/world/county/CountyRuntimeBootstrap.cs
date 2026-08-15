@@ -2,6 +2,7 @@ using AshwoodCounty.World.Fog;
 using AshwoodCounty.Buildings.Interiors;
 using AshwoodCounty.UI;
 using AshwoodCounty.Authoring;
+using AshwoodCounty.Systems;
 using Godot;
 
 namespace AshwoodCounty.World.County;
@@ -23,6 +24,8 @@ public partial class CountyRuntimeBootstrap : Node
             CountyFogOfWar fog=new(){Name="CountyFog",CountySize=new Vector2I(384,320),ChunkSize=20,SurvivorRevealRadius=8};
             world.AddChild(fog);
         }
+        if(world.GetNodeOrNull<NightLightingSystem>("NightLightingSystem") is null)
+            world.AddChild(new NightLightingSystem{Name="NightLightingSystem"});
         Callable.From(CreateInteriorSystems).CallDeferred();
     }
 
@@ -39,6 +42,10 @@ public partial class CountyRuntimeBootstrap : Node
             root.AddChild(new InteractableHoverController{Name="InteractableHoverController"});
         if(root.GetNodeOrNull<SearchProgressOverlay>("SearchProgressOverlay") is null)
             root.AddChild(new SearchProgressOverlay{Name="SearchProgressOverlay"});
+        if(root.GetNodeOrNull<SurvivalCycle>("SurvivalCycle") is null)
+            root.AddChild(new SurvivalCycle{Name="SurvivalCycle"});
+        if(root.GetNodeOrNull<SurvivalLoopValidation>("SurvivalLoopValidation") is null)
+            root.AddChild(new SurvivalLoopValidation{Name="SurvivalLoopValidation"});
         if(root.GetNodeOrNull<InteriorVerticalSliceValidation>("InteriorVerticalSliceValidation") is null)
             root.AddChild(new InteriorVerticalSliceValidation{Name="InteriorVerticalSliceValidation"});
         if(root.GetNodeOrNull<ItemVerticalSliceValidation>("ItemVerticalSliceValidation") is null)

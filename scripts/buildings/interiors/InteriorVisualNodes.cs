@@ -119,7 +119,11 @@ internal partial class InteriorRoomMaskVisual : Node2D
         ZIndex = 3;
     }
 
-    public override void _Ready() => QueueRedraw();
+    public override void _Ready()
+    {
+        LightMask = 0;
+        QueueRedraw();
+    }
 
     public override void _Draw()
     {
