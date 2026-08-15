@@ -73,16 +73,19 @@ public static class CountyTerrain
     /// <summary>Every road polyline in the county, macro and local.</summary>
     public static readonly CountyRoadDefinition[] AllRoads = BuildRoadTable();
 
-    public static readonly Vector2[] MillCreek =
+    private static readonly Vector2[] MillCreekBlockout =
     [
         new(190, 214), new(181, 220), new(176, 230), new(166, 238),
         new(159, 248), new(151, 257), new(142, 269), new(129, 277)
     ];
 
-    public static readonly Vector2[] OldMillTributary =
+    /// <summary>Mill Creek as drawn, with the same meander treatment as the river.</summary>
+    public static readonly Vector2[] MillCreek = CountyMacroLayout.Meander(MillCreekBlockout, 5, 1.15f, .83f);
+
+    public static readonly Vector2[] OldMillTributary = CountyMacroLayout.Meander(
     [
         new(150, 111), new(158, 116), new(166, 121), new(174, 126), new(183, 130)
-    ];
+    ], 4, .8f, .91f);
 
     /// <summary>
     /// Cleared, inhabited ground: the settlement floor around the camp and the
@@ -136,6 +139,19 @@ public static class CountyTerrain
     /// <summary>Two-octave noise; the large octave clusters, the small breaks edges.</summary>
     public static float Fbm(Vector2 point, float frequency, int salt) =>
         Noise(point, frequency, salt) * .68f + Noise(point, frequency * 2.7f, salt + 91) * .32f;
+
+    /// <summary>
+    /// First sample position at or before <paramref name="edge"/> on a lattice
+    /// of the given step anchored at the county origin.
+    ///
+    /// Scatter passes must share one county-wide lattice. Starting each chunk's
+    /// loop at its own origin looks harmless, but chunks are 32 cells and most
+    /// steps do not divide 32, so every chunk got a different lattice phase and
+    /// the change of rhythm was plainly visible as a straight seam along chunk
+    /// boundaries while panning.
+    /// </summary>
+    public static int LatticeStart(float edge, int step) =>
+        Mathf.FloorToInt(Mathf.Floor(edge / step) * step);
 
     // ------------------------------------------------------------- geometry
 
@@ -245,7 +261,7 @@ public static class CountyTerrain
     public static float DistanceToWater(Vector2 point)
     {
         float best = Mathf.Min(
-            DistanceToPolyline(point, CountyMacroLayout.BlackwaterRiver),
+            DistanceToPolyline(point, CountyMacroLayout.BlackwaterRiverCourse),
             Mathf.Min(DistanceToPolyline(point, MillCreek), DistanceToPolyline(point, OldMillTributary)));
         if (LakeBounds.HasPoint(point))
             best = Mathf.Min(best, DistanceToPolyline(point, LakeEdge));
@@ -336,13 +352,22 @@ public static class CountyTerrain
         if (water < 3.4f)
             return Fbm(point, .40f, 311) > .45f ? GroundSurface.Wetland : GroundSurface.Mud;
 
+        // Every threshold below is dithered by the same fine noise field.
+        //
+        // Without it, each surface boundary lands on a clean contour, and since
+        // the ground is painted in two-cell diamonds that contour reads as a
+        // hard staircase of tile edges. Perturbing the test instead lets the two
+        // surfaces interleave for a tile or two, which is what makes a verge
+        // fade into a meadow rather than stopping against it.
+        float dither = (Fbm(point, .42f, 733) - .5f) * .30f;
+
         // Road verges: the carriageway itself is painted by the road layer, but
         // the ground either side is worn rather than untouched meadow.
         float roadEdge = RoadInfluence(point, out CountyRoadDefinition? road);
         if (roadEdge > .01f && road is not null)
         {
-            float verge = roadEdge * (road.Major ? 1.15f : .95f);
-            if (verge > .62f)
+            float verge = roadEdge * (road.Major ? 1.15f : .95f) + dither;
+            if (verge > .66f)
                 return road.Major ? GroundSurface.Gravel : GroundSurface.BareEarth;
             if (verge > .34f)
                 return GroundSurface.Trodden;
@@ -352,17 +377,17 @@ public static class CountyTerrain
         float clearing = ClearingInfluence(point);
         if (clearing > .001f)
         {
-            float wear = clearing + (Fbm(point, .55f, 733) - .5f) * .34f;
-            if (wear > .74f)
+            float wear = clearing + dither;
+            if (wear > .80f)
                 return biome is CountyBiome.Logging or CountyBiome.Mill ? GroundSurface.Mud : GroundSurface.BareEarth;
-            if (wear > .46f)
+            if (wear > .52f)
                 return GroundSurface.Trodden;
-            if (wear > .22f)
+            if (wear > .24f)
                 return GroundSurface.Pasture;
         }
 
-        float fertility = Fbm(point, .085f, 17);
-        float damp = Fbm(point, .062f, 53);
+        float fertility = Fbm(point, .085f, 17) + dither * .5f;
+        float damp = Fbm(point, .062f, 53) + dither * .5f;
 
         return biome switch
         {
@@ -381,9 +406,9 @@ public static class CountyTerrain
             CountyBiome.Farm or CountyBiome.SouthFarm => FieldIndex(point) is int field and >= 0
                 ? FieldSurface(field, fertility)
                 : fertility > .58f ? GroundSurface.RichMeadow : GroundSurface.Pasture,
-            CountyBiome.Outskirts => fertility > .68f ? GroundSurface.RichMeadow
-                : fertility > .34f ? GroundSurface.Meadow
-                : damp > .60f ? GroundSurface.Pasture : GroundSurface.DryGrass,
+            CountyBiome.Outskirts => fertility > .70f ? GroundSurface.RichMeadow
+                : fertility > .30f ? GroundSurface.Meadow
+                : GroundSurface.Pasture,
             _ => fertility > .64f ? GroundSurface.RichMeadow
                 : fertility > .30f ? GroundSurface.Meadow : GroundSurface.Pasture
         };
@@ -424,6 +449,35 @@ public static class CountyTerrain
         FieldState.Standing => fertility > .40f ? GroundSurface.Farmland : GroundSurface.Pasture,
         _ => fertility > .55f ? GroundSurface.DryGrass : GroundSurface.Pasture
     };
+
+    /// <summary>
+    /// How deeply shaded the ground is, 0 in the open and 1 under closed canopy.
+    ///
+    /// This is the single biggest lever for macro hierarchy. Woodland floors sit
+    /// in shade and open country is bright, so at a glance the player reads
+    /// forest, edge and clearing as three distinct masses before noticing any
+    /// individual ground detail. It uses the same mass noise as the vegetation
+    /// pass, so the shade and the trees casting it always agree.
+    /// </summary>
+    public static float CanopyShade(Vector2 point)
+    {
+        float density = BiomeAt(point) switch
+        {
+            CountyBiome.PineRidge => 1.00f,
+            CountyBiome.Forest => .88f,
+            CountyBiome.Mill => .80f,
+            CountyBiome.Logging => .55f,
+            CountyBiome.Outskirts => .34f,
+            CountyBiome.Scrub => .18f,
+            CountyBiome.Meadow => .16f,
+            _ => .06f
+        };
+        if (density <= 0f)
+            return 0f;
+        float mass = Fbm(point, .055f, 1201);
+        float shade = density * (.45f + mass * 1.25f) - VegetationSuppression(point);
+        return Mathf.Clamp(shade, 0f, 1f);
+    }
 
     /// <summary>
     /// How strongly vegetation should be suppressed here: roads, yards, fields

@@ -10,23 +10,18 @@ namespace AshwoodCounty.World.County.Visual;
 /// <summary>Reusable animated water surfaces, drawn independently from gameplay collision.</summary>
 public partial class CountyWaterLayer : Node2D
 {
-    private static readonly Vector2[] MillCreek =
-    [
-        new(190, 214), new(181, 220), new(176, 230), new(166, 238),
-        new(159, 248), new(151, 257), new(142, 269), new(129, 277)
-    ];
+    // Courses are owned by CountyTerrain so the water surface, the banks and
+    // the ground surfacing can never drift apart.
+    private static Vector2[] MillCreek => CountyTerrain.MillCreek;
 
-    private static readonly Vector2[] OldMillTributary =
-    [
-        new(150, 111), new(158, 116), new(166, 121), new(174, 126), new(183, 130)
-    ];
+    private static Vector2[] OldMillTributary => CountyTerrain.OldMillTributary;
 
     public override void _Ready()
     {
         ZAsRelative = false;
         ZIndex = -88;
         BuildLake();
-        BuildFlow("BlackwaterRiver", CountyMacroLayout.BlackwaterRiver, .95f, WaterMaterialLibrary.River);
+        BuildFlow("BlackwaterRiver", CountyMacroLayout.BlackwaterRiverCourse, .95f, WaterMaterialLibrary.River);
         BuildFlow("MillCreek", MillCreek, .48f, WaterMaterialLibrary.Creek);
         BuildFlow("OldMillTributary", OldMillTributary, .38f, WaterMaterialLibrary.Creek);
         BuildPonds();

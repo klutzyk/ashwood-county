@@ -40,7 +40,9 @@ public partial class ContinuousWorldValidation:Node
         ["fire_lookout"] = new Vector2(311, 54),
         ["highway"] = new Vector2(307, 137),
         ["outskirts_road"] = new Vector2(197, 166),
-        ["interior_house"] = new Vector2(220, 155)
+        ["interior_house"] = new Vector2(220, 155),
+        // Deliberately on a chunk corner, for checking streaming seams.
+        ["chunk_seam"] = new Vector2(224, 160)
     };
 
     private static readonly Vector2[] Route=[new(180,190),new(160,232),new(203,157)];
@@ -56,7 +58,13 @@ public partial class ContinuousWorldValidation:Node
         }
 
         StrategyCamera camera = GetNode<StrategyCamera>("../World/StrategyCamera");
-        camera.SnapTo(gridPosition, capture is "interior_house" ? .82f : capture is "ashwood" ? .48f : .57f);
+        float zoom = capture is "interior_house" ? .82f : capture is "ashwood" ? .48f : .57f;
+        // The game starts at zoom 1. Framing checks need to be able to ask for
+        // the zoom the player actually plays at, not just the survey framing.
+        string? zoomOverride = System.Environment.GetEnvironmentVariable("ASHWOOD_CAPTURE_ZOOM");
+        if (!string.IsNullOrWhiteSpace(zoomOverride) && float.TryParse(zoomOverride, System.Globalization.CultureInfo.InvariantCulture, out float parsedZoom))
+            zoom = parsedZoom;
+        camera.SnapTo(gridPosition, zoom);
 
         // Optional wall-clock override so a capture can be taken at dusk or at
         // night without waiting out a real day cycle.
@@ -65,6 +73,13 @@ public partial class ContinuousWorldValidation:Node
             GetNode<AshwoodCounty.Systems.GameClock>("../GameClock").SetTotalMinutes(parsed * 60d);
         CountyFogOfWar fog = GetNode<CountyFogOfWar>("../World/CountyFog");
         fog.DebugMode = FogDebugMode.RevealAll;
+        // Optional: select a survivor so HUD checks can see the survivor panel.
+        if (System.Environment.GetEnvironmentVariable("ASHWOOD_CAPTURE_SELECT") == "1")
+        {
+            Survivor? first = GetTree().GetNodesInGroup(Survivor.GroupName).OfType<Survivor>().FirstOrDefault();
+            if (first is not null)
+                GetNode<AshwoodCounty.Systems.SurvivorSelectionController>("../SelectionController").DebugSelectOnly(first);
+        }
         GD.Print($"VISUAL_CAPTURE: {capture} at {gridPosition}");
         string? pngPath = System.Environment.GetEnvironmentVariable("ASHWOOD_CAPTURE_PNG");
         if (!string.IsNullOrWhiteSpace(pngPath)) CapturePngAfterFrames(pngPath);

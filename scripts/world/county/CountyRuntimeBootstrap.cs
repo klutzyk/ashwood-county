@@ -46,6 +46,8 @@ public partial class CountyRuntimeBootstrap : Node
             root.AddChild(new SurvivalCycle{Name="SurvivalCycle"});
         if(root.GetNodeOrNull<SurvivalLoopValidation>("SurvivalLoopValidation") is null)
             root.AddChild(new SurvivalLoopValidation{Name="SurvivalLoopValidation"});
+        if(root.GetNodeOrNull<TerrainStreamingValidation>("TerrainStreamingValidation") is null)
+            root.AddChild(new TerrainStreamingValidation{Name="TerrainStreamingValidation"});
         if(root.GetNodeOrNull<InteriorVerticalSliceValidation>("InteriorVerticalSliceValidation") is null)
             root.AddChild(new InteriorVerticalSliceValidation{Name="InteriorVerticalSliceValidation"});
         if(root.GetNodeOrNull<ItemVerticalSliceValidation>("ItemVerticalSliceValidation") is null)

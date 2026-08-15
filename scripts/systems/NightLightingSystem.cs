@@ -23,6 +23,21 @@ public partial class NightLightingSystem : Node2D
     [Export] public Color DayModulate { get; set; } = new(1f, 1f, 1f);
     [Export] public Color NightModulate { get; set; } = new(0.13f, 0.15f, 0.22f);
 
+    /// <summary>
+    /// The evening waypoint the ambient passes through on its way to night.
+    ///
+    /// Lerping straight from white to the night blue means the very first
+    /// minutes of dusk already drag every colour toward cold grey, and the world
+    /// goes muddy long before it goes dark. Routing through a warm, only
+    /// slightly darker evening gives a late-afternoon stage that stays fully
+    /// readable, then lets the cooling and the darkening happen together in the
+    /// second half. Night itself is untouched.
+    /// </summary>
+    [Export] public Color EveningModulate { get; set; } = new(0.90f, 0.76f, 0.60f);
+
+    /// <summary>Darkness at which the ambient reaches <see cref="EveningModulate"/>.</summary>
+    [Export(PropertyHint.Range, "0.2,0.8,0.05")] public float EveningPivot { get; set; } = 0.55f;
+
     [ExportGroup("Personal Visibility")]
     [Export] public float PersonalLightRadius { get; set; } = 108f;
     [Export] public float PersonalLightEnergy { get; set; } = 1.15f;
@@ -62,8 +77,17 @@ public partial class NightLightingSystem : Node2D
     {
         float darkness = SurvivalCycle.Active?.Darkness ?? 0f;
         CurrentDarkness = darkness;
-        _modulate.Color = DayModulate.Lerp(NightModulate, darkness);
+        _modulate.Color = AmbientFor(darkness);
         UpdateSurvivorLights(darkness);
+    }
+
+    /// <summary>Two-stage ambient ramp: day, warm evening, then cold night.</summary>
+    public Color AmbientFor(float darkness)
+    {
+        float pivot = Mathf.Clamp(EveningPivot, .05f, .95f);
+        return darkness <= pivot
+            ? DayModulate.Lerp(EveningModulate, darkness / pivot)
+            : EveningModulate.Lerp(NightModulate, (darkness - pivot) / (1f - pivot));
     }
 
     private void UpdateSurvivorLights(float darkness)

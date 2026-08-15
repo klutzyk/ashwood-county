@@ -165,6 +165,42 @@ public static class CountyMacroLayout
     public static readonly Vector2[] BlackwaterRiver =
     [new(286, 79), new(296, 101), new(282, 124), new(257, 146), new(224, 171), new(187, 193), new(149, 207), new(111, 220), new(82, 245), new(63, 287)];
 
+    /// <summary>
+    /// The river as drawn: the blockout course subdivided and given a gentle
+    /// meander. Straight twenty-cell runs read as a canal, not a river. Water
+    /// rendering, bank dressing and ground surfacing all use this one course so
+    /// they cannot disagree about where the water is.
+    /// </summary>
+    public static readonly Vector2[] BlackwaterRiverCourse = Meander(BlackwaterRiver, 6, 2.1f, 0.77f);
+
+    /// <summary>
+    /// Subdivide a polyline and push each new point sideways on a smooth,
+    /// deterministic wave. Endpoints stay put so connections are preserved.
+    /// </summary>
+    public static Vector2[] Meander(Vector2[] line, int subdivisions, float amplitude, float wavelength)
+    {
+        List<Vector2> course = [];
+        int sample = 0;
+        for (int index = 0; index < line.Length - 1; index++)
+        {
+            Vector2 a = line[index];
+            Vector2 b = line[index + 1];
+            Vector2 tangent = (b - a).Normalized();
+            Vector2 normal = new(-tangent.Y, tangent.X);
+            for (int step = 0; step < subdivisions; step++, sample++)
+            {
+                float t = step / (float)subdivisions;
+                bool anchor = index == 0 && step == 0;
+                float wobble = anchor ? 0f
+                    : Mathf.Sin(sample * wavelength) * amplitude
+                      + Mathf.Sin(sample * wavelength * 2.7f + 1.3f) * amplitude * .38f;
+                course.Add(a.Lerp(b, t) + normal * wobble);
+            }
+        }
+        course.Add(line[^1]);
+        return [.. course];
+    }
+
     public static CountyLocationDefinition? Find(string id) =>
         Locations.FirstOrDefault(location => location.Id == id);
 

@@ -79,6 +79,10 @@ public partial class GameHud : CanvasLayer
     public override void _Ready()
     {
         ProcessMode = ProcessModeEnum.Always;
+        // Above the world-space overlays (hover 12, search progress 13). The
+        // scene had the HUD on layer 10, so a search bar floating over a
+        // container drew straight across the survivor panel and the masthead.
+        Layer = 30;
         AddToGroup(GroupName);
         _inventory = GetNode<SettlementInventory>("../SettlementInventory");
         _itemStorage = GetNode<SettlementItemStorage>("../SettlementItemStorage");
@@ -350,12 +354,17 @@ public partial class GameHud : CanvasLayer
         rows.AddChild(Separator(false));
 
         _tabs = Layout<HBoxContainer>();
-        _tabs.Alignment = BoxContainer.AlignmentMode.Center;
+        _tabs.Alignment = BoxContainer.AlignmentMode.Begin;
+        _tabs.AddThemeConstantOverride("separation", 2);
         AddTab(_tabs, SurvivorTab.Overview);
         AddTab(_tabs, SurvivorTab.Skills);
         AddTab(_tabs, SurvivorTab.Work);
         AddTab(_tabs, SurvivorTab.Inventory);
         rows.AddChild(_tabs);
+        // A rule under the whole row ties the tabs to the panel below them, so
+        // the active tab's brass underline reads as a selection on a ledger
+        // rather than as one more highlighted box.
+        rows.AddChild(Separator(false));
 
         _tabContents[SurvivorTab.Overview] = BuildOverviewTab();
         _tabContents[SurvivorTab.Skills] = BuildSkillsTab();
@@ -586,14 +595,7 @@ public partial class GameHud : CanvasLayer
             CustomMinimumSize = new Vector2(120, 10),
             MouseFilter = Control.MouseFilterEnum.Ignore
         };
-        StyleBoxFlat fill = new()
-        {
-            BgColor = color,
-            CornerRadiusTopLeft = 2,
-            CornerRadiusTopRight = 2,
-            CornerRadiusBottomLeft = 2,
-            CornerRadiusBottomRight = 2
-        };
+        StyleBoxFlat fill = new() { BgColor = color };
         bar.AddThemeStyleboxOverride("fill", fill);
         return bar;
     }
@@ -619,7 +621,11 @@ public partial class GameHud : CanvasLayer
         };
         Button button = HudButton(tab.ToString().ToUpperInvariant(), "HudTabButton", tooltip);
         button.ToggleMode = true;
-        button.CustomMinimumSize = new Vector2(76, 27);
+        // Sized to its own label: a fixed width narrower than "INVENTORY" would
+        // clip the word away entirely, and equal-width tabs read as a segmented
+        // control rather than a row of headings.
+        button.ClipText = false;
+        button.CustomMinimumSize = new Vector2(0, 24);
         button.Pressed += () => SelectSurvivorTab(tab);
         parent.AddChild(button);
         _tabButtons[tab] = button;

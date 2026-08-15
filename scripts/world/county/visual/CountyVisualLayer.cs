@@ -23,6 +23,9 @@ public partial class CountyVisualLayer : Node2D
     public bool DrawLocationLabels { get; init; }
 
     private readonly Dictionary<Vector2I, CountyVisualChunk> _chunks = [];
+
+    /// <summary>Landscape chunks currently built. Used by streaming validation.</summary>
+    public IReadOnlyCollection<Vector2I> LandscapeChunks => _chunks.Keys;
     private Node2D _landscapeRoot = null!;
     private double _elapsed = RefreshInterval;
 

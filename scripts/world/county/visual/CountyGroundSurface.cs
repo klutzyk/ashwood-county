@@ -28,6 +28,9 @@ public partial class CountyGroundSurface : Node2D
     private const float DetailRefreshInterval = .2f;
 
     private readonly Dictionary<Vector2I, CountyGroundDetailChunk> _detailChunks = [];
+
+    /// <summary>Detail chunks currently built. Used by streaming validation.</summary>
+    public IReadOnlyCollection<Vector2I> DetailChunks => _detailChunks.Keys;
     private Node2D _detailRoot = null!;
     private double _elapsed = DetailRefreshInterval;
 
@@ -143,7 +146,7 @@ internal partial class CountyGroundDetailChunk : Node2D
     private const int Block = 2;
 
     /// <summary>Diamonds are drawn oversized so the lattice never shows through.</summary>
-    private const float Bleed = 1.22f;
+    private const float Bleed = 1.28f;
 
     private Rect2 _gridBounds;
     private Vector2 _canvasOrigin;
@@ -172,8 +175,8 @@ internal partial class CountyGroundDetailChunk : Node2D
         // grouping costs nothing visually and saves a lot of state changes.
         Dictionary<string, List<(Vector2 Center, Color Tint, float Scale)>> byTexture = [];
 
-        int startX = Mathf.FloorToInt(_gridBounds.Position.X);
-        int startY = Mathf.FloorToInt(_gridBounds.Position.Y);
+        int startX = CountyTerrain.LatticeStart(_gridBounds.Position.X, Block);
+        int startY = CountyTerrain.LatticeStart(_gridBounds.Position.Y, Block);
         int endX = Mathf.CeilToInt(_gridBounds.End.X);
         int endY = Mathf.CeilToInt(_gridBounds.End.Y);
 
@@ -183,7 +186,7 @@ internal partial class CountyGroundDetailChunk : Node2D
             {
                 Vector2 lattice = new(x + Block * .5f, y + Block * .5f);
                 GroundSurface surface = CountyTerrain.SurfaceAt(lattice);
-                string? path = GroundTilePalette.Select(surface, x, y);
+                string? path = GroundTilePalette.Select(surface, lattice, x, y);
                 if (path is null)
                     continue;
 
@@ -196,11 +199,21 @@ internal partial class CountyGroundDetailChunk : Node2D
                 float scale = .96f + CountyTerrain.Hash01(x, y, 829) * .16f;
 
                 Color region = CountyTerrain.RegionColor(lattice);
-                // A firm pull towards the regional colour plus a small value
-                // jitter; enough to unify sources without washing out the art.
-                Color tint = Colors.White.Lerp(region.Lightened(.50f), .40f);
-                float shade = (CountyTerrain.Hash01(x, y, 233) - .5f) * .09f;
-                tint = shade >= 0 ? tint.Lightened(shade) : tint.Darkened(-shade);
+                // A firm pull towards the regional colour unifies tiles from
+                // different sources. Value variation comes from a broad noise
+                // field rather than a per-tile hash, so the ground gains large
+                // soft light and shade masses instead of a speckled lattice.
+                Color tint = Colors.White.Lerp(region.Lightened(.52f), .46f);
+                float variation = (CountyTerrain.Fbm(lattice, 1f / 26f, 233) - .5f) * .11f;
+                tint = variation >= 0 ? tint.Lightened(variation) : tint.Darkened(-variation);
+
+                // Canopy shade is the macro read: forest floors sit dark and
+                // slightly cool, open country stays bright. Without it every
+                // region is lit identically and the landscape has no hierarchy
+                // above the level of individual tiles.
+                float canopy = CountyTerrain.CanopyShade(lattice);
+                if (canopy > .01f)
+                    tint = tint.Darkened(canopy * .30f).Lerp(new Color(.62f, .70f, .64f, tint.A), canopy * .22f);
 
                 if (!byTexture.TryGetValue(path, out List<(Vector2, Color, float)>? list))
                 {
@@ -225,25 +238,38 @@ internal partial class CountyGroundDetailChunk : Node2D
         }
     }
 
+    /// <summary>
+    /// High-frequency ground detail, deliberately rationed.
+    ///
+    /// Detail earns its place by being uncommon: it is gated behind a broad
+    /// noise field so litter and scatter gather into occasional drifts, leaving
+    /// most of the surface calm. Spraying it evenly over every surface is what
+    /// made the ground read as texture soup.
+    /// </summary>
+    private const int DetailStep = 4;
+
     private void DrawDetailScatter()
     {
-        int startX = Mathf.FloorToInt(_gridBounds.Position.X);
-        int startY = Mathf.FloorToInt(_gridBounds.Position.Y);
+        int startX = CountyTerrain.LatticeStart(_gridBounds.Position.X, DetailStep);
+        int startY = CountyTerrain.LatticeStart(_gridBounds.Position.Y, DetailStep);
         int endX = Mathf.CeilToInt(_gridBounds.End.X);
         int endY = Mathf.CeilToInt(_gridBounds.End.Y);
 
         Dictionary<string, List<(Vector2 Point, float Scale, Color Tint)>> byTexture = [];
 
-        for (int y = startY; y < endY; y += 3)
+        for (int y = startY; y < endY; y += DetailStep)
         {
-            for (int x = startX; x < endX; x += 3)
+            for (int x = startX; x < endX; x += DetailStep)
             {
-                if (CountyTerrain.Hash01(x, y, 401) > .34f)
-                    continue;
                 Vector2 point = new(
-                    x + 1.5f + (CountyTerrain.Hash01(x, y, 403) - .5f) * 2.4f,
-                    y + 1.5f + (CountyTerrain.Hash01(x, y, 407) - .5f) * 2.4f);
+                    x + DetailStep * .5f + (CountyTerrain.Hash01(x, y, 403) - .5f) * 2.8f,
+                    y + DetailStep * .5f + (CountyTerrain.Hash01(x, y, 407) - .5f) * 2.8f);
                 if (!_gridBounds.HasPoint(point))
+                    continue;
+
+                // Drift field: high where litter would collect, low elsewhere.
+                float drift = CountyTerrain.Fbm(point, 1f / 17f, 401);
+                if (drift < .56f || CountyTerrain.Hash01(x, y, 417) > (drift - .56f) * 2.4f)
                     continue;
 
                 GroundSurface surface = CountyTerrain.SurfaceAt(point);
@@ -252,8 +278,8 @@ internal partial class CountyGroundDetailChunk : Node2D
                     continue;
 
                 string path = family[(int)(CountyTerrain.Hash01(x, y, 409) * family.Length) % family.Length];
-                float scale = .30f + CountyTerrain.Hash01(x, y, 411) * .26f;
-                Color tint = new(1, 1, 1, .42f + CountyTerrain.Hash01(x, y, 413) * .24f);
+                float scale = .32f + CountyTerrain.Hash01(x, y, 411) * .30f;
+                Color tint = new(1, 1, 1, .30f + CountyTerrain.Hash01(x, y, 413) * .20f);
                 if (!byTexture.TryGetValue(path, out List<(Vector2, float, Color)>? list))
                 {
                     list = [];
