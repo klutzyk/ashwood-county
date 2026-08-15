@@ -89,7 +89,7 @@ public partial class ItemVerticalSliceValidation : Node
                     if (takenAll != totalBathroom) { Fail($"TakeAll moved {takenAll}, expected {totalBathroom}"); return; }
                     if (_bathroom.RemainingLoot.Count != 0) { Fail("bathroom cabinet still has loot after TakeAll"); return; }
                 }
-                CaptureIfRequested("ASHWOOD_CAPTURE_LOOT_PNG", "LOOT_PNG");
+                CaptureIfRequested("ASHWOOD_CAPTURE_LOOT_PNG", "LOOT_PNG", 22);
                 GD.Print($"ITEM_VALIDATION: fridge revealed [{string.Join(", ", _fridgeRevealed.Select(s => $"{s.ItemId}x{s.Quantity}"))}], bathroom revealed [{string.Join(", ", _bathroomRevealed.Select(s => $"{s.ItemId}x{s.Quantity}"))}]");
                 Next(Phase.EquipGear);
                 break;
@@ -229,19 +229,19 @@ public partial class ItemVerticalSliceValidation : Node
         return true;
     }
 
-    private void CaptureIfRequested(string envVar, string label)
+    private void CaptureIfRequested(string envVar, string label, int frames = 6)
     {
         string? path = System.Environment.GetEnvironmentVariable(envVar);
         if (string.IsNullOrWhiteSpace(path)) return;
         StrategyCamera camera = GetNode<StrategyCamera>("../World/StrategyCamera");
         camera.CenterOnGridPosition(new Vector2(220, 155));
         camera.SetZoom(.92f);
-        CapturePngAfterFrames(path, label);
+        CapturePngAfterFrames(path, label, frames);
     }
 
-    private async void CapturePngAfterFrames(string path, string label)
+    private async void CapturePngAfterFrames(string path, string label, int frames)
     {
-        for (int i = 0; i < 6; i++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        for (int i = 0; i < frames; i++) await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         Error error = GetViewport().GetTexture().GetImage().SavePng(path);
         GD.Print($"ITEM_VALIDATION_{label}: {error} {path}");
     }
@@ -255,7 +255,7 @@ public partial class ItemVerticalSliceValidation : Node
         StrategyCamera camera = GetNode<StrategyCamera>("../World/StrategyCamera");
         camera.CenterOnGridPosition(new Vector2(220, 155));
         camera.SetZoom(.92f);
-        CapturePngAfterFrames(path, "INVENTORY_PNG");
+        CapturePngAfterFrames(path, "INVENTORY_PNG", 6);
     }
 
     private static bool At(Survivor survivor, Vector2 target) => survivor.SimulationPosition.DistanceTo(target) < .12f;

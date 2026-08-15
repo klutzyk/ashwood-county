@@ -662,10 +662,10 @@ public partial class GameHud : CanvasLayer
 
     private Control BuildContainerLootPanel()
     {
-        _lootPanel = Panel("HudSurvivorPanel", new Vector2(320, 0));
+        _lootPanel = Panel("HudSurvivorPanel", new Vector2(360, 0));
         _lootPanel.Visible = false;
         VBoxContainer rows = Layout<VBoxContainer>();
-        rows.AddThemeConstantOverride("separation", 6);
+        rows.AddThemeConstantOverride("separation", 7);
         _lootPanel.AddChild(rows);
 
         HBoxContainer header = Layout<HBoxContainer>();
@@ -683,12 +683,12 @@ public partial class GameHud : CanvasLayer
         rows.AddChild(Separator(false));
 
         _lootRows = Layout<VBoxContainer>();
-        _lootRows.AddThemeConstantOverride("separation", 4);
+        _lootRows.AddThemeConstantOverride("separation", 5);
         rows.AddChild(_lootRows);
         rows.AddChild(Separator(false));
 
         Button takeAll = HudButton("TAKE ALL", "HudActionButton");
-        takeAll.CustomMinimumSize = new Vector2(0, 30);
+        takeAll.CustomMinimumSize = new Vector2(0, 32);
         takeAll.Pressed += () =>
         {
             if (_lootContainer is null || _lootSurvivor is null || !GodotObject.IsInstanceValid(_lootContainer)) return;
@@ -743,17 +743,31 @@ public partial class GameHud : CanvasLayer
         foreach (ItemStack stack in _lootContainer.RemainingLoot.ToArray())
         {
             ItemDefinition definition = ItemCatalog.Get(stack.ItemId);
+            PanelContainer card = Panel("HudLootRowPanel");
+            card.CustomMinimumSize = new Vector2(0, 64);
             HBoxContainer row = Layout<HBoxContainer>();
-            row.AddChild(ItemIcon(definition.IconPath, 36));
+            row.AddThemeConstantOverride("separation", 8);
+            card.AddChild(row);
+
+            row.AddChild(ItemIcon(definition.IconPath, 52));
+
+            VBoxContainer info = Layout<VBoxContainer>();
+            info.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+            info.AddThemeConstantOverride("separation", 1);
             Label name = Text(definition.DisplayName, "HudMuted");
-            name.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-            row.AddChild(name);
-            Label qty = Text($"x{stack.Quantity}", "HudTiny");
-            qty.CustomMinimumSize = new Vector2(30, 0);
+            name.ClipText = true;
+            info.AddChild(name);
+            Label detail = Text($"{definition.Weight:0.0} kg  •  {CategoryLabel(definition.Category)}", "HudTiny");
+            info.AddChild(detail);
+            row.AddChild(info);
+
+            Label qty = Text($"x{stack.Quantity}", "HudHeading");
+            qty.CustomMinimumSize = new Vector2(40, 0);
             qty.HorizontalAlignment = HorizontalAlignment.Right;
             row.AddChild(qty);
+
             Button take = HudButton("TAKE", "HudActionButton");
-            take.CustomMinimumSize = new Vector2(54, 24);
+            take.CustomMinimumSize = new Vector2(58, 30);
             string itemId = stack.ItemId;
             take.Pressed += () =>
             {
@@ -762,9 +776,20 @@ public partial class GameHud : CanvasLayer
                 RefreshLootPanel();
             };
             row.AddChild(take);
-            _lootRows.AddChild(row);
+            _lootRows.AddChild(card);
         }
     }
+
+    private static string CategoryLabel(ItemCategory category) => category switch
+    {
+        ItemCategory.Food => "Food",
+        ItemCategory.Medical => "Medical",
+        ItemCategory.Tool => "Tool",
+        ItemCategory.Material => "Material",
+        ItemCategory.MeleeWeapon => "Melee Weapon",
+        ItemCategory.Equipment => "Equipment",
+        _ => "Misc"
+    };
 
     public override void _Process(double delta)
     {

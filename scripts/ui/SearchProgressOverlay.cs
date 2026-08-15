@@ -32,8 +32,13 @@ public partial class SearchProgressOverlay : CanvasLayer
     private partial class ProgressDrawer : Node2D
     {
         private static readonly Color Backing = new(0.03f, 0.04f, 0.03f, 0.78f);
-        private static readonly Color Track = new(0.14f, 0.15f, 0.12f, 0.95f);
+        private static readonly Color Track = new(0.12f, 0.13f, 0.10f, 0.96f);
         private static readonly Color Fill = new("#e8bd5f");
+        private static readonly Color SearchCaption = new(0.96f, 0.86f, 0.60f, 0.95f);
+        private static readonly Color ApproachCaption = new(0.88f, 0.86f, 0.80f, 0.85f);
+        private static readonly Color TravelMarker = new(0.97f, 0.95f, 0.87f, 0.9f);
+        private const float BarWidth = 104f;
+        private const float BarHeight = 10f;
 
         public override void _Draw()
         {
@@ -50,20 +55,39 @@ public partial class SearchProgressOverlay : CanvasLayer
             {
                 if (!GodotObject.IsInstanceValid(source) || !source.Visible || !source.IsClaimed || source.IsDepleted) continue;
                 float zoom = Mathf.Abs(source.GetGlobalTransformWithCanvas().Scale.Y);
-                DrawBar(source.GetGlobalTransformWithCanvas().Origin, source.DisplayedSearchProgress, 46f * zoom);
+                DrawBar(source.GetGlobalTransformWithCanvas().Origin, source.DisplayedSearchProgress, 50f * zoom);
             }
         }
 
         private void DrawBar(Vector2 anchor, float progress, float objectHeight)
         {
-            const float width = 74f;
             float clamped = Mathf.Clamp(progress, 0f, 1f);
-            Vector2 topLeft = new(anchor.X - width * 0.5f, anchor.Y - objectHeight - 22f);
+            bool approaching = clamped <= 0f;
+            Vector2 topLeft = new(anchor.X - BarWidth * 0.5f, anchor.Y - objectHeight - 34f);
 
-            DrawRect(new Rect2(topLeft - new Vector2(3f, 3f), new Vector2(width + 6f, 12f)), Backing);
-            DrawRect(new Rect2(topLeft, new Vector2(width, 6f)), Track);
-            if (clamped > 0f)
-                DrawRect(new Rect2(topLeft, new Vector2(width * clamped, 6f)), Fill);
+            DrawString(
+                ThemeDB.FallbackFont,
+                new Vector2(anchor.X - 90f, topLeft.Y - 5f),
+                approaching ? "APPROACHING" : "SEARCHING",
+                HorizontalAlignment.Center,
+                180f,
+                11,
+                approaching ? ApproachCaption : SearchCaption);
+
+            DrawRect(new Rect2(topLeft - new Vector2(4f, 4f), new Vector2(BarWidth + 8f, BarHeight + 8f)), Backing);
+            DrawRect(new Rect2(topLeft, new Vector2(BarWidth, BarHeight)), Track);
+
+            if (approaching)
+            {
+                float travel = 0.5f + 0.5f * Mathf.Sin((float)Time.GetTicksMsec() / 520.0f);
+                float markerX = topLeft.X + 5f + (BarWidth - 10f) * travel;
+                DrawCircle(new Vector2(markerX, topLeft.Y + BarHeight * 0.5f), 4f, TravelMarker);
+            }
+            else
+            {
+                float breathe = 0.94f + 0.06f * Mathf.Sin((float)Time.GetTicksMsec() / 260.0f);
+                DrawRect(new Rect2(topLeft, new Vector2(BarWidth * clamped, BarHeight)), new Color(Fill.R * breathe, Fill.G * breathe, Fill.B * breathe, 1f));
+            }
         }
     }
 }

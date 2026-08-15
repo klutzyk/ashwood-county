@@ -65,6 +65,7 @@ public static class AshwoodTheme
         AddPanelVariation(theme, "HudToolbarPanel", new Color("101510f1"), new Color("7c6a43d1"), 6, 5, 4);
         AddPanelVariation(theme, "HudPalettePanel", new Color("151a16ed"), new Color("665b42ba"), 5, 6, 5);
         AddPanelVariation(theme, "HudSurvivorPanel", new Color("121713f5"), new Color("877246d9"), 7, 10, 9);
+        AddPanelVariation(theme, "HudLootRowPanel", new Color("1b221cf5"), new Color("5a4e30b8"), 5, 8, 6);
         AddPanelVariation(theme, "HudToastPanel", new Color("151a16f2"), new Color("a1864dd9"), 5, 8, 6);
         AddPanelVariation(theme, "HudMapDetailPanel", new Color("101510e6"), new Color("756541a8"), 5, 8, 7);
 

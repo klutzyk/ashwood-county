@@ -18,6 +18,6 @@ void fragment() {
 		}
 	}
 	halo *= 1.0 / 48.0;
-	float glow = (halo * 1.0 + silhouette * 0.28) * glow_strength;
+	float glow = (halo * 1.0 + silhouette * 0.05) * glow_strength;
 	COLOR = vec4(glow_color.rgb * glow, 1.0);
 }

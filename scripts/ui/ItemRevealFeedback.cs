@@ -13,6 +13,10 @@ namespace AshwoodCounty.UI;
 public partial class ItemRevealFeedback : Node2D
 {
     private const float TotalDuration = 1.2f;
+    private const float IconHeight = 46f;
+    private const float Stagger = 0.075f;
+    private const float HoldUntil = 0.62f;
+    private const float FadeOver = 0.42f;
 
     private readonly List<(Texture2D Texture, string Label)> _entries = [];
     private string _emptyText = "";
@@ -50,30 +54,35 @@ public partial class ItemRevealFeedback : Node2D
                 _emptyText.ToUpperInvariant(),
                 HorizontalAlignment.Center,
                 160f,
-                12,
+                13,
                 new Color(0.9f, 0.87f, 0.78f, 0.9f * alpha));
             return;
         }
 
         int count = Mathf.Min(_entries.Count, 5);
-        const float slot = 40f;
+        const float slot = 52f;
         float startX = -(count - 1) * slot * 0.5f;
 
         for (int i = 0; i < count; i++)
         {
-            float t = _elapsed - i * 0.09f;
+            float t = _elapsed - i * Stagger;
             if (t < 0f) continue;
 
             float appear = Mathf.Clamp(t / 0.12f, 0f, 1f);
-            float fade = 1f - Mathf.Clamp((t - 0.55f) / 0.5f, 0f, 1f);
+            float fade = 1f - Mathf.Clamp((t - HoldUntil) / FadeOver, 0f, 1f);
             float alpha = appear * fade;
-            float rise = Mathf.Min(t * 24f, 18f);
-            float pop = 0.84f + 0.16f * appear;
+            float rise = Mathf.Min(t * 30f, 20f);
+            float pop = 0.80f + 0.24f * appear;
 
             Texture2D texture = _entries[i].Texture;
-            float scale = 36f / Mathf.Max(1f, texture.GetHeight());
+            float scale = IconHeight / Mathf.Max(1f, texture.GetHeight());
             Vector2 size = texture.GetSize() * scale;
             Vector2 center = new(startX + i * slot, -rise);
+
+            // Soft dark backing so the artwork reads clearly over any terrain.
+            float backingRadius = Mathf.Max(size.X, size.Y) * pop * 0.5f + 5f;
+            DrawCircle(center, backingRadius, new Color(0.03f, 0.04f, 0.03f, 0.5f * alpha));
+
             Rect2 rect = new(
                 center.X - size.X * pop * 0.5f,
                 center.Y - size.Y * pop,
@@ -89,7 +98,7 @@ public partial class ItemRevealFeedback : Node2D
                     _entries[i].Label,
                     HorizontalAlignment.Center,
                     48f,
-                    11,
+                    12,
                     new Color(0.96f, 0.92f, 0.8f, alpha));
             }
         }
@@ -98,7 +107,7 @@ public partial class ItemRevealFeedback : Node2D
     private float FadeAlpha(float localTime)
     {
         float appear = Mathf.Clamp(localTime / 0.12f, 0f, 1f);
-        float fade = 1f - Mathf.Clamp((localTime - 0.55f) / 0.5f, 0f, 1f);
+        float fade = 1f - Mathf.Clamp((localTime - HoldUntil) / FadeOver, 0f, 1f);
         return appear * fade;
     }
 }

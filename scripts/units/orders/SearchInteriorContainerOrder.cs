@@ -83,7 +83,17 @@ public sealed class SearchInteriorContainerOrder(InteriorContainerRuntime contai
                 .Select(stack => (TextureRegistry.Get(ItemCatalog.Get(stack.ItemId).IconPath), $"x{stack.Quantity}"))
                 .ToList();
             SpawnReveal(container, entries, "");
-            (survivor.GetTree().GetFirstNodeInGroup(GameHud.GroupName) as GameHud)?.ShowContainerLoot(container, survivor);
+            GameHud? hud = survivor.GetTree().GetFirstNodeInGroup(GameHud.GroupName) as GameHud;
+            if (hud is not null)
+            {
+                // Let the world-space item reveal register first, then slide the
+                // loot panel in over a short, readable beat.
+                survivor.GetTree().CreateTimer(0.28f).Timeout += () =>
+                {
+                    if (GodotObject.IsInstanceValid(container) && GodotObject.IsInstanceValid(survivor) && GodotObject.IsInstanceValid(hud))
+                        hud.ShowContainerLoot(container, survivor);
+                };
+            }
         }
         _claimed = false;
         IsComplete = true;
