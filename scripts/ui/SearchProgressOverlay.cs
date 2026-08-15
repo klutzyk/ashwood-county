@@ -31,14 +31,17 @@ public partial class SearchProgressOverlay : CanvasLayer
 
     private partial class ProgressDrawer : Node2D
     {
-        private static readonly Color Backing = new(0.03f, 0.04f, 0.03f, 0.78f);
-        private static readonly Color Track = new(0.12f, 0.13f, 0.10f, 0.96f);
-        private static readonly Color Fill = new("#e8bd5f");
-        private static readonly Color SearchCaption = new(0.96f, 0.86f, 0.60f, 0.95f);
-        private static readonly Color ApproachCaption = new(0.88f, 0.86f, 0.80f, 0.85f);
-        private static readonly Color TravelMarker = new(0.97f, 0.95f, 0.87f, 0.9f);
-        private const float BarWidth = 104f;
-        private const float BarHeight = 10f;
+        // Same ink, brass and parchment as AshwoodTheme, so a world-space
+        // readout reads as part of the same interface as the HUD bars.
+        private static readonly Color Backing = new("0d110fdb");
+        private static readonly Color Edge = new("8a7a4c8c");
+        private static readonly Color Track = new("1b211ce8");
+        private static readonly Color Fill = new("#c2a35f");
+        private static readonly Color SearchCaption = new("e5dcc4f0");
+        private static readonly Color ApproachCaption = new("9c9683dd");
+        private static readonly Color TravelMarker = new("dfc481e6");
+        private const float BarWidth = 92f;
+        private const float BarHeight = 6f;
 
         public override void _Draw()
         {
@@ -71,17 +74,19 @@ public partial class SearchProgressOverlay : CanvasLayer
                 approaching ? "APPROACHING" : "SEARCHING",
                 HorizontalAlignment.Center,
                 180f,
-                11,
+                10,
                 approaching ? ApproachCaption : SearchCaption);
 
-            DrawRect(new Rect2(topLeft - new Vector2(4f, 4f), new Vector2(BarWidth + 8f, BarHeight + 8f)), Backing);
+            Rect2 frame = new(topLeft - new Vector2(3f, 3f), new Vector2(BarWidth + 6f, BarHeight + 6f));
+            DrawRect(frame, Backing);
+            DrawRect(frame, Edge, false, 1f);
             DrawRect(new Rect2(topLeft, new Vector2(BarWidth, BarHeight)), Track);
 
             if (approaching)
             {
                 float travel = 0.5f + 0.5f * Mathf.Sin((float)Time.GetTicksMsec() / 520.0f);
-                float markerX = topLeft.X + 5f + (BarWidth - 10f) * travel;
-                DrawCircle(new Vector2(markerX, topLeft.Y + BarHeight * 0.5f), 4f, TravelMarker);
+                float markerX = topLeft.X + (BarWidth - 16f) * travel;
+                DrawRect(new Rect2(markerX, topLeft.Y, 16f, BarHeight), TravelMarker);
             }
             else
             {

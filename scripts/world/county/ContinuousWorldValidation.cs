@@ -56,8 +56,13 @@ public partial class ContinuousWorldValidation:Node
         }
 
         StrategyCamera camera = GetNode<StrategyCamera>("../World/StrategyCamera");
-        camera.CenterOnGridPosition(gridPosition);
-        camera.SetZoom(capture is "interior_house" ? .82f : capture is "ashwood" ? .48f : .57f);
+        camera.SnapTo(gridPosition, capture is "interior_house" ? .82f : capture is "ashwood" ? .48f : .57f);
+
+        // Optional wall-clock override so a capture can be taken at dusk or at
+        // night without waiting out a real day cycle.
+        string? hour = System.Environment.GetEnvironmentVariable("ASHWOOD_CAPTURE_HOUR");
+        if (!string.IsNullOrWhiteSpace(hour) && double.TryParse(hour, System.Globalization.CultureInfo.InvariantCulture, out double parsed))
+            GetNode<AshwoodCounty.Systems.GameClock>("../GameClock").SetTotalMinutes(parsed * 60d);
         CountyFogOfWar fog = GetNode<CountyFogOfWar>("../World/CountyFog");
         fog.DebugMode = FogDebugMode.RevealAll;
         GD.Print($"VISUAL_CAPTURE: {capture} at {gridPosition}");
@@ -66,10 +71,27 @@ public partial class ContinuousWorldValidation:Node
     }
     private async void CapturePngAfterFrames(string path)
     {
-        for(int i=0;i<4;i++)await ToSignal(GetTree(),SceneTree.SignalName.ProcessFrame);
+        // Terrain detail streams from the visible rectangle, so the capture has
+        // to give the layers a couple of refresh ticks to build.
+        for(int i=0;i<90;i++)await ToSignal(GetTree(),SceneTree.SignalName.ProcessFrame);
+        ReportRenderCost();
         Error error=GetViewport().GetTexture().GetImage().SavePng(path);
         GD.Print($"VISUAL_CAPTURE_PNG: {error} {path}");
     }
+    /// <summary>
+    /// Renderer cost at the moment of capture. The terrain layers stream chunks
+    /// from the visible rectangle, so this is the number that matters when
+    /// judging whether an environment-art pass has become too expensive.
+    /// </summary>
+    private void ReportRenderCost()
+    {
+        ulong objects=RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TotalObjectsInFrame);
+        ulong draws=RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TotalDrawCallsInFrame);
+        ulong primitives=RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TotalPrimitivesInFrame);
+        int nodes=GetTree().GetNodeCount();
+        GD.Print($"RENDER_COST: fps={Engine.GetFramesPerSecond()} nodes={nodes} objects={objects} draw_calls={draws} primitives={primitives}");
+    }
+
     private async void ConfigureInteriorCapture()
     {
         for(int i=0;i<4;i++)await ToSignal(GetTree(),SceneTree.SignalName.ProcessFrame);

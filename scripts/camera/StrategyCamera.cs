@@ -43,6 +43,20 @@ public partial class StrategyCamera : Camera2D
         _targetZoom = Mathf.Clamp(zoom, MinZoom, MaxZoom);
     }
 
+    /// <summary>
+    /// Jump to a framing immediately, skipping the smoothing pass. Capture and
+    /// validation tooling needs the camera settled before it samples a frame;
+    /// with smoothing it is still travelling several frames later, which reads
+    /// as "the world did not render" when it is really "the camera is en route".
+    /// </summary>
+    public void SnapTo(Vector2 gridPosition, float zoom)
+    {
+        CenterOnGridPosition(gridPosition);
+        SetZoom(zoom);
+        Position = _targetPosition;
+        Zoom = Vector2.One * _targetZoom;
+    }
+
     public override void _UnhandledInput(InputEvent inputEvent)
     {
         if (inputEvent is InputEventMouseButton mouseButton)

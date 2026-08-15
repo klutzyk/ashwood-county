@@ -5,15 +5,33 @@ namespace AshwoodCounty.UI;
 /// <summary>
 /// Shared, code-owned HUD theme. It deliberately uses Godot's native/system font
 /// so the interface stays portable and does not depend on a bundled typeface.
+///
+/// The persistent HUD is built from bars rather than boxes. A masthead across
+/// the top and a command bar along the bottom each carry a single hairline on
+/// the edge that faces the world; nothing else gets a full outline. Buttons in
+/// those bars are transparent until touched and mark their active state with a
+/// brass underline instead of another filled rectangle. Panels that genuinely
+/// float over the world (survivor, loot, toasts) keep their outline, because
+/// there they are doing real work separating themselves from the terrain.
 /// </summary>
 public static class AshwoodTheme
 {
+    // One palette, named by role rather than by where it happens to be used.
+    private static readonly Color Ink = new("0d110ff5");
     private static readonly Color Card = new("151a16f2");
+    private static readonly Color Raised = new("222a21ff");
     private static readonly Color Brass = new("c2a35fff");
-    private static readonly Color BrassDim = new("65593dcc");
+    private static readonly Color BrassDim = new("6b5d3c99");
+    private static readonly Color Hairline = new("8a7a4ca8");
     private static readonly Color Parchment = new("e5dcc4ff");
-    private static readonly Color Muted = new("a9a38fff");
+    private static readonly Color Muted = new("9c9683ff");
+    private static readonly Color Faint = new("7d7a6cff");
     private static readonly Color HoverParchment = new("fff0c2ff");
+
+    // A single spacing scale keeps every bar, panel and row on the same rhythm.
+    private const int GapTight = 4;
+    private const int GapBase = 8;
+    private const int GapWide = 12;
 
     public static Theme Create()
     {
@@ -27,66 +45,76 @@ public static class AshwoodTheme
         theme.SetColor("font_color", "Button", Parchment);
         theme.SetColor("font_hover_color", "Button", HoverParchment);
         theme.SetColor("font_pressed_color", "Button", new Color("ffe09aff"));
-        theme.SetColor("font_disabled_color", "Button", new Color("77796fff"));
-        theme.SetColor("icon_normal_color", "Button", new Color("c8ad70ff"));
+        theme.SetColor("font_disabled_color", "Button", new Color("6b6d63ff"));
+        theme.SetColor("icon_normal_color", "Button", new Color("bda468ff"));
         theme.SetColor("icon_hover_color", "Button", new Color("f0cd7dff"));
         theme.SetColor("icon_pressed_color", "Button", new Color("ffe09aff"));
         theme.SetColor("icon_disabled_color", "Button", new Color("686b61ff"));
-        theme.SetStylebox("normal", "Button", Box(new Color("1b211cf2"), BrassDim, 4, 7, 4));
-        theme.SetStylebox("hover", "Button", Box(new Color("30372df7"), Brass, 4, 7, 4));
-        theme.SetStylebox("pressed", "Button", Box(new Color("4a4027fa"), new Color("e0b75fff"), 4, 7, 4));
-        theme.SetStylebox("hover_pressed", "Button", Box(new Color("584b2afa"), new Color("f0c66bff"), 4, 7, 4));
-        theme.SetStylebox("disabled", "Button", Box(new Color("171b17c8"), new Color("41443b99"), 4, 7, 4));
+        theme.SetStylebox("normal", "Button", Box(Raised, BrassDim, 3, 9, 5));
+        theme.SetStylebox("hover", "Button", Box(new Color("2e3729ff"), Brass, 3, 9, 5));
+        theme.SetStylebox("pressed", "Button", Box(new Color("463d25ff"), new Color("e0b75fff"), 3, 9, 5));
+        theme.SetStylebox("hover_pressed", "Button", Box(new Color("524628ff"), new Color("f0c66bff"), 3, 9, 5));
         theme.SetStylebox("focus", "Button", new StyleBoxEmpty());
 
-        theme.SetStylebox("panel", "PanelContainer", Box(Card, BrassDim, 6, 10, 8));
-        theme.SetStylebox("separator", "HSeparator", Line(new Color("766b4eb0"), 1));
-        theme.SetStylebox("separator", "VSeparator", Line(new Color("766b4e90"), 1));
-        theme.SetConstant("separation", "HBoxContainer", 5);
-        theme.SetConstant("separation", "VBoxContainer", 5);
+        theme.SetStylebox("panel", "PanelContainer", Box(Card, BrassDim, 4, GapWide, GapBase));
+        theme.SetStylebox("separator", "HSeparator", Line(new Color("6d6448a0"), 1));
+        theme.SetStylebox("separator", "VSeparator", Line(new Color("6d644880"), 1));
+        theme.SetConstant("separation", "HBoxContainer", GapBase);
+        theme.SetConstant("separation", "VBoxContainer", GapTight);
 
-        theme.SetStylebox("background", "ProgressBar", Box(new Color("0d110ef0"), new Color("353a32cc"), 3, 0, 0));
-        theme.SetStylebox("fill", "ProgressBar", Box(new Color("77934fff"), new Color("9cae6cff"), 3, 0, 0));
+        theme.SetStylebox("background", "ProgressBar", Box(new Color("0a0e0bf0"), new Color("2f342c00"), 2, 0, 0));
+        theme.SetStylebox("fill", "ProgressBar", Box(new Color("77934fff"), new Color("00000000"), 2, 0, 0));
         theme.SetColor("font_color", "ProgressBar", new Color("00000000"));
         theme.SetColor("font_outline_color", "ProgressBar", new Color("00000000"));
 
-        AddLabelVariation(theme, "HudTitle", new Color("d8bc7aff"), 15);
+        // Typography: three weights of emphasis and one muted caption size.
+        // Anything that needs a fourth is usually a layout problem instead.
+        AddLabelVariation(theme, "HudTitle", new Color("dfc481ff"), 16);
         AddLabelVariation(theme, "HudHeading", new Color("d8bc7aff"), 13);
         AddLabelVariation(theme, "HudMuted", Muted, 12);
-        AddLabelVariation(theme, "HudResourceName", Muted, 10);
-        AddLabelVariation(theme, "HudResourceValue", Parchment, 14);
-        AddLabelVariation(theme, "HudTiny", Muted, 10);
+        AddLabelVariation(theme, "HudResourceName", Faint, 9);
+        AddLabelVariation(theme, "HudResourceValue", Parchment, 17);
+        AddLabelVariation(theme, "HudTiny", Faint, 9);
         AddLabelVariation(theme, "HudSurvivorName", new Color("f0dfb5ff"), 16);
         AddLabelVariation(theme, "HudMapTitle", new Color("e8ce8cff"), 18);
         AddLabelVariation(theme, "HudMapSubtitle", new Color("91866dff"), 9);
         AddLabelVariation(theme, "HudMapDetail", Parchment, 13);
 
-        AddPanelVariation(theme, "HudTopPanel", new Color("101510f2"), new Color("71613dc7"), 6, 11, 6);
-        AddPanelVariation(theme, "HudToolbarPanel", new Color("101510f1"), new Color("7c6a43d1"), 6, 5, 4);
-        AddPanelVariation(theme, "HudPalettePanel", new Color("151a16ed"), new Color("665b42ba"), 5, 6, 5);
-        AddPanelVariation(theme, "HudSurvivorPanel", new Color("121713f5"), new Color("877246d9"), 7, 10, 9);
-        AddPanelVariation(theme, "HudLootRowPanel", new Color("1b221cf5"), new Color("5a4e30b8"), 5, 8, 6);
-        AddPanelVariation(theme, "HudToastPanel", new Color("151a16f2"), new Color("a1864dd9"), 5, 8, 6);
-        AddPanelVariation(theme, "HudMapDetailPanel", new Color("101510e6"), new Color("756541a8"), 5, 8, 7);
+        // Bars: one hairline on the world-facing edge, nothing else.
+        theme.SetTypeVariation("HudTopPanel", "PanelContainer");
+        theme.SetStylebox("panel", "HudTopPanel",
+            Bar(Ink, Hairline, bottom: 1, horizontal: 20, vertical: 9));
+        theme.SetTypeVariation("HudToolbarPanel", "PanelContainer");
+        theme.SetStylebox("panel", "HudToolbarPanel",
+            Bar(Ink, Hairline, top: 1, horizontal: 14, vertical: GapTight));
 
-        AddButtonVariation(theme, "HudCategoryButton", 10, new Color("151a16ee"));
-        AddButtonVariation(theme, "HudActionButton", 10, new Color("1b211cf0"));
-        AddButtonVariation(theme, "HudTabButton", 10, new Color("141914e5"));
-        AddButtonVariation(theme, "HudPriorityButton", 9, new Color("171c18e9"));
-        AddButtonVariation(theme, "HudSpeedButton", 10, new Color("161b17eb"));
+        AddPanelVariation(theme, "HudPalettePanel", new Color("141a15ee"), new Color("60563d9e"), 4, GapWide, GapBase);
+        AddPanelVariation(theme, "HudSurvivorPanel", new Color("111611f7"), new Color("7d6b429e"), 4, GapWide, GapWide);
+        AddPanelVariation(theme, "HudLootRowPanel", new Color("1a211bf2"), new Color("53482c8c"), 3, GapBase, GapTight + 1);
+        AddPanelVariation(theme, "HudToastPanel", new Color("141a15f4"), new Color("9c8349c4"), 3, GapWide, GapBase);
+        AddPanelVariation(theme, "HudMapDetailPanel", new Color("101510ea"), new Color("6d5f3d9e"), 4, GapWide, GapBase);
 
-        theme.SetStylebox("panel", "TooltipPanel", Box(new Color("111611fc"), new Color("d1ad60ff"), 5, 10, 7));
+        // Bar buttons: no chrome until hovered, brass underline when active.
+        AddBarButtonVariation(theme, "HudCategoryButton", 11, horizontal: 14);
+        // Tempo controls are single glyphs, so they get tight padding of their
+        // own; the command bar's generous padding would clip them to nothing.
+        AddBarButtonVariation(theme, "HudSpeedButton", 12, horizontal: 7);
+
+        // Content buttons still read as buttons; they sit inside outlined panels
+        // where a flat label would be ambiguous.
+        AddButtonVariation(theme, "HudActionButton", 11, new Color("1c231dff"));
+        AddButtonVariation(theme, "HudTabButton", 11, new Color("161c17ff"));
+        AddButtonVariation(theme, "HudPriorityButton", 10, new Color("181f19ff"));
+
+        theme.SetStylebox("panel", "TooltipPanel", Box(new Color("0f140ffc"), new Color("bd9d57ff"), 3, GapWide, GapBase));
         theme.SetColor("font_color", "TooltipLabel", Parchment);
         theme.SetColor("font_shadow_color", "TooltipLabel", new Color("000000c0"));
         theme.SetConstant("shadow_offset_x", "TooltipLabel", 1);
         theme.SetConstant("shadow_offset_y", "TooltipLabel", 1);
         theme.SetFontSize("font_size", "TooltipLabel", 12);
-        AddButtonVariation(theme, "HudMapMarker", 10, new Color("101510e8"));
-        theme.SetStylebox("normal", "HudMapMarker", Box(new Color("101510e8"), new Color("61583fc4"), 4, 9, 4));
-        theme.SetStylebox("hover", "HudMapMarker", Box(new Color("293126f4"), new Color("c5a45fff"), 4, 9, 4));
-        theme.SetStylebox("pressed", "HudMapMarker", Box(new Color("4a4028f7"), new Color("e0b85fff"), 4, 9, 4));
-        theme.SetStylebox("hover_pressed", "HudMapMarker", Box(new Color("574a2cf8"), new Color("f0ca73ff"), 4, 9, 4));
-        AddButtonVariation(theme, "HudMapCloseButton", 10, new Color("151a16ec"));
+
+        AddButtonVariation(theme, "HudMapMarker", 10, new Color("101510ee"));
+        AddButtonVariation(theme, "HudMapCloseButton", 11, new Color("161c17ff"));
 
         return theme;
     }
@@ -108,10 +136,28 @@ public static class AshwoodTheme
     {
         theme.SetTypeVariation(name, "Button");
         theme.SetFontSize("font_size", name, fontSize);
-        theme.SetStylebox("normal", name, Box(normal, BrassDim, 4, 8, 5));
-        theme.SetStylebox("hover", name, Box(new Color("33382bf7"), Brass, 4, 8, 5));
-        theme.SetStylebox("pressed", name, Box(new Color("514525fa"), new Color("d9ae51ff"), 4, 8, 5));
-        theme.SetStylebox("hover_pressed", name, Box(new Color("5b4d2bfa"), new Color("edc26bff"), 4, 8, 5));
+        theme.SetStylebox("normal", name, Box(normal, BrassDim, 3, GapWide, GapTight + 1));
+        theme.SetStylebox("hover", name, Box(new Color("2e3729ff"), Brass, 3, GapWide, GapTight + 1));
+        theme.SetStylebox("pressed", name, Box(new Color("4a4025ff"), new Color("d9ae51ff"), 3, GapWide, GapTight + 1));
+        theme.SetStylebox("hover_pressed", name, Box(new Color("544728ff"), new Color("edc26bff"), 3, GapWide, GapTight + 1));
+        theme.SetStylebox("focus", name, new StyleBoxEmpty());
+    }
+
+    /// <summary>
+    /// A button that lives inside a bar: invisible at rest, a soft wash on
+    /// hover, and a brass underline when it is the active choice. Removing the
+    /// per-button rectangle is most of what separates a command bar from a row
+    /// of dashboard tiles.
+    /// </summary>
+    private static void AddBarButtonVariation(Theme theme, string name, int fontSize, int horizontal)
+    {
+        theme.SetTypeVariation(name, "Button");
+        theme.SetFontSize("font_size", name, fontSize);
+        theme.SetStylebox("normal", name, Bar(new Color("00000000"), new Color("00000000"), bottom: 2, horizontal: horizontal, vertical: GapBase));
+        theme.SetStylebox("hover", name, Bar(new Color("ffffff12"), new Color("bda46877"), bottom: 2, horizontal: horizontal, vertical: GapBase));
+        theme.SetStylebox("pressed", name, Bar(new Color("d9ae511a"), Brass, bottom: 2, horizontal: horizontal, vertical: GapBase));
+        theme.SetStylebox("hover_pressed", name, Bar(new Color("d9ae5128"), new Color("f0c66bff"), bottom: 2, horizontal: horizontal, vertical: GapBase));
+        theme.SetStylebox("disabled", name, Bar(new Color("00000000"), new Color("00000000"), bottom: 2, horizontal: horizontal, vertical: GapBase));
         theme.SetStylebox("focus", name, new StyleBoxEmpty());
     }
 
@@ -133,6 +179,25 @@ public static class AshwoodTheme
             ContentMarginRight = horizontalMargin,
             ContentMarginTop = verticalMargin,
             ContentMarginBottom = verticalMargin
+        };
+    }
+
+    /// <summary>A square-cornered fill with a hairline on selected edges only.</summary>
+    private static StyleBoxFlat Bar(Color fill, Color border, int horizontal, int vertical,
+        int top = 0, int bottom = 0, int left = 0, int right = 0)
+    {
+        return new StyleBoxFlat
+        {
+            BgColor = fill,
+            BorderColor = border,
+            BorderWidthLeft = left,
+            BorderWidthTop = top,
+            BorderWidthRight = right,
+            BorderWidthBottom = bottom,
+            ContentMarginLeft = horizontal,
+            ContentMarginRight = horizontal,
+            ContentMarginTop = vertical,
+            ContentMarginBottom = vertical
         };
     }
 

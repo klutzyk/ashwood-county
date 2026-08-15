@@ -129,6 +129,39 @@ public static class CountyMacroLayout
         new(208, 78), new(186, 66)
     ];
 
+    /// <summary>
+    /// Blackwater Lake's rendered shoreline: the authored polygon subdivided and
+    /// perturbed deterministically. The blockout's ten points make a shape that
+    /// reads as a cut-out from the air; a real lake edge bays and juts. Water
+    /// rendering, shore dressing and ground surfacing all use this one outline
+    /// so they cannot disagree about where the waterline is.
+    /// </summary>
+    public static readonly Vector2[] BlackwaterLakeOutline = BuildLakeOutline();
+
+    private static Vector2[] BuildLakeOutline()
+    {
+        const int subdivisions = 7;
+        List<Vector2> outline = [];
+        for (int index = 0; index < BlackwaterLake.Length; index++)
+        {
+            Vector2 a = BlackwaterLake[index];
+            Vector2 b = BlackwaterLake[(index + 1) % BlackwaterLake.Length];
+            Vector2 tangent = (b - a).Normalized();
+            Vector2 normal = new(-tangent.Y, tangent.X);
+            for (int step = 0; step < subdivisions; step++)
+            {
+                float t = step / (float)subdivisions;
+                Vector2 point = a.Lerp(b, t);
+                // Two scales of wobble: broad bays plus a smaller ragged edge.
+                float wobble =
+                    Mathf.Sin((index * subdivisions + step) * .93f) * 2.3f +
+                    Mathf.Sin((index * subdivisions + step) * 2.61f + 1.7f) * 1.1f;
+                outline.Add(point + normal * wobble);
+            }
+        }
+        return [.. outline];
+    }
+
     public static readonly Vector2[] BlackwaterRiver =
     [new(286, 79), new(296, 101), new(282, 124), new(257, 146), new(224, 171), new(187, 193), new(149, 207), new(111, 220), new(82, 245), new(63, 287)];
 

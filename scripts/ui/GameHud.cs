@@ -96,10 +96,10 @@ public partial class GameHud : CanvasLayer
         };
         AddChild(safe);
         safe.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        safe.AddThemeConstantOverride("margin_left", 16);
-        safe.AddThemeConstantOverride("margin_top", 10);
-        safe.AddThemeConstantOverride("margin_right", 16);
-        safe.AddThemeConstantOverride("margin_bottom", 12);
+        safe.AddThemeConstantOverride("margin_left", 0);
+        safe.AddThemeConstantOverride("margin_top", 0);
+        safe.AddThemeConstantOverride("margin_right", 0);
+        safe.AddThemeConstantOverride("margin_bottom", 0);
 
         VBoxContainer screen = Layout<VBoxContainer>();
         safe.AddChild(screen);
@@ -121,60 +121,91 @@ public partial class GameHud : CanvasLayer
         SelectSurvivorTab(SurvivorTab.Overview);
     }
 
+    /// <summary>
+    /// The masthead: county identity, stores, then time and tempo. It spans the
+    /// window rather than floating as a pill, which reads as part of the game
+    /// rather than a widget dropped on top of it.
+    /// </summary>
     private Control BuildTopBar()
     {
-        CenterContainer center = Layout<CenterContainer>();
-        PanelContainer panel = Panel("HudTopPanel", new Vector2(760, 0));
-        center.AddChild(panel);
+        PanelContainer panel = Panel("HudTopPanel");
+        panel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
 
         HBoxContainer bar = Layout<HBoxContainer>();
+        bar.AddThemeConstantOverride("separation", 14);
         panel.AddChild(bar);
 
         HBoxContainer identity = Layout<HBoxContainer>();
-        identity.CustomMinimumSize = new Vector2(140, 0);
-        identity.AddChild(Icon("county", 28));
+        identity.AddThemeConstantOverride("separation", 9);
+        identity.AddChild(Icon("county", 26));
         VBoxContainer brand = Layout<VBoxContainer>();
+        brand.AddThemeConstantOverride("separation", 0);
         brand.AddChild(Text("ASHWOOD", "HudTitle"));
         brand.AddChild(Text("COUNTY", "HudTiny"));
         identity.AddChild(brand);
         bar.AddChild(identity);
         bar.AddChild(Separator(true));
 
-        AddResourceReadout(bar, ResourceType.Wood, "WOOD", "wood");
-        AddResourceReadout(bar, ResourceType.Food, "FOOD", "food");
-        AddResourceReadout(bar, ResourceType.Materials, "MATERIALS", "materials");
-        AddResourceReadout(bar, ResourceType.Medicine, "MEDICINE", "medicine");
+        // Stores are one group with even rhythm, so the eye reads a row of
+        // numbers rather than four separate widgets.
+        HBoxContainer stores = Layout<HBoxContainer>();
+        stores.AddThemeConstantOverride("separation", 18);
+        AddResourceReadout(stores, ResourceType.Wood, "WOOD", "wood");
+        AddResourceReadout(stores, ResourceType.Food, "FOOD", "food");
+        AddResourceReadout(stores, ResourceType.Materials, "MATERIALS", "materials");
+        AddResourceReadout(stores, ResourceType.Medicine, "MEDICINE", "medicine");
+        bar.AddChild(stores);
 
         Control stretch = new() { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, MouseFilter = Control.MouseFilterEnum.Ignore };
         bar.AddChild(stretch);
-        bar.AddChild(Separator(true));
 
         VBoxContainer clock = Layout<VBoxContainer>();
-        clock.CustomMinimumSize = new Vector2(82, 0);
+        clock.AddThemeConstantOverride("separation", 0);
         clock.MouseFilter = Control.MouseFilterEnum.Stop;
         clock.TooltipText = "County day, local time, and current simulation speed.";
-        _time = Text("DAY 1  09:00", "HudHeading");
+        _time = Text("DAY 1  09:00", "HudTitle");
         _time.HorizontalAlignment = HorizontalAlignment.Right;
+        HBoxContainer subline = Layout<HBoxContainer>();
+        subline.Alignment = BoxContainer.AlignmentMode.End;
+        subline.AddThemeConstantOverride("separation", 6);
         _phase = Text("DAY", "HudTiny");
-        _phase.HorizontalAlignment = HorizontalAlignment.Right;
         _simulationState = Text("1x", "HudTiny");
-        _simulationState.HorizontalAlignment = HorizontalAlignment.Right;
+        subline.AddChild(_phase);
+        subline.AddChild(_simulationState);
         clock.AddChild(_time);
-        clock.AddChild(_phase);
-        clock.AddChild(_simulationState);
+        clock.AddChild(subline);
         bar.AddChild(clock);
 
-        AddSpeedButton(bar, string.Empty, 0, "Pause or resume [Space]", "pause");
-        AddSpeedButton(bar, "1×", 1, "Normal speed [1]");
-        AddSpeedButton(bar, "2×", 2, "Fast speed [2]");
-        AddSpeedButton(bar, "3×", 3, "Very fast speed [3]");
-        return center;
+        bar.AddChild(Separator(true));
+        HBoxContainer tempo = Layout<HBoxContainer>();
+        tempo.AddThemeConstantOverride("separation", 0);
+        AddSpeedButton(tempo, string.Empty, 0, "Pause or resume [Space]", "pause");
+        AddSpeedButton(tempo, "1x", 1, "Normal speed [1]");
+        AddSpeedButton(tempo, "2x", 2, "Fast speed [2]");
+        AddSpeedButton(tempo, "3x", 3, "Very fast speed [3]");
+        bar.AddChild(tempo);
+        return panel;
     }
 
+    /// <summary>
+    /// The lower band: notifications on the left, the command bar centred, the
+    /// selected survivor on the right. Only the command bar is full bleed; the
+    /// floating panels keep an inset so they read as separate objects.
+    /// </summary>
     private Control BuildLowerHud()
     {
+        VBoxContainer lower = Layout<VBoxContainer>();
+        lower.AddThemeConstantOverride("separation", 0);
+
+        MarginContainer inset = new() { MouseFilter = Control.MouseFilterEnum.Ignore };
+        inset.AddThemeConstantOverride("margin_left", 16);
+        inset.AddThemeConstantOverride("margin_right", 16);
+        inset.AddThemeConstantOverride("margin_bottom", 8);
+        lower.AddChild(inset);
+
         HBoxContainer row = Layout<HBoxContainer>();
         row.Alignment = BoxContainer.AlignmentMode.End;
+        inset.AddChild(row);
 
         VBoxContainer notificationColumn = Layout<VBoxContainer>();
         notificationColumn.CustomMinimumSize = new Vector2(326, 0);
@@ -203,7 +234,25 @@ public partial class GameHud : CanvasLayer
         survivorColumn.CustomMinimumSize = new Vector2(326, 0);
         survivorColumn.AddChild(BuildSurvivorPanel());
         row.AddChild(survivorColumn);
-        return row;
+
+        lower.AddChild(BuildCommandBar());
+        return lower;
+    }
+
+    /// <summary>The always-visible command bar, spanning the window.</summary>
+    private Control BuildCommandBar()
+    {
+        PanelContainer toolbarPanel = Panel("HudToolbarPanel");
+        toolbarPanel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        HBoxContainer toolbar = Layout<HBoxContainer>();
+        toolbar.Alignment = BoxContainer.AlignmentMode.Center;
+        toolbar.AddThemeConstantOverride("separation", 2);
+        toolbarPanel.AddChild(toolbar);
+        AddCategory(toolbar, HudCategory.Build, "BUILD", "build", "Construction and settlement structures");
+        AddCategory(toolbar, HudCategory.Work, "WORK", "work", "Harvesting and scavenging designations");
+        AddCategory(toolbar, HudCategory.People, "PEOPLE", "people", "Selected survivor information");
+        AddCategory(toolbar, HudCategory.County, "COUNTY", "county", "County map, discoveries and regional control");
+        return toolbarPanel;
     }
 
     private Control BuildActionArea()
@@ -221,15 +270,6 @@ public partial class GameHud : CanvasLayer
         _palettes[HudCategory.County] = BuildCountyPalette();
         foreach (Control palette in _palettes.Values) column.AddChild(palette);
 
-        PanelContainer toolbarPanel = Panel("HudToolbarPanel");
-        HBoxContainer toolbar = Layout<HBoxContainer>();
-        toolbar.Alignment = BoxContainer.AlignmentMode.Center;
-        toolbarPanel.AddChild(toolbar);
-        AddCategory(toolbar, HudCategory.Build, "BUILD", "build", "Construction and settlement structures");
-        AddCategory(toolbar, HudCategory.Work, "WORK", "work", "Harvesting and scavenging designations");
-        AddCategory(toolbar, HudCategory.People, "PEOPLE", "people", "Selected survivor information");
-        AddCategory(toolbar, HudCategory.County, "COUNTY", "county", "County map, discoveries and regional control");
-        column.AddChild(toolbarPanel);
         return column;
     }
 
@@ -503,11 +543,12 @@ public partial class GameHud : CanvasLayer
     private void AddResourceReadout(Container parent, ResourceType resource, string name, string iconName)
     {
         HBoxContainer readout = Layout<HBoxContainer>();
-        readout.CustomMinimumSize = new Vector2(resource == ResourceType.Materials ? 82 : 67, 0);
+        readout.AddThemeConstantOverride("separation", 7);
         readout.MouseFilter = Control.MouseFilterEnum.Stop;
         readout.TooltipText = $"{name[..1]}{name[1..].ToLowerInvariant()} available to the settlement.";
-        readout.AddChild(Icon(iconName, 20));
+        readout.AddChild(Icon(iconName, 19));
         VBoxContainer copy = Layout<VBoxContainer>();
+        copy.AddThemeConstantOverride("separation", 0);
         Label value = Text("0", "HudResourceValue");
         Label caption = Text(name, "HudResourceName");
         copy.AddChild(value);
@@ -516,7 +557,6 @@ public partial class GameHud : CanvasLayer
         parent.AddChild(readout);
         _resourceValues[resource] = value;
     }
-
     private void AddVital(Container parent, string name, Color color)
     {
         HBoxContainer row = Layout<HBoxContainer>();
@@ -549,10 +589,10 @@ public partial class GameHud : CanvasLayer
         StyleBoxFlat fill = new()
         {
             BgColor = color,
-            CornerRadiusTopLeft = 3,
-            CornerRadiusTopRight = 3,
-            CornerRadiusBottomLeft = 3,
-            CornerRadiusBottomRight = 3
+            CornerRadiusTopLeft = 2,
+            CornerRadiusTopRight = 2,
+            CornerRadiusBottomLeft = 2,
+            CornerRadiusBottomRight = 2
         };
         bar.AddThemeStyleboxOverride("fill", fill);
         return bar;
@@ -562,7 +602,7 @@ public partial class GameHud : CanvasLayer
     {
         Button button = HudButton(text, "HudCategoryButton", tooltip, icon);
         button.ToggleMode = true;
-        button.CustomMinimumSize = new Vector2(92, 40);
+        button.CustomMinimumSize = new Vector2(104, 34);
         button.Pressed += () => SelectCategory(category);
         parent.AddChild(button);
         _categoryButtons[category] = button;
@@ -596,7 +636,8 @@ public partial class GameHud : CanvasLayer
     private void AddSpeedButton(Container parent, string text, int speed, string tooltip, string icon = "")
     {
         Button button = HudButton(text, "HudSpeedButton", tooltip, icon);
-        button.CustomMinimumSize = new Vector2(29, 27);
+        button.CustomMinimumSize = new Vector2(38, 32);
+        button.ClipText = false;
         button.Pressed += () =>
         {
             if (speed == 0) _simulation.TogglePause();
@@ -868,7 +909,7 @@ public partial class GameHud : CanvasLayer
         else if (_designation.IsDesignationActive)
         {
             _paletteHint.Visible = true;
-            _paletteHint.Text = "Designation active — click targets; right-click or Esc to finish.";
+            _paletteHint.Text = "Designation active. Click targets; right-click or Esc to finish.";
         }
         else if (_activeCategory is HudCategory category)
         {

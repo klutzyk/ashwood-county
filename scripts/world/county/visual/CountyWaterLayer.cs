@@ -37,7 +37,7 @@ public partial class CountyWaterLayer : Node2D
         Polygon2D lake = new()
         {
             Name = "BlackwaterLakeSurface",
-            Polygon = CountyMacroLayout.BlackwaterLake.Select(IsometricGrid.GridToScreen).ToArray(),
+            Polygon = CountyMacroLayout.BlackwaterLakeOutline.Select(IsometricGrid.GridToScreen).ToArray(),
             Color = Colors.White,
             Material = WaterMaterialLibrary.Lake
         };
