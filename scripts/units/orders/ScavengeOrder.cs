@@ -1,3 +1,4 @@
+using AshwoodCounty.Combat;
 using AshwoodCounty.Resources;
 using AshwoodCounty.UI;
 using AshwoodCounty.World;
@@ -72,6 +73,7 @@ public sealed class ScavengeOrder(ScavengeSource target, Stockpile stockpile, Ve
                 _notified = true;
                 SpawnResourceReveal(_target, found, _target.LootType);
             }
+            EmitNoise(survivor, 3.0f);
             _phase = Phase.Delivering;
         }
         else if (survivor.MoveTowardsGridPosition(_deliveryPosition, delta))
@@ -114,5 +116,13 @@ public sealed class ScavengeOrder(ScavengeSource target, Stockpile stockpile, Ve
             source.Position + new Vector2(0f, -50f),
             [(TextureRegistry.Get(iconPath), amount.ToString())],
             "");
+    }
+
+    private static void EmitNoise(Survivor survivor, float radius)
+    {
+        if (survivor.GetTree().GetFirstNodeInGroup(NoiseSystem.GroupName) is NoiseSystem noise)
+        {
+            noise.Emit(survivor.SimulationPosition, radius);
+        }
     }
 }

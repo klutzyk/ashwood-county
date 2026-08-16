@@ -44,8 +44,14 @@ public partial class CountyRuntimeBootstrap : Node
             root.AddChild(new SearchProgressOverlay{Name="SearchProgressOverlay"});
         if(root.GetNodeOrNull<SurvivalCycle>("SurvivalCycle") is null)
             root.AddChild(new SurvivalCycle{Name="SurvivalCycle"});
+        if(root.GetNodeOrNull<StartingScenario>("StartingScenario") is null)
+            root.AddChild(new StartingScenario{Name="StartingScenario"});
+        if(root.GetNodeOrNull<SurvivalObjectives>("SurvivalObjectives") is null)
+            root.AddChild(new SurvivalObjectives{Name="SurvivalObjectives"});
         if(root.GetNodeOrNull<SurvivalLoopValidation>("SurvivalLoopValidation") is null)
             root.AddChild(new SurvivalLoopValidation{Name="SurvivalLoopValidation"});
+        if(root.GetNodeOrNull<EarlyGameCoreLoopValidation>("EarlyGameCoreLoopValidation") is null)
+            root.AddChild(new EarlyGameCoreLoopValidation{Name="EarlyGameCoreLoopValidation"});
         if(root.GetNodeOrNull<TerrainStreamingValidation>("TerrainStreamingValidation") is null)
             root.AddChild(new TerrainStreamingValidation{Name="TerrainStreamingValidation"});
         if(root.GetNodeOrNull<InteriorVerticalSliceValidation>("InteriorVerticalSliceValidation") is null)

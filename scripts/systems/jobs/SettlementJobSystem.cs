@@ -85,7 +85,7 @@ public partial class SettlementJobSystem : Node
         bool night = SurvivalCycle.IsNightActive();
         foreach (Survivor survivor in GetSurvivors().Where(unit => unit.IsAvailableForAutonomousWork))
         {
-            if (TryAssignEating(survivor) || TryAssignRest(survivor) || TryAssignTreatment(survivor))
+            if (TryAssignSelfCare(survivor) || TryAssignEating(survivor) || TryAssignRest(survivor) || TryAssignTreatment(survivor))
             {
                 continue;
             }
@@ -95,6 +95,21 @@ public partial class SettlementJobSystem : Node
                 continue;
             }
         }
+    }
+
+    private bool TryAssignSelfCare(Survivor survivor)
+    {
+        if (survivor.Health > survivor.MaxHealth * 0.6f)
+        {
+            return false;
+        }
+
+        string carriedMedical = survivor.Inventory.Items
+            .Where(stack => ItemCatalog.TryGet(stack.ItemId, out ItemDefinition definition)
+                && definition.Category == ItemCategory.Medical && definition.Usable)
+            .Select(stack => stack.ItemId)
+            .FirstOrDefault();
+        return carriedMedical is not null && survivor.UseItem(carriedMedical);
     }
 
     private bool TryAssignConstruction(Survivor survivor)

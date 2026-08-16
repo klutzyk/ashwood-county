@@ -51,6 +51,8 @@ public partial class GameHud : CanvasLayer
     private PanelContainer _survivorPanel = null!;
     private PanelContainer _toastPanel = null!;
     private Label _toast = null!;
+    private PanelContainer _objectivePanel = null!;
+    private Label _objective = null!;
     private HBoxContainer _vitals = null!;
     private HBoxContainer _tabs = null!;
     private double _toastRemaining;
@@ -214,6 +216,17 @@ public partial class GameHud : CanvasLayer
         VBoxContainer notificationColumn = Layout<VBoxContainer>();
         notificationColumn.CustomMinimumSize = new Vector2(326, 0);
         notificationColumn.SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin;
+        _objectivePanel = Panel("HudToastPanel");
+        _objectivePanel.CustomMinimumSize = new Vector2(326, 0);
+        _objectivePanel.SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin;
+        _objectivePanel.MouseFilter = Control.MouseFilterEnum.Ignore;
+        _objective = Text(string.Empty, "HudMuted");
+        _objective.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        _objective.CustomMinimumSize = new Vector2(268, 0);
+        _objective.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        _objectivePanel.AddChild(_objective);
+        notificationColumn.AddChild(_objectivePanel);
+
         _toastPanel = Panel("HudToastPanel");
         _toastPanel.CustomMinimumSize = new Vector2(326, 0);
         _toastPanel.SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin;
@@ -748,8 +761,11 @@ public partial class GameHud : CanvasLayer
         takeAll.Pressed += () =>
         {
             if (_lootContainer is null || _lootSurvivor is null || !GodotObject.IsInstanceValid(_lootContainer)) return;
-            _lootContainer.TakeAll(_lootSurvivor.Inventory);
+            int before = _lootContainer.RemainingLoot.Sum(stack => stack.Quantity);
+            int taken = _lootContainer.TakeAll(_lootSurvivor.Inventory);
             RefreshLootPanel();
+            if (taken < before)
+                Notify("INVENTORY FULL\nNot enough carry weight for all loot.");
         };
         rows.AddChild(takeAll);
         return _lootPanel;
@@ -843,8 +859,13 @@ public partial class GameHud : CanvasLayer
             take.Pressed += () =>
             {
                 if (_lootContainer is null || !GodotObject.IsInstanceValid(_lootContainer)) return;
-                _lootContainer.TakeItem(itemId, int.MaxValue, survivor.Inventory);
+                int before = _lootContainer.RemainingLoot
+                    .Where(stack => stack.ItemId == itemId)
+                    .Sum(stack => stack.Quantity);
+                int taken = _lootContainer.TakeItem(itemId, int.MaxValue, survivor.Inventory);
                 RefreshLootPanel();
+                if (taken < before)
+                    Notify("INVENTORY FULL\nNot enough carry weight for that item.");
             };
             row.AddChild(take);
             _lootRows.AddChild(card);
@@ -893,6 +914,12 @@ public partial class GameHud : CanvasLayer
         foreach ((ResourceType type, Label value) in _resourceValues)
         {
             value.Text = _inventory.DevUnlimitedResources ? "∞" : _inventory.GetAmount(type).ToString();
+        }
+
+        if (SurvivalObjectives.Active is { } objectives)
+        {
+            _objectivePanel.Visible = true;
+            _objective.Text = objectives.CurrentPriority;
         }
 
         _time.Text = _clock.DisplayTime.ToUpperInvariant();

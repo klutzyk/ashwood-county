@@ -8,6 +8,7 @@ using AshwoodCounty.World;
 using Godot;
 using AshwoodCounty.Threats;
 using AshwoodCounty.Buildings.Interiors;
+using AshwoodCounty.UI;
 
 namespace AshwoodCounty.Units;
 
@@ -60,6 +61,9 @@ public partial class Survivor : Node2D
     private float _health;
     private bool _dead;
     private float _defenseScanElapsed;
+    private bool _hungerWarned;
+    private bool _criticalHungerWarned;
+    private bool _energyWarned;
 
     public bool IsSelected { get; private set; }
     public bool HasMoveOrder => CurrentOrderType == SurvivorOrderType.Move;
@@ -80,6 +84,17 @@ public partial class Survivor : Node2D
     public float Health => _health;
     public SurvivorProfile Profile { get; private set; } = new();
     public SurvivorInventory Inventory { get; private set; } = new();
+    public float EffectiveMeleeDamage
+    {
+        get
+        {
+            float weaponDamage = Inventory.EquippedWeaponId is string weaponId
+                && ItemCatalog.TryGet(weaponId, out ItemDefinition weapon)
+                    ? weapon.DamageValue
+                    : 0f;
+            return Mathf.Max(0f, MeleeDamage + weaponDamage);
+        }
+    }
     public bool NeedsMeal => Hunger <= HungryThreshold;
     public bool IsCriticallyHungry => Hunger <= CriticalHungerThreshold;
     public float WorkSpeedMultiplier => (IsCriticallyHungry ? .65f : NeedsMeal ? .85f : 1.0f) * Mathf.Lerp(.65f, 1.05f, Energy / 100f);
@@ -113,8 +128,6 @@ public partial class Survivor : Node2D
         int profileIndex = int.TryParse(new string(Name.ToString().Where(char.IsDigit).ToArray()), out int parsed) ? Mathf.Max(0, parsed - 1) : GetIndex();
         Profile = SurvivorProfile.ForIndex(profileIndex);
         Inventory.BaseCapacityKg = BaseCarryCapacityKg;
-        // TEST: every survivor starts with a flashlight in their inventory.
-        Inventory.TryAdd("flashlight", 1);
         _health = MaxHealth;
         _selectionIndicator = GetNode<CanvasItem>("SelectionIndicator");
         _visual = GetNode<CanvasItem>("Visual");
@@ -134,6 +147,7 @@ public partial class Survivor : Node2D
         Energy = Mathf.Clamp(Energy + (working ? -EnergyDrainWhileWorking : EnergyRecoveryIdle) * (float)delta, 0, 100);
         Morale = Mathf.Clamp(Morale + (Hunger < 25 ? -0.08f : Hunger > 60 ? 0.015f : 0) * (float)delta, 0, 100);
         if(_dead)return;
+        UpdateNeedWarnings();
         _defenseScanElapsed-=(float)delta;
         if(_defenseScanElapsed<=0){_defenseScanElapsed=.3f;TryAutoDefend();}
         if (_currentOrder is null)
@@ -383,6 +397,50 @@ public partial class Survivor : Node2D
         {
             _visual.QueueRedraw();
         }
+    }
+
+    private void UpdateNeedWarnings()
+    {
+        if (IsCriticallyHungry && !_criticalHungerWarned)
+        {
+            _criticalHungerWarned = true;
+            _hungerWarned = true;
+            NotifySurvivorStatus($"{Profile.DisplayName} is starving.");
+        }
+        else if (!IsCriticallyHungry)
+        {
+            _criticalHungerWarned = false;
+        }
+
+        if (NeedsMeal && !IsCriticallyHungry && !_hungerWarned)
+        {
+            _hungerWarned = true;
+            NotifySurvivorStatus($"{Profile.DisplayName} is hungry.");
+        }
+        else if (!NeedsMeal)
+        {
+            _hungerWarned = false;
+        }
+
+        if (Energy <= 28f && !_energyWarned)
+        {
+            _energyWarned = true;
+            NotifySurvivorStatus($"{Profile.DisplayName} is exhausted.");
+        }
+        else if (Energy >= 34f)
+        {
+            _energyWarned = false;
+        }
+    }
+
+    private void NotifySurvivorStatus(string message)
+    {
+        if (GetTree() is null)
+        {
+            return;
+        }
+
+        (GetTree().GetFirstNodeInGroup(GameHud.GroupName) as GameHud)?.Notify(message);
     }
 
     private void UpdateRenderedPosition()
