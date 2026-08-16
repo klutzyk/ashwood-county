@@ -74,6 +74,17 @@ public partial class AssetInspector : CanvasLayer
             enlarged++;
             GD.Print($"ASSET_SCALE_AUDIT: ENLARGED x{max:0.00} {texture} native={native.X:0}x{native.Y:0} count={count}");
         }
+        // Breakdown by source sheet, so it is provable which artwork is
+        // actually reaching the screen rather than merely referenced in code.
+        Dictionary<string, int> bySource = [];
+        foreach (Sample sample in Samples)
+        {
+            string source = Category(sample);
+            bySource[source] = bySource.GetValueOrDefault(source) + 1;
+        }
+        foreach ((string source, int count) in bySource)
+            GD.Print($"ASSET_SOURCE_AUDIT: {count,6} {source}");
+
         GD.Print($"ASSET_SCALE_AUDIT: {(enlarged == 0 ? "PASS" : "FAIL")} (textures={worst.Count}, enlarged={enlarged}, samples={Samples.Count})");
         Capturing = false;
         Samples.Clear();
@@ -138,6 +149,51 @@ public partial class AssetInspector : CanvasLayer
         GD.Print($"ASSET_INSPECTOR: {(enabled ? "enabled" : "disabled")}");
     }
 
+    /// <summary>
+    /// Alpha hit test against the sprite's own pixels.
+    ///
+    /// The recorded texture is read back once and cached, so hovering costs a
+    /// dictionary lookup plus one pixel fetch rather than an image decode.
+    /// </summary>
+    private static bool IsOpaqueAt(Sample sample, Rect2 rect, Vector2 world)
+    {
+        Image? image = AlphaFor(sample.Texture);
+        if (image is null)
+            return true;
+        Vector2 local = (world - rect.Position) / rect.Size;
+        int px = Mathf.Clamp((int)(local.X * image.GetWidth()), 0, image.GetWidth() - 1);
+        int py = Mathf.Clamp((int)(local.Y * image.GetHeight()), 0, image.GetHeight() - 1);
+        return image.GetPixel(px, py).A > .35f;
+    }
+
+    private static readonly Dictionary<string, Image?> AlphaCache = [];
+
+    private static Image? AlphaFor(string path)
+    {
+        if (AlphaCache.TryGetValue(path, out Image? cached))
+            return cached;
+        Texture2D texture = TextureRegistry.Get(path);
+        Image? image = texture?.GetImage();
+        AlphaCache[path] = image;
+        return image;
+    }
+
+    /// <summary>Where a sprite came from, so its source sheet is obvious.</summary>
+    private static string Category(Sample sample)
+    {
+        if (sample.Ground)
+            return "ground diamond (terrain)";
+        if (sample.Texture.Contains("/trees/"))
+            return "tree (trees_sheet)";
+        if (sample.Texture.Contains("/undergrowth/"))
+            return "undergrowth (undergrowth_sheet)";
+        if (sample.Texture.Contains("/environment/vegetation/"))
+            return "tree (isometric_asset_sheet)";
+        if (sample.Texture.Contains("/art/vegetation/"))
+            return "TERRAIN SHEET 02 VEGETATION - should not appear";
+        return "prop";
+    }
+
     public override void _Process(double delta)
     {
         if (!Capturing)
@@ -170,13 +226,14 @@ public partial class AssetInspector : CanvasLayer
         }
 
         float scale = hit.Native.Y > 0 ? hit.Drawn.Y / hit.Native.Y : 0f;
+        string category = Category(hit);
         string verdict = scale > 1.02f ? $"ENLARGED x{scale:0.00} - soft"
             : scale > .98f ? "native size"
             : $"reduced x{scale:0.00} - crisp";
         _readout.Text =
             $"ASSET INSPECTOR  (F9)\n" +
             $"{hit.Texture}\n" +
-            $"kind    : {(hit.Ground ? "ground diamond" : "standing art")}\n" +
+            $"source  : {category}\n" +
             $"native  : {hit.Native.X:0} x {hit.Native.Y:0}\n" +
             $"drawn   : {hit.Drawn.X:0} x {hit.Drawn.Y:0}\n" +
             $"scale   : {scale:0.000}  ({verdict})\n" +

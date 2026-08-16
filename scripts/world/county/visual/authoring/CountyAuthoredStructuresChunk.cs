@@ -239,7 +239,7 @@ public partial class CountyAuthoredStructuresChunk : Node2D
                 Vector2 at = new(x, y + 2.2f);
                 if (!Owns(at)) continue;
                 DrawAsset("street_tree", at, .24f, Colors.White,
-                    "res://assets/art/vegetation/young_deciduous_02.png");
+                    "res://assets/art/trees/maple_autumn_small_01.png");
                 if (((x + y) / 11 & 1) == 0)
                     DrawUrbanProp("street_light", at + new Vector2(2.5f, .4f), .28f,
                         "res://assets/art/props/urban/street_light_01.png", "res://assets/art/props/roadside/street_light_01.png");
@@ -461,8 +461,8 @@ public partial class CountyAuthoredStructuresChunk : Node2D
         foreach (Vector2 at in new[] { new Vector2(37, 25), new Vector2(53, 20), new Vector2(69, 27), new Vector2(82, 18), new Vector2(96, 42) })
             DrawAsset("ridge_outcrop", at, .34f, Colors.White, "res://assets/art/props/roadside/rock_formation_02.png");
         foreach (Vector2 at in new[] { new Vector2(58, 31), new Vector2(63, 42), new Vector2(75, 31), new Vector2(80, 43), new Vector2(88, 36), new Vector2(54, 47) })
-            DrawAsset("ridge_pine_cluster", at, .31f, new Color(.84f, .91f, .85f),
-                "res://assets/art/vegetation/pine_03.png", "res://assets/art/vegetation/pine_02.png");
+            DrawAssetAtHeight("ridge_pine_cluster", at, 150f, new Color(.84f, .91f, .85f),
+                "res://assets/art/trees/spruce_medium_01.png");
     }
 
     private void DrawFireLookout()
@@ -484,7 +484,7 @@ public partial class CountyAuthoredStructuresChunk : Node2D
         DrawDiamondRect(new Rect2(206, 78, 10, 6), new Color(.34f, .31f, .22f, .50f));
         DrawAsset("lake_bin", new Vector2(213, 80), .23f, Colors.White,
             "res://assets/art/props/urban/trash_bin_01.png", "res://assets/art/props/industrial/barrels_01.png");
-        DrawAsset("lake_reeds", new Vector2(217, 84), .31f, Colors.White, "res://assets/art/vegetation/reeds_01.png");
+        DrawAsset("lake_reeds", new Vector2(217, 84), .31f, Colors.White, "res://assets/art/undergrowth/grass_pampas_01.png");
         DrawAsset("lake_rocks", new Vector2(203, 80), .31f, Colors.White, "res://assets/art/props/roadside/mossy_boulder_02.png");
     }
 
@@ -574,7 +574,7 @@ public partial class CountyAuthoredStructuresChunk : Node2D
     {
         DrawDiamondRect(new Rect2(center + new Vector2(-.4f, 1.0f), new Vector2(.8f, 1.65f)), new Color(.35f, .34f, .31f, .52f));
         if (overgrown)
-            DrawAsset("yard_shrub", center + new Vector2(-3, -1), .24f, new Color(1, 1, 1, .9f), "res://assets/art/vegetation/bush_dense_02.png");
+            DrawAsset("yard_shrub", center + new Vector2(-3, -1), .24f, new Color(1, 1, 1, .9f), "res://assets/art/undergrowth/bush_green_01.png");
     }
 
     private void DrawParking(Rect2 gridRect, int stripeCount)

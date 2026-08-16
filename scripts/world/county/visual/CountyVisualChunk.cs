@@ -42,7 +42,8 @@ public partial class CountyVisualChunk : Node2D
     private const string ResourcesRoot = "res://assets/art/resources/";
     private const string Ground02Root = "res://assets/art/terrain/ground/";
     private const string RoadArtRoot = "res://assets/art/terrain/roads/";
-    private const string Vegetation02Root = "res://assets/art/vegetation/";
+    private const string TreesRoot = "res://assets/art/trees/";
+    private const string UndergrowthRoot = "res://assets/art/undergrowth/";
     private const string FarmPropsRoot = "res://assets/art/props/farm/";
     private const string LoggingPropsRoot = "res://assets/art/props/logging/";
     private const string RoadsidePropsRoot = "res://assets/art/props/roadside/";
@@ -104,17 +105,17 @@ public partial class CountyVisualChunk : Node2D
         P(RocksRoot + "rock_cluster_01.png", 151, 266, .29f),
         P(VegetationRoot + "dead_tree_01.png", 166, 260, .30f),
         P(FarmPropsRoot + "fence_overgrown_02.png", 154, 196, .40f),
-        P(Vegetation02Root + "hedge_01.png", 158, 184, .45f),
-        P(Vegetation02Root + "bush_berries_01.png", 181, 197, .34f),
+        P(UndergrowthRoot + "bush_green_01.png", 158, 184, .40f),
+        P(UndergrowthRoot + "bush_berry_red_01.png", 181, 197, .34f),
         P(LoggingPropsRoot + "stump_02.png", 149, 251, .36f),
         P(LoggingPropsRoot + "rotted_log_01.png", 139, 256, .38f),
         P(RoadsidePropsRoot + "mossy_boulder_02.png", 145, 264, .31f),
         P(RoadsidePropsRoot + "rock_formation_02.png", 161, 263, .34f),
-        P(Vegetation02Root + "pine_02.png", 132, 246, .25f),
-        P(Vegetation02Root + "pine_03.png", 143, 269, .30f),
-        P(Vegetation02Root + "deciduous_02.png", 170, 239, .28f),
-        P(Vegetation02Root + "dead_tree_02.png", 126, 258, .27f),
-        P(Vegetation02Root + "reeds_01.png", 157, 248, .30f),
+        P(TreesRoot + "spruce_medium_01.png", 132, 246, .38f),
+        P(TreesRoot + "pine_medium_01.png", 143, 269, .40f),
+        P(TreesRoot + "maple_medium_01.png", 170, 239, .46f),
+        P(TreesRoot + "dead_tree_medium_01.png", 126, 258, .38f),
+        P(UndergrowthRoot + "grass_pampas_01.png", 157, 248, .36f),
         P(FarmPropsRoot + "corn_rows_01.png", 145, 190, .43f),
         P(FarmPropsRoot + "crop_rows_green_01.png", 177, 186, .46f),
         P(FarmPropsRoot + "hay_bale_round_01.png", 181, 205, .31f),
@@ -501,38 +502,30 @@ public partial class CountyVisualChunk : Node2D
                     // country is left to its grass.
                     bool edge = canopy is > .16f and < .58f;
                     if (edge && CountyTerrain.Hash01(x, y, 149) > .70f)
-                    {
-                        string low = UnderstoryFor(biome, CountyTerrain.Hash01(x, y, 151));
-                        output.Add(new Placement(low, point,
-                            SpriteScaling.ForHeight(low, UnderstoryHeight * (.82f + CountyTerrain.Hash01(x, y, 153) * .36f)),
-                            new Color(1, 1, 1, .90f), false));
-                    }
+                        output.Add(Undergrowth(biome, point, x, y, 151, .90f));
                     continue;
                 }
 
-                // Three storeys rather than two. Closed canopy is mostly full
-                // trees; thinner cover is mid storey and saplings. This is what a
-                // wood actually looks like, and it also lets each sprite be drawn
-                // at a size its own resolution can carry.
+                // Three storeys. Closed canopy is mostly full-grown trees;
+                // thinner cover is mid storey and saplings. That is what a wood
+                // actually looks like, and it also lets every sprite be drawn at
+                // a size its own resolution can carry.
                 float tierRoll = CountyTerrain.Hash01(x, y, 157);
-                VegetationTier tier = canopy > .50f && tierRoll > .30f ? VegetationTier.Mature
-                    : canopy > .26f || tierRoll > .55f ? VegetationTier.Mid
+                VegetationTier tier = canopy > .50f && tierRoll > .34f ? VegetationTier.Large
+                    : canopy > .24f || tierRoll > .58f ? VegetationTier.Medium
                     : VegetationTier.Sapling;
                 float variant = CountyTerrain.Hash01(x, y, 53);
-                string texture = VegetationCatalog.Select(biome, tier, variant);
+                string texture = VegetationCatalog.SelectTree(biome, tier, variant);
+                // The upward half of this variation must not push the shortest
+                // sprite in a tier past its own native height, or the scale cap
+                // silently starts clamping and that one species reads soft.
                 float height = VegetationCatalog.HeightFor(tier)
-                    * (.86f + CountyTerrain.Hash01(x, y, 59) * .30f);
+                    * (.86f + CountyTerrain.Hash01(x, y, 59) * .22f);
                 output.Add(new Placement(texture, point, SpriteScaling.ForHeight(texture, height), CanopyTint(biome), true));
 
                 // Understory beneath closed canopy only.
                 if (canopy > .55f && CountyTerrain.Hash01(x, y, 61) > .72f)
-                {
-                    Vector2 under = point + new Vector2(1.1f, -.4f);
-                    string low = UnderstoryFor(biome, CountyTerrain.Hash01(x, y, 63));
-                    output.Add(new Placement(low, under,
-                        SpriteScaling.ForHeight(low, UnderstoryHeight * (.78f + CountyTerrain.Hash01(x, y, 67) * .34f)),
-                        new Color(1, 1, 1, .88f), false));
-                }
+                    output.Add(Undergrowth(biome, point + new Vector2(1.1f, -.4f), x, y, 63, .88f));
             }
         }
     }
@@ -562,30 +555,19 @@ public partial class CountyVisualChunk : Node2D
     };
 
 
-    private static string UnderstoryFor(CountyBiome biome, float roll) => biome switch
+    /// <summary>
+    /// One piece of ground cover, chosen from the biome's own pools and drawn at
+    /// the size band its layer belongs to. A fern is not a flower is not a
+    /// branch, so each gets its own height rather than a shared understory size.
+    /// </summary>
+    private static Placement Undergrowth(CountyBiome biome, Vector2 point, int x, int y, int salt, float alpha)
     {
-        CountyBiome.PineRidge => roll < .40f ? Vegetation02Root + "fern_03.png"
-            : roll < .74f ? RoadsidePropsRoot + "mossy_boulder_02.png"
-            : Vegetation02Root + "young_pine_02.png",
-        CountyBiome.Logging => roll < .40f ? LoggingPropsRoot + "stump_02.png"
-            : roll < .68f ? Vegetation02Root + "fern_02.png"
-            : roll < .86f ? LoggingPropsRoot + "rotted_log_01.png"
-            : Vegetation02Root + "shrub_yellow_01.png",
-        CountyBiome.Mill or CountyBiome.Forest => roll < .28f ? Vegetation02Root + "fern_02.png"
-            : roll < .52f ? Vegetation02Root + "bush_dense_02.png"
-            : roll < .70f ? Vegetation02Root + "fern_03.png"
-            : roll < .84f ? RocksRoot + "mossy_rock_01.png"
-            : Vegetation02Root + "bush_berries_01.png",
-        CountyBiome.Scrub => roll < .45f ? Vegetation02Root + "shrub_yellow_01.png"
-            : roll < .78f ? Vegetation02Root + "grass_clump_02.png"
-            : RoadsidePropsRoot + "rock_formation_02.png",
-        _ => roll < .26f ? Vegetation02Root + "grass_clump_02.png"
-            : roll < .46f ? Vegetation02Root + "bush_flowers_02.png"
-            : roll < .62f ? Vegetation02Root + "flowers_white_02.png"
-            : roll < .76f ? Vegetation02Root + "flowers_yellow_01.png"
-            : roll < .90f ? Vegetation02Root + "shrub_03.png"
-            : Vegetation02Root + "flowers_blue_01.png"
-    };
+        float layerRoll = CountyTerrain.Hash01(x, y, salt);
+        float pickRoll = CountyTerrain.Hash01(x, y, salt + 7);
+        (string texture, UndergrowthLayer layer) = VegetationCatalog.SelectUndergrowth(biome, layerRoll, pickRoll);
+        float height = VegetationCatalog.HeightFor(layer) * (.84f + CountyTerrain.Hash01(x, y, salt + 13) * .32f);
+        return new Placement(texture, point, SpriteScaling.ForHeight(texture, height), new Color(1, 1, 1, alpha), false);
+    }
 
     private static Color CanopyTint(CountyBiome biome) => biome switch
     {
@@ -633,14 +615,17 @@ public partial class CountyVisualChunk : Node2D
                 float water = CountyTerrain.DistanceToWater(point);
                 string texture;
                 if (water < 3.2f)
-                    texture = CountyTerrain.Hash01(x, y, 619) > .5f ? Vegetation02Root + "reeds_01.png" : Vegetation02Root + "reeds_02.png";
+                    texture = VegetationCatalog.SelectWaterside(CountyTerrain.Hash01(x, y, 619));
                 else
                     texture = biome switch
                     {
                         CountyBiome.PineRidge or CountyBiome.Scrub => CountyTerrain.Hash01(x, y, 623) > .5f
                             ? RoadsidePropsRoot + "cliff_rock_02.png" : RoadsidePropsRoot + "rock_slab_01.png",
-                        CountyBiome.Forest or CountyBiome.Mill => CountyTerrain.Hash01(x, y, 623) > .58f
-                            ? LoggingPropsRoot + "fallen_log_02.png" : RocksRoot + "mossy_rock_01.png",
+                        // Focal woodland pieces: a mossy stump or a fallen log
+                        // reads as somewhere, which uniform scatter never does.
+                        CountyBiome.Forest or CountyBiome.Mill => VegetationCatalog.WoodlandFeatures[
+                            (int)(CountyTerrain.Hash01(x, y, 623) * VegetationCatalog.WoodlandFeatures.Length)
+                            % VegetationCatalog.WoodlandFeatures.Length],
                         CountyBiome.Logging => CountyTerrain.Hash01(x, y, 623) > .5f
                             ? LoggingPropsRoot + "log_pile_03.png" : LoggingPropsRoot + "stump_02.png",
                         _ => CountyTerrain.Hash01(x, y, 623) > .62f
@@ -703,8 +688,16 @@ public partial class CountyVisualChunk : Node2D
             }
             if (texture is null)
                 continue;
-            Vector2 size = texture.GetSize() * placement.Scale;
+            Vector2 native = texture.GetSize();
+            Vector2 size = native * placement.Scale;
             DrawTextureRect(texture, new Rect2(P(placement.Position) - new Vector2(size.X * .5f, size.Y), size), false, placement.Tint);
+
+            // This is the path every tree and every piece of undergrowth takes.
+            // It draws directly rather than through DrawAnchoredTexture for
+            // batching, which meant the asset inspector never saw a single
+            // plant and always fell through to the ground beneath it.
+            if (AssetInspector.Capturing)
+                AssetInspector.Record(placement.Texture, placement.Position, native, size, false);
         }
     }
 
