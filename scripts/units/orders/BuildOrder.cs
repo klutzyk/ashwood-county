@@ -50,7 +50,7 @@ public sealed class BuildOrder(ConstructionSite target, Vector2 interactionPosit
 
         if (_phase == BuildPhase.MovingToSite)
         {
-            if (survivor.MoveTowardsGridPosition(_interactionPosition, delta))
+            if (survivor.MoveTowardsGridPositionNavigated(_interactionPosition, delta))
             {
                 _phase = BuildPhase.Building;
             }

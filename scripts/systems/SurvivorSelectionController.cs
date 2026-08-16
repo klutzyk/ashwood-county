@@ -38,6 +38,12 @@ public partial class SurvivorSelectionController : CanvasLayer
         SetSurvivorSelected(survivor, true);
     }
 
+    /// <summary>Test-only additive selection hook for the ASHWOOD_VALIDATE_* automated validation scripts; not used by normal input handling.</summary>
+    internal void DebugSelect(Survivor survivor)
+    {
+        SetSurvivorSelected(survivor, true);
+    }
+
     public override void _Ready()
     {
         // Pausing stops the simulation, not the player. GetTree().Paused halts
@@ -215,6 +221,8 @@ public partial class SurvivorSelectionController : CanvasLayer
                 Survivor searcher = _selectedSurvivors.Where(s => s.IsAlive)
                     .MinBy(s => s.SimulationPosition.DistanceSquaredTo(container.InteractionPosition))!;
                 if (searcher is null) Notify("SELECT A SURVIVOR\nRight-click a container to search it");
+                else if (!searcher.IsInsideInterior(container.Building))
+                    Notify($"{container.Building.Definition.DisplayName.ToUpperInvariant()}\nEnter the building first");
                 else searcher.IssueSearchContainerOrder(container);
             }
             return;
@@ -259,7 +267,11 @@ public partial class SurvivorSelectionController : CanvasLayer
             .OrderBy(item => item.Position.Y).LastOrDefault();
         if (bed is not null)
         {
-            _selectedSurvivors.Where(s => s.IsAlive).MinBy(s => s.SimulationPosition.DistanceSquaredTo(bed.InteractionPosition))?.IssueBedRestOrder(bed);
+            Survivor sleeper = _selectedSurvivors.Where(s => s.IsAlive).MinBy(s => s.SimulationPosition.DistanceSquaredTo(bed.InteractionPosition))!;
+            if (sleeper is null) Notify("SELECT A SURVIVOR\nRight-click a bed to rest in it");
+            else if (!sleeper.IsInsideInterior(bed.Building))
+                Notify($"{bed.Building.Definition.DisplayName.ToUpperInvariant()}\nEnter the building first");
+            else sleeper.IssueBedRestOrder(bed);
             return;
         }
 
@@ -268,7 +280,11 @@ public partial class SurvivorSelectionController : CanvasLayer
             .OrderBy(item => item.Position.Y).LastOrDefault();
         if (door is not null)
         {
-            _selectedSurvivors.Where(s => s.IsAlive).MinBy(s => s.SimulationPosition.DistanceSquaredTo(door.InteractionPosition))?.IssueDoorOrder(door);
+            Survivor user = _selectedSurvivors.Where(s => s.IsAlive).MinBy(s => s.SimulationPosition.DistanceSquaredTo(door.InteractionPosition))!;
+            if (user is null) Notify("SELECT A SURVIVOR\nRight-click a door to use it");
+            else if (!door.IsExterior && !user.IsInsideInterior(door.Building))
+                Notify($"{door.Building.Definition.DisplayName.ToUpperInvariant()}\nEnter the building first");
+            else user.IssueDoorOrder(door);
             return;
         }
 
@@ -279,6 +295,31 @@ public partial class SurvivorSelectionController : CanvasLayer
         if (harvestTarget is not null)
         {
             IssueHarvestOrder(harvestTarget);
+            return;
+        }
+
+        InteriorBuildingRuntime interiorBuilding = GetTree().GetNodesInGroup(InteriorBuildingRuntime.GroupName)
+            .OfType<InteriorBuildingRuntime>().Where(item => item.ContainsScreenPoint(screenPosition))
+            .OrderBy(item => item.ScreenSortDepth).LastOrDefault();
+        if (interiorBuilding is not null)
+        {
+            if (_selectedSurvivors.Count == 0) Notify("SELECT A SURVIVOR\nRight-click a building to enter it");
+            else
+            {
+                Survivor entrant = _selectedSurvivors.Where(s => s.IsAlive)
+                    .MinBy(s => s.SimulationPosition.DistanceSquaredTo(interiorBuilding.Definition.Footprint.GetCenter()))!;
+                if (entrant is not null) entrant.IssueEnterBuildingOrder(interiorBuilding);
+            }
+            return;
+        }
+
+        CompletedBuilding completedBuilding = GetTree().GetNodesInGroup(CompletedBuilding.GroupName)
+            .OfType<CompletedBuilding>().Where(item => item.ContainsScreenPoint(screenPosition))
+            .OrderBy(item => item.Position.Y).LastOrDefault();
+        if (completedBuilding is not null && _selectedSurvivors.Count > 0)
+        {
+            Vector2 approach = new(completedBuilding.OccupancyFootprint.Center.X, completedBuilding.OccupancyFootprint.Bounds.End.Y + 1.1f);
+            _selectedSurvivors.Where(s => s.IsAlive).MinBy(s => s.SimulationPosition.DistanceSquaredTo(approach))?.IssueMoveOrder(approach);
             return;
         }
 

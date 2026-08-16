@@ -53,7 +53,7 @@ public sealed class ScavengeOrder(ScavengeSource target, Stockpile stockpile, Ve
         if (_phase == Phase.MovingToSource)
         {
             if (_target.IsDepleted) { Complete(); return; }
-            if (survivor.MoveTowardsGridPosition(_interactionPosition, delta)) { _elapsed = 0; _phase = Phase.Searching; }
+            if (survivor.MoveTowardsGridPositionNavigated(_interactionPosition, delta)) { _elapsed = 0; _phase = Phase.Searching; }
         }
         else if (_phase == Phase.Searching)
         {
@@ -76,7 +76,7 @@ public sealed class ScavengeOrder(ScavengeSource target, Stockpile stockpile, Ve
             EmitNoise(survivor, 3.0f);
             _phase = Phase.Delivering;
         }
-        else if (survivor.MoveTowardsGridPosition(_deliveryPosition, delta))
+        else if (survivor.MoveTowardsGridPositionNavigated(_deliveryPosition, delta))
         {
             int delivered = survivor.RemoveCarriedResource();
             if (delivered > 0) _stockpile.Deposit(survivor.LastCarriedResourceType, delivered);

@@ -38,6 +38,10 @@ public partial class InteriorBuildingRuntime : Node
     public bool HasSurvivorInside { get; private set; }
     public bool IsInteriorActive => _interiorActive;
     public float ExteriorAlpha => _exteriorAlpha;
+    public float ExteriorOcclusionAlpha => GodotObject.IsInstanceValid(_exterior) ? _exterior.OcclusionAlpha : 1f;
+    public DoorDefinition? ExteriorEntrance => Definition.Doors.FirstOrDefault(door => door.Exterior
+        && !door.OutsideApproachPoint.IsZeroApprox() && !door.InsideArrivalPoint.IsZeroApprox());
+    public float ScreenSortDepth => Definition.ExteriorAnchor.X + Definition.ExteriorAnchor.Y;
     public int DiscoveredRoomCount => State.DiscoveredRooms.Count;
     public int ContainerCount => Definition.Containers.Count;
     public int SearchedContainerCount => State.Containers.Values.Count(state => state.Searched);
@@ -62,12 +66,20 @@ public partial class InteriorBuildingRuntime : Node
         _exterior = new InteriorExteriorVisual { Name = Definition.Id + "_Exterior" };
         _exterior.Initialize(Definition);
         _objectsRoot.AddChild(_exterior);
+        if (GetTree().GetFirstNodeInGroup(WorldNavigationService.GroupName) is WorldNavigationService navigationService)
+        {
+            navigationService.RegisterObstacle(new WorldFootprint(Definition.Footprint.Position, Definition.Footprint.Size), this, allowTraversalInside: true);
+        }
         SetProcess(true);
         RefreshActivation(force: true);
     }
 
     public override void _ExitTree()
     {
+        if (IsInsideTree() && GetTree().GetFirstNodeInGroup(WorldNavigationService.GroupName) is WorldNavigationService navigationService)
+        {
+            navigationService.UnregisterObstacle(this);
+        }
         _navigation.Unregister(this);
         DeactivateInterior();
         if (GodotObject.IsInstanceValid(_exterior)) _exterior.QueueFree();
@@ -82,12 +94,12 @@ public partial class InteriorBuildingRuntime : Node
             RefreshActivation(force: false);
         }
 
-        if (!_interiorActive) return;
         List<Survivor> survivors = GetTree().GetNodesInGroup(Survivor.GroupName).OfType<Survivor>().Where(s => s.IsAlive).ToList();
         HasSurvivorInside = survivors.Any(s => Definition.Footprint.Grow(-.10f).HasPoint(s.SimulationPosition));
         float targetExterior = HasSurvivorInside ? 0f : 1f;
         _exteriorAlpha = Mathf.MoveToward(_exteriorAlpha, targetExterior, (float)delta * 3.6f);
-        _exterior.Modulate = new Color(1,1,1,_exteriorAlpha);
+        _exterior.Modulate = new Color(1,1,1,_exteriorAlpha * _exterior.OcclusionAlpha);
+        if (!_interiorActive) return;
         float interiorAlpha = 1f - _exteriorAlpha;
         foreach (CanvasItem visual in _interiorVisuals)
         {
@@ -129,6 +141,18 @@ public partial class InteriorBuildingRuntime : Node
     }
 
     public bool IsWithinDoorway(Vector2 point) => Definition.Doors.Any(door => door.Position.DistanceTo(point) <= .48f);
+
+    public bool ContainsScreenPoint(Vector2 screenPoint)
+    {
+        return GodotObject.IsInstanceValid(_exterior) && _exterior.ContainsScreenPoint(screenPoint);
+    }
+
+    public void SetHovered(bool hovered)
+    {
+        if (!GodotObject.IsInstanceValid(_exterior) || _exterior.Hovered == hovered) return;
+        _exterior.Hovered = hovered;
+        _exterior.QueueRedraw();
+    }
 
     public void NotifyStateChanged() { }
 
@@ -178,7 +202,7 @@ public partial class InteriorBuildingRuntime : Node
         foreach (DoorDefinition definition in Definition.Doors)
         {
             InteriorDoorRuntime door = new() { Name = Definition.Id + "_Door_" + definition.Id };
-            door.Initialize(definition,State.Doors[definition.Id]); AddInteriorNode(door); _doors.Add(door);
+            door.Initialize(definition,State.Doors[definition.Id],this); AddInteriorNode(door); _doors.Add(door);
         }
         foreach (ContainerDefinition definition in Definition.Containers)
         {

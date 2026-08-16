@@ -68,7 +68,24 @@ public partial class AuthoredWorldObjectVisual : Node2D
         ZIndex=0;
     }
 
-    public override void _Ready()=>QueueRedraw();
+    public override void _Ready()
+    {
+        QueueRedraw();
+        if (!Engine.IsEditorHint() && _data.Collision
+            && GetTree().GetFirstNodeInGroup(WorldNavigationService.GroupName) is WorldNavigationService navigationService)
+        {
+            float size = Mathf.Max(0.9f, Mathf.Max(_data.Scale, _data.ScaleY > 0 ? _data.ScaleY : _data.Scale) * 2.0f);
+            navigationService.RegisterObstacle(new WorldFootprint(new Vector2(_data.X, _data.Y) - Vector2.One * size * 0.5f, Vector2.One * size), this, allowTraversalInside: false);
+        }
+    }
+
+    public override void _ExitTree()
+    {
+        if (IsInsideTree() && GetTree().GetFirstNodeInGroup(WorldNavigationService.GroupName) is WorldNavigationService navigationService)
+        {
+            navigationService.UnregisterObstacle(this);
+        }
+    }
     public override void _Draw()
     {
         Vector2 size=_texture.GetSize()*new Vector2(Mathf.Max(.02f,_data.Scale),Mathf.Max(.02f,_data.ScaleY>0?_data.ScaleY:_data.Scale));

@@ -113,6 +113,38 @@ public partial class GameHud : CanvasLayer
         screen.AddChild(new Control { SizeFlagsVertical = Control.SizeFlags.ExpandFill, MouseFilter = Control.MouseFilterEnum.Ignore });
         screen.AddChild(BuildLowerHud());
 
+        // The survivor panel docks to the bottom-right OUTSIDE the command-bar
+        // flow. It used to live in the same row as the work/build buttons, so
+        // selecting a survivor grew that row and visibly pushed the action
+        // buttons upward. Docking keeps the panel's appearance and dismissal
+        // completely layout-neutral for the rest of the HUD.
+        MarginContainer survivorDock = new()
+        {
+            AnchorsPreset = (int)Control.LayoutPreset.FullRect,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+            Theme = AshwoodTheme.Create()
+        };
+        survivorDock.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        survivorDock.AddThemeConstantOverride("margin_right", 16);
+        survivorDock.AddThemeConstantOverride("margin_bottom", 62);
+        AddChild(survivorDock);
+        VBoxContainer survivorOverlay = new()
+        {
+            Alignment = BoxContainer.AlignmentMode.End,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+            Theme = AshwoodTheme.Create()
+        };
+        survivorDock.AddChild(survivorOverlay);
+        VBoxContainer survivorColumn = new()
+        {
+            CustomMinimumSize = new Vector2(326, 0),
+            SizeFlagsVertical = Control.SizeFlags.ShrinkEnd,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+            Theme = AshwoodTheme.Create()
+        };
+        survivorOverlay.AddChild(survivorColumn);
+        survivorColumn.AddChild(BuildSurvivorPanel());
+
         CenterContainer lootOverlay = new()
         {
             AnchorsPreset = (int)Control.LayoutPreset.FullRect,
@@ -247,11 +279,6 @@ public partial class GameHud : CanvasLayer
         row.AddChild(BuildActionArea());
         Control rightStretch = new() { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, MouseFilter = Control.MouseFilterEnum.Ignore };
         row.AddChild(rightStretch);
-        VBoxContainer survivorColumn = Layout<VBoxContainer>();
-        survivorColumn.CustomMinimumSize = new Vector2(326, 0);
-        survivorColumn.AddChild(BuildSurvivorPanel());
-        row.AddChild(survivorColumn);
-
         lower.AddChild(BuildCommandBar());
         return lower;
     }
@@ -311,7 +338,7 @@ public partial class GameHud : CanvasLayer
         AddAction(row, "CHOP", "chop", _designation.ToggleDesignation, "Designate trees for timber harvesting.");
         AddAction(row, "FORAGE", "forage", _designation.ToggleForageDesignation, "Designate food-bearing plants.");
         AddAction(row, "SCAVENGE", "scavenge", _designation.ToggleScavengeDesignation, "Search abandoned locations for salvage.");
-        AddAction(row, "HAUL", "haul", () => Notify("Hauling is assigned automatically by work priority."), "Hauling uses survivor work priorities.");
+        AddAction(row, "HAUL", "haul", _designation.ToggleHaulDesignation, "Mark loose salvage for hauling, or let selected survivors haul automatically.");
         AddAction(row, "CANCEL", "cancel", _designation.EndDesignation, "Cancel the active work designation.");
         return panel;
     }
@@ -942,7 +969,7 @@ public partial class GameHud : CanvasLayer
         else if (_designation.IsDesignationActive)
         {
             _paletteHint.Visible = true;
-            _paletteHint.Text = "Designation active. Click targets; right-click or Esc to finish.";
+            _paletteHint.Text = _designation.InstructionText;
         }
         else if (_activeCategory is HudCategory category)
         {
@@ -959,7 +986,7 @@ public partial class GameHud : CanvasLayer
     private static string CategoryHint(HudCategory category) => category switch
     {
         HudCategory.Build => "Choose a structure, then place it in the world.",
-        HudCategory.Work => "Choose a designation, then mark targets in the world.",
+        HudCategory.Work => "Choose a work action. Valid targets highlight immediately; selected survivors work automatically, or click a target to designate it.",
         HudCategory.People => "Survivor details appear when one or more people are selected.",
         _ => "Review county control, discoveries and known routes."
     };

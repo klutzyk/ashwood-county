@@ -37,6 +37,8 @@ public partial class HarvestableResource : Node2D, IGridOccupant
     public bool IsTargeted => _targetingWorkers.Count > 0;
     public bool IsDesignatedForHarvest { get; private set; }
     public bool IsDesignatedForChop => IsDesignatedForHarvest;
+    public bool IsHovered { get; private set; }
+    public bool IsWorkHighlighted { get; private set; }
     public float DisplayedHarvestProgress => _workerProgress.Count == 0 ? 0 : _workerProgress.Values.Max();
     public Vector2 WorldPosition => GridPosition + new Vector2(0.5f, 0.5f);
     public WorldFootprint OccupancyFootprint => new(WorldPosition - Vector2.One * 0.4f, Vector2.One * 0.8f);
@@ -131,6 +133,20 @@ public partial class HarvestableResource : Node2D, IGridOccupant
     public void SetHarvestDesignated(bool designated)
     {
         IsDesignatedForHarvest = designated && IsHarvestable;
+        RefreshVisual();
+    }
+
+    public void SetHovered(bool hovered)
+    {
+        if (IsHovered == hovered) return;
+        IsHovered = hovered;
+        RefreshVisual();
+    }
+
+    public void SetWorkHighlighted(bool highlighted)
+    {
+        if (IsWorkHighlighted == highlighted) return;
+        IsWorkHighlighted = highlighted;
         RefreshVisual();
     }
 

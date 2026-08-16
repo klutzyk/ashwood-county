@@ -24,7 +24,7 @@ public partial class ResourceTreeVisual : Node2D
 
     public override void _Process(double delta)
     {
-        if (_resource.IsTargeted || _resource.DisplayedHarvestProgress > 0)
+        if (_resource.IsTargeted || _resource.DisplayedHarvestProgress > 0 || _resource.IsHovered || _resource.IsWorkHighlighted)
         {
             QueueRedraw();
         }
@@ -33,6 +33,23 @@ public partial class ResourceTreeVisual : Node2D
     public override void _Draw()
     {
         bool depleted = !Engine.IsEditorHint() && _resource.IsDepleted;
+        int variation = Mathf.Abs(_resource.GetIndex()) % TreeTextures.Length;
+        float scale = variation == 2 ? 0.40f : 0.42f;
+        string texturePath = depleted ? StumpTexture : TreeTextures[variation];
+        float textureScale = depleted ? 0.34f : scale;
+
+        if (!Engine.IsEditorHint() && !depleted)
+        {
+            if (_resource.IsWorkHighlighted && _resource.IsHarvestable)
+            {
+                DrawSilhouetteGlow(texturePath, textureScale, 0.34f);
+            }
+            else if (_resource.IsHovered)
+            {
+                DrawSilhouetteGlow(texturePath, textureScale, 0.20f);
+            }
+        }
+
         if (depleted)
         {
             DrawStump();
@@ -72,15 +89,32 @@ public partial class ResourceTreeVisual : Node2D
 
     private void DrawGroundedTexture(string path, float scale)
     {
+        DrawGroundedTexture(path, scale, Colors.White);
+    }
+
+    private void DrawGroundedTexture(string path, float scale, Color tint)
+    {
         Texture2D texture = TextureRegistry.Get(path);
         Vector2 size = texture.GetSize() * scale;
-        DrawTextureRect(texture, new Rect2(new Vector2(-size.X * 0.5f, -size.Y), size), false);
+        DrawTextureRect(texture, new Rect2(new Vector2(-size.X * 0.5f, -size.Y), size), false, tint);
     }
 
     private void DrawTargetIndicator()
     {
         Vector2[] outline = CreateEllipsePoints(30, 11, 32, true);
         DrawPolyline(outline, new Color("#f4c95d"), 3, true);
+    }
+
+    /// <summary>
+    /// A soft white rim that traces the object's own silhouette: a slightly
+    /// enlarged white copy behind the sprite, then a tighter pass, so the
+    /// highlight reads as the object glowing rather than a ground marker.
+    /// </summary>
+    private void DrawSilhouetteGlow(string path, float scale, float alpha)
+    {
+        float pulse = 0.86f + 0.14f * Mathf.Sin((float)Time.GetTicksMsec() / 520.0f);
+        DrawGroundedTexture(path, scale * 1.12f, new Color(1f, 1f, 1f, alpha * pulse));
+        DrawGroundedTexture(path, scale * 1.05f, new Color(1f, 1f, 1f, alpha * 0.5f * pulse));
     }
 
     private void DrawDesignationIndicator()
@@ -96,11 +130,6 @@ public partial class ResourceTreeVisual : Node2D
     {
         DrawRect(new Rect2(-28, -224, 56, 8), new Color(0.04f, 0.06f, 0.04f, 0.85f));
         DrawRect(new Rect2(-26, -222, 52 * progress, 4), new Color("#efb74d"));
-    }
-
-    private void DrawEllipse(Vector2 center, float radiusX, float radiusY, Color color)
-    {
-        DrawColoredPolygon(CreateEllipsePoints(radiusX, radiusY, 24, false, center), color);
     }
 
     private static Vector2[] CreateEllipsePoints(float radiusX, float radiusY, int pointCount, bool close, Vector2 center = default)

@@ -45,6 +45,7 @@ public partial class CompletedBuilding : Node2D, IGridOccupant
     public WorldFootprint OccupancyFootprint => new(BuildingPosition, FootprintSize);
     public bool ProvidesRest => BuildingType == BuildingType.Shelter && RestCapacity > 0;
     public int AvailableRestSlots => Mathf.Max(0, RestCapacity - _restingSurvivors.Count);
+    public bool IsHovered { get; private set; }
 
     public override void _Ready()
     {
@@ -55,7 +56,34 @@ public partial class CompletedBuilding : Node2D, IGridOccupant
             if(county is not null)RegionId=county.GetRegionAt(BuildingPosition).Id;
             AddToGroup(GridOccupancy.OccupantGroup);
             AddToGroup(GroupName);
+            if (GetTree().GetFirstNodeInGroup(WorldNavigationService.GroupName) is WorldNavigationService navigationService)
+            {
+                navigationService.RegisterObstacle(OccupancyFootprint, this, allowTraversalInside: true);
+            }
         }
+    }
+
+    public override void _ExitTree()
+    {
+        if (IsInsideTree() && GetTree().GetFirstNodeInGroup(WorldNavigationService.GroupName) is WorldNavigationService navigationService)
+        {
+            navigationService.UnregisterObstacle(this);
+        }
+    }
+
+    public void SetHovered(bool hovered)
+    {
+        if (IsHovered == hovered) return;
+        IsHovered = hovered;
+        QueueRedraw();
+    }
+
+    public bool ContainsScreenPoint(Vector2 screenPoint)
+    {
+        Vector2 localPoint = GetGlobalTransformWithCanvas().AffineInverse() * screenPoint;
+        float halfWidth = (FootprintSize.X + FootprintSize.Y) * IsometricGrid.TileWidth * 0.28f;
+        float height = (FootprintSize.X + FootprintSize.Y) * IsometricGrid.TileHeight * 0.5f + 75;
+        return new Rect2(-halfWidth, -height, halfWidth * 2, height + 10).HasPoint(localPoint);
     }
 
     public bool TryReserveRestSlot(ulong survivorId, out Vector2 restPosition)
@@ -93,6 +121,13 @@ public partial class CompletedBuilding : Node2D, IGridOccupant
     {
         if (!Engine.IsEditorHint())
         {
+            if (IsHovered)
+            {
+                Vector2[] hoverFootprint = IsometricGrid.ProjectRectangle(BuildingPosition, FootprintSize);
+                for (int index = 0; index < hoverFootprint.Length; index++) hoverFootprint[index] -= Position;
+                DrawPolyline([hoverFootprint[0], hoverFootprint[1], hoverFootprint[2], hoverFootprint[3], hoverFootprint[0]], new Color(1f, 1f, 1f, 0.55f), 2.5f, true);
+                DrawColoredPolygon(hoverFootprint, new Color(1f, 1f, 1f, 0.07f));
+            }
             return;
         }
 

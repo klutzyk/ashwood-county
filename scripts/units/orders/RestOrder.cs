@@ -29,7 +29,7 @@ public sealed class RestOrder(CompletedBuilding shelter, float restoredEnergy = 
     {
         if (IsComplete) return;
         if (!GodotObject.IsInstanceValid(shelter)) { Complete(); return; }
-        if (!_arrived) { _arrived = survivor.MoveTowardsGridPosition(_restPosition, delta); return; }
+        if (!_arrived) { _arrived = survivor.MoveTowardsGridPositionNavigated(_restPosition, delta); return; }
 
         survivor.StopMovement();
         survivor.Energy = Mathf.Min(100f, survivor.Energy + 14f * (float)delta);

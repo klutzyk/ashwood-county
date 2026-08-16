@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using AshwoodCounty.Units;
+using AshwoodCounty.World;
 using Godot;
 
 namespace AshwoodCounty.Buildings.Interiors;
@@ -228,6 +229,10 @@ public sealed class InteriorPathFollower
     {
         InteriorNavigationService? navigation = survivor.GetTree().GetFirstNodeInGroup(InteriorNavigationService.GroupName) as InteriorNavigationService;
         _route = navigation?.PlanRoute(survivor.SimulationPosition, destination) ?? [destination];
+        if (survivor.GetTree().GetFirstNodeInGroup(WorldNavigationService.GroupName) is WorldNavigationService exterior)
+        {
+            _route = exterior.SpliceBypass(_route);
+        }
         _unreachable = _route.Count == 1 && _route[0].DistanceTo(destination) > 0.5f;
         _blocked = false;
         _index = _route.Count > 1 && survivor.SimulationPosition.DistanceTo(_route[0]) <= survivor.ArrivalThreshold ? 1 : 0;
