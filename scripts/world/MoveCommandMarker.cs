@@ -24,6 +24,15 @@ public partial class MoveCommandMarker : Node2D
         QueueRedraw();
     }
 
+    public override void _Ready()
+    {
+        // Pausing stops the simulation, not the player. GetTree().Paused halts
+        // _Process and input for every node that is not ProcessMode.Always, so
+        // without this the pause key froze the camera, selection and orders as
+        // well as the clock, and the map became completely inert.
+        ProcessMode = ProcessModeEnum.Always;
+    }
+
     public override void _Draw()
     {
         float progress = _age / Lifetime;

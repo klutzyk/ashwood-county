@@ -17,6 +17,9 @@ namespace AshwoodCounty.World.County.Visual;
 /// </summary>
 public partial class CountyVisualChunk : Node2D
 {
+    /// <summary>Chunks that can be asked to redraw, for the asset inspector.</summary>
+    public const string RedrawGroup = "county_landscape_chunk";
+
     private readonly record struct Field(Rect2 Bounds, Color Soil, bool RowsAlongX);
     private readonly record struct Prop(string Texture, Vector2 Position, float Scale, Color Tint);
 
@@ -134,8 +137,6 @@ public partial class CountyVisualChunk : Node2D
     /// Fewer, larger trees also cost less: canopy density is reduced to
     /// compensate, so the same coverage arrives in fewer draws.
     /// </summary>
-    private const float MatureTreeHeight = 252f;
-    private const float YoungTreeHeight = 148f;
     private const float UnderstoryHeight = 62f;
     private const float ClutterHeight = 56f;
 
@@ -161,6 +162,7 @@ public partial class CountyVisualChunk : Node2D
         Position = _canvasOrigin;
         ZAsRelative = false;
         ZIndex = -100;
+        AddToGroup(RedrawGroup);
     }
 
     public override void _Ready()
@@ -178,6 +180,7 @@ public partial class CountyVisualChunk : Node2D
     {
         DrawWaterways();
         DrawRoadNetwork();
+        DrawRoadJunctions();
         DrawRoadDressing();
         DrawRailwayCorridor();
         DrawFieldStructure();
@@ -263,7 +266,7 @@ public partial class CountyVisualChunk : Node2D
         // nothing at the outer edge so the road dissolves into the terrain art.
         DrawTexturedRibbon(road.Points, outer, profile.Shoulder,
             profile.ShoulderVLow, profile.ShoulderVHigh, profile.ShoulderStretch,
-            new Color(profile.ShoulderTint, 0f), profile.ShoulderTint);
+            new Color(profile.ShoulderTint, 0f), profile.ShoulderTint, profile.Wander);
     }
 
     private void DrawRoadSurface(CountyRoadDefinition road)
@@ -272,7 +275,7 @@ public partial class CountyVisualChunk : Node2D
         float half = road.HalfWidth * RoadSurfacePalette.GridWidthScale;
         DrawTexturedRibbon(road.Points, half, profile.Surface,
             profile.SurfaceVLow, profile.SurfaceVHigh, profile.SurfaceStretch,
-            profile.SurfaceTint, profile.SurfaceTint);
+            profile.SurfaceTint, profile.SurfaceTint, profile.Wander * .45f);
     }
 
     private void DrawRoadMarkings(CountyRoadDefinition road)
@@ -287,6 +290,32 @@ public partial class CountyVisualChunk : Node2D
             Vector2 tangent = (end - start).Normalized();
             Vector2 normal = new(-tangent.Y, tangent.X);
             DrawRibbonQuad(start + tangent * .3f, end - tangent * .3f, normal * half * .055f, new Color("#c9b06a"));
+        }
+    }
+
+    /// <summary>
+    /// Authored junction tiles laid over the places roads actually cross.
+    ///
+    /// Two ribbons crossing just overlap, which looks like exactly what it is.
+    /// The library carries proper isometric junction art, so a crossing gets a
+    /// real one stamped over it and reads as built rather than incidental.
+    /// </summary>
+    private void DrawRoadJunctions()
+    {
+        foreach (CountyTerrain.RoadJunction junction in CountyTerrain.Junctions)
+        {
+            if (!_gridBounds.HasPoint(junction.Position))
+                continue;
+            int salt = Mathf.RoundToInt(junction.Position.X * 13 + junction.Position.Y * 7);
+            string texture = junction.Paved
+                ? RoadArtRoot + "asphalt_intersection_01.png"
+                : CountyTerrain.Hash01(salt, salt >> 2, 331) > .5f
+                    ? RoadArtRoot + "dirt_junction_01.png"
+                    : RoadArtRoot + "dirt_crossroads_01.png";
+            // Requested at native width: these tiles are around 150px, and
+            // asking for a road-width stamp would only enlarge them.
+            DrawGroundTexture(texture, junction.Position, 1f,
+                new Color(1, 1, 1, junction.Paved ? .62f : .48f));
         }
     }
 
@@ -475,18 +504,25 @@ public partial class CountyVisualChunk : Node2D
                     {
                         string low = UnderstoryFor(biome, CountyTerrain.Hash01(x, y, 151));
                         output.Add(new Placement(low, point,
-                            ScaleForHeight(low, UnderstoryHeight * (.82f + CountyTerrain.Hash01(x, y, 153) * .36f)),
+                            SpriteScaling.ForHeight(low, UnderstoryHeight * (.82f + CountyTerrain.Hash01(x, y, 153) * .36f)),
                             new Color(1, 1, 1, .90f), false));
                     }
                     continue;
                 }
 
-                bool mature = canopy > .50f && CountyTerrain.Hash01(x, y, 157) > .22f;
+                // Three storeys rather than two. Closed canopy is mostly full
+                // trees; thinner cover is mid storey and saplings. This is what a
+                // wood actually looks like, and it also lets each sprite be drawn
+                // at a size its own resolution can carry.
+                float tierRoll = CountyTerrain.Hash01(x, y, 157);
+                VegetationTier tier = canopy > .50f && tierRoll > .30f ? VegetationTier.Mature
+                    : canopy > .26f || tierRoll > .55f ? VegetationTier.Mid
+                    : VegetationTier.Sapling;
                 float variant = CountyTerrain.Hash01(x, y, 53);
-                string texture = TreeFor(biome, mature, variant);
-                float height = (mature ? MatureTreeHeight : YoungTreeHeight)
-                    * (.85f + CountyTerrain.Hash01(x, y, 59) * .34f);
-                output.Add(new Placement(texture, point, ScaleForHeight(texture, height), CanopyTint(biome), true));
+                string texture = VegetationCatalog.Select(biome, tier, variant);
+                float height = VegetationCatalog.HeightFor(tier)
+                    * (.86f + CountyTerrain.Hash01(x, y, 59) * .30f);
+                output.Add(new Placement(texture, point, SpriteScaling.ForHeight(texture, height), CanopyTint(biome), true));
 
                 // Understory beneath closed canopy only.
                 if (canopy > .55f && CountyTerrain.Hash01(x, y, 61) > .72f)
@@ -494,7 +530,7 @@ public partial class CountyVisualChunk : Node2D
                     Vector2 under = point + new Vector2(1.1f, -.4f);
                     string low = UnderstoryFor(biome, CountyTerrain.Hash01(x, y, 63));
                     output.Add(new Placement(low, under,
-                        ScaleForHeight(low, UnderstoryHeight * (.78f + CountyTerrain.Hash01(x, y, 67) * .34f)),
+                        SpriteScaling.ForHeight(low, UnderstoryHeight * (.78f + CountyTerrain.Hash01(x, y, 67) * .34f)),
                         new Color(1, 1, 1, .88f), false));
                 }
             }
@@ -525,26 +561,6 @@ public partial class CountyVisualChunk : Node2D
         _ => 0f
     };
 
-    private static string TreeFor(CountyBiome biome, bool mature, float variant) => biome switch
-    {
-        CountyBiome.PineRidge => mature
-            ? variant > .55f ? Vegetation02Root + "pine_02.png" : Vegetation02Root + "pine_03.png"
-            : Vegetation02Root + "young_pine_02.png",
-        CountyBiome.Logging => mature
-            ? variant > .68f ? Vegetation02Root + "pine_02.png"
-            : variant > .34f ? Vegetation02Root + "pine_03.png" : Vegetation02Root + "dead_tree_02.png"
-            : Vegetation02Root + "dead_tree_young_01.png",
-        CountyBiome.Mill or CountyBiome.Forest => mature
-            ? variant > .78f ? Vegetation02Root + "pine_02.png"
-            : variant > .58f ? Vegetation02Root + "deciduous_02.png"
-            : variant > .38f ? Vegetation02Root + "birch_01.png"
-            : variant > .18f ? VegetationRoot + "oak_01.png" : Vegetation02Root + "deciduous_autumn_01.png"
-            : variant > .55f ? Vegetation02Root + "young_deciduous_02.png" : Vegetation02Root + "birch_young_01.png",
-        _ => mature
-            ? variant > .70f ? VegetationRoot + "oak_01.png"
-            : variant > .40f ? Vegetation02Root + "birch_01.png" : Vegetation02Root + "deciduous_02.png"
-            : variant > .50f ? Vegetation02Root + "young_deciduous_02.png" : VegetationRoot + "young_tree_01.png"
-    };
 
     private static string UnderstoryFor(CountyBiome biome, float roll) => biome switch
     {
@@ -632,7 +648,7 @@ public partial class CountyVisualChunk : Node2D
                     };
 
                 output.Add(new Placement(texture, point,
-                    ScaleForHeight(texture, ClutterHeight * (.8f + CountyTerrain.Hash01(x, y, 629) * .55f)),
+                    SpriteScaling.ForHeight(texture, ClutterHeight * (.8f + CountyTerrain.Hash01(x, y, 629) * .55f)),
                     new Color(1, 1, 1, .92f), false));
             }
         }
@@ -735,8 +751,22 @@ public partial class CountyVisualChunk : Node2D
     /// cells so the strip foreshortens with the isometric projection, and each
     /// quad is emitted by exactly the chunk that contains its midpoint.
     /// </summary>
+    /// <summary>
+    /// A textured ribbon along a county polyline.
+    ///
+    /// The two sides are widened independently from a smooth noise field keyed
+    /// to world position, so the strip breathes instead of holding one exact
+    /// width for its whole length. A constant-width ribbon with perfectly
+    /// parallel edges is the clearest sign of a road that was computed rather
+    /// than built; letting the verge wander a little, and wander differently on
+    /// each side, is most of what makes it read as worn ground.
+    ///
+    /// The wander is strongest on the shoulder pass, where the outer edge is
+    /// already fading to nothing, and slight on the carriageway, which should
+    /// still look like a maintained running surface.
+    /// </summary>
     private void DrawTexturedRibbon(Vector2[] points, float gridHalfWidth, string texturePath,
-        float vLow, float vHigh, float stretch, Color outerTint, Color innerTint)
+        float vLow, float vHigh, float stretch, Color outerTint, Color innerTint, float wander)
     {
         Texture2D texture = TextureRegistry.Get(texturePath);
         if (texture is null || points.Length < 2)
@@ -762,23 +792,31 @@ public partial class CountyVisualChunk : Node2D
             if (!_grownBounds.HasPoint((a + b) * .5f))
                 continue;
 
-            Vector2 normalA = MitreNormal(line, index) * gridHalfWidth;
-            Vector2 normalB = MitreNormal(line, index + 1) * gridHalfWidth;
+            Vector2 unitA = MitreNormal(line, index);
+            Vector2 unitB = MitreNormal(line, index + 1);
+            Vector2 leftA = unitA * gridHalfWidth * EdgeWidth(a, wander, 0);
+            Vector2 leftB = unitB * gridHalfWidth * EdgeWidth(b, wander, 0);
+            Vector2 rightA = unitA * gridHalfWidth * EdgeWidth(a, wander, 977);
+            Vector2 rightB = unitB * gridHalfWidth * EdgeWidth(b, wander, 977);
 
             if (outerTint == innerTint)
             {
                 // Uniform strip: one quad spanning the full width.
-                EmitBand(texture, a + normalA, b + normalB, Vector2.Zero, -normalA * 2f, -normalB * 2f,
+                EmitBand(texture, a + leftA, b + leftB, Vector2.Zero, -(leftA + rightA), -(leftB + rightB),
                     uA, uB, vLow, vHigh, innerTint, innerTint);
                 continue;
             }
 
-            // Two mirrored half-bands: the outer edge of each fades out, so the
-            // shoulder pass blends into the painted ground on both sides.
-            EmitBand(texture, a, b, Vector2.Zero, normalA, normalB, uA, uB, vLow + band * .5f, vLow, innerTint, outerTint);
-            EmitBand(texture, a, b, Vector2.Zero, -normalA, -normalB, uA, uB, vLow + band * .5f, vHigh, innerTint, outerTint);
+            // Two half-bands: the outer edge of each fades out, so the shoulder
+            // pass blends into the painted ground on both sides.
+            EmitBand(texture, a, b, Vector2.Zero, leftA, leftB, uA, uB, vLow + band * .5f, vLow, innerTint, outerTint);
+            EmitBand(texture, a, b, Vector2.Zero, -rightA, -rightB, uA, uB, vLow + band * .5f, vHigh, innerTint, outerTint);
         }
     }
+
+    /// <summary>Width multiplier for one edge of a ribbon at a point.</summary>
+    private static float EdgeWidth(Vector2 point, float wander, int salt) =>
+        wander <= 0f ? 1f : 1f + (CountyTerrain.Fbm(point, 1f / 6.5f, 1877 + salt) - .5f) * 2f * wander;
 
     private void EmitBand(Texture2D texture, Vector2 a, Vector2 b, Vector2 innerOffset,
         Vector2 outerA, Vector2 outerB, float uA, float uB, float vInner, float vOuter,
@@ -885,19 +923,16 @@ public partial class CountyVisualChunk : Node2D
     /// that differ by a factor of three. Procedural placement asks for a height
     /// instead, so a mature tree is a mature tree whichever asset is picked.
     /// </summary>
-    private static float ScaleForHeight(string path, float canvasHeight)
-    {
-        Texture2D texture = TextureRegistry.Get(path);
-        float source = texture is null ? 0f : texture.GetSize().Y;
-        return source <= 1f ? .3f : canvasHeight / source;
-    }
 
     private void DrawAnchoredTexture(string path, Vector2 point, float scale, Color tint)
     {
         Texture2D texture = TextureRegistry.Get(path);
         if (texture is null) return;
-        Vector2 size = texture.GetSize() * scale;
+        Vector2 native = texture.GetSize();
+        Vector2 size = native * scale;
         DrawTextureRect(texture, new Rect2(P(point) - new Vector2(size.X * .5f, size.Y), size), false, tint);
+        if (AssetInspector.Capturing)
+            AssetInspector.Record(path, point, native, size, false);
     }
 
     private void DrawGridLineClipped(Vector2 start, Vector2 end, Color color, float width)

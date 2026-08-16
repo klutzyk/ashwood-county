@@ -40,6 +40,11 @@ public partial class SurvivorSelectionController : CanvasLayer
 
     public override void _Ready()
     {
+        // Pausing stops the simulation, not the player. GetTree().Paused halts
+        // _Process and input for every node that is not ProcessMode.Always, so
+        // without this the pause key froze the camera, selection and orders as
+        // well as the clock, and the map became completely inert.
+        ProcessMode = ProcessModeEnum.Always;
         _world = GetNode<IsometricWorld>("../World");
         _effects = GetNode<Node2D>("../World/Effects");
         _stockpile = GetNode<Stockpile>("../World/Objects/Stockpile");

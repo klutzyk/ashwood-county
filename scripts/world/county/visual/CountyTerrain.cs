@@ -545,6 +545,79 @@ public static class CountyTerrain
             roads.Add(new CountyRoadDefinition($"ashwood_cross_{x}", "Ashwood Cross Street", .68f,
                 [new(x, 118), new(x, 173)]));
 
+        // Minor routes are given a slight wander.
+        //
+        // A track laid down as three or four control points renders as a set of
+        // dead-straight segments with mathematically parallel edges, which is
+        // the single strongest tell that a road was generated rather than built.
+        // Real farm and forest tracks follow ground they did not choose. The
+        // amplitude is small enough not to move a route off its junctions, and
+        // the highway and town grid are deliberately left alone because
+        // engineered roads genuinely are straight.
+        for (int index = 0; index < roads.Count; index++)
+        {
+            CountyRoadDefinition road = roads[index];
+            if (road.Major || road.Id.StartsWith("ashwood_", StringComparison.Ordinal))
+                continue;
+            float amplitude = road.HalfWidth < .5f ? .85f : road.HalfWidth < 1f ? .70f : .55f;
+            roads[index] = road with
+            {
+                Points = CountyMacroLayout.Meander(road.Points, 4, amplitude, .61f + index * .017f)
+            };
+        }
+
         return [.. roads];
+    }
+
+    /// <summary>A place where two roads cross, and whether the crossing is paved.</summary>
+    public readonly record struct RoadJunction(Vector2 Position, bool Paved);
+
+    /// <summary>
+    /// Every crossing in the network, worked out once from the road geometry.
+    ///
+    /// Ribbons drawn independently simply overlap where they meet, which leaves
+    /// the join looking like two strips laid on top of each other. Knowing where
+    /// the crossings are lets the landscape pass stamp the library's authored
+    /// junction tiles over them, so an intersection reads as a built thing.
+    /// </summary>
+    public static readonly RoadJunction[] Junctions = BuildJunctions();
+
+    private static RoadJunction[] BuildJunctions()
+    {
+        List<RoadJunction> junctions = [];
+        for (int i = 0; i < AllRoads.Length; i++)
+        {
+            for (int j = i + 1; j < AllRoads.Length; j++)
+            {
+                if (!RoadBounds[i].Intersects(RoadBounds[j]))
+                    continue;
+                Vector2[] a = AllRoads[i].Points;
+                Vector2[] b = AllRoads[j].Points;
+                for (int p = 0; p < a.Length - 1; p++)
+                {
+                    for (int q = 0; q < b.Length - 1; q++)
+                    {
+                        Variant crossing = Geometry2D.SegmentIntersectsSegment(a[p], a[p + 1], b[q], b[q + 1]);
+                        if (crossing.VariantType != Variant.Type.Vector2)
+                            continue;
+                        Vector2 at = crossing.AsVector2();
+                        // Roads that share an endpoint meet many times over a
+                        // short run; one stamp per junction is enough.
+                        bool duplicate = false;
+                        foreach (RoadJunction existing in junctions)
+                        {
+                            if (existing.Position.DistanceSquaredTo(at) < 9f) { duplicate = true; break; }
+                        }
+                        if (duplicate)
+                            continue;
+                        bool paved = AllRoads[i].Major || AllRoads[j].Major
+                            || AllRoads[i].Id.StartsWith("ashwood_", StringComparison.Ordinal)
+                            || AllRoads[j].Id.StartsWith("ashwood_", StringComparison.Ordinal);
+                        junctions.Add(new RoadJunction(at, paved));
+                    }
+                }
+            }
+        }
+        return [.. junctions];
     }
 }

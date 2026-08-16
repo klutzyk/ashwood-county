@@ -20,6 +20,18 @@ namespace AshwoodCounty.World.County.Visual;
 /// field rather than a per-tile hash, so the same diamond repeats across a run
 /// of neighbours and the ground resolves into masses. An independent hash per
 /// tile is what produced the visible salt-and-pepper lattice.
+///
+/// A third rule governs which art is eligible at all. A base diamond is drawn
+/// about 246px wide, so only the roughly 280-340px source tiles can fill that
+/// slot without being enlarged. The library also contains a set of ~141px
+/// diamonds; mixing the two families meant a third of the ground was being
+/// upscaled about 1.7x, which with mipmaps off produced soft patches sitting
+/// directly beside sharp ones. Those small tiles are excluded from base terrain
+/// and their colour is recovered through <see cref="SurfaceTint"/> instead,
+/// which costs nothing and keeps every base draw sharp.
+///
+/// Restricting the base set also shrinks the number of distinct textures on
+/// screen, so the per-texture batching in the ground layer has less to do.
 /// </summary>
 public static class GroundTilePalette
 {
@@ -33,69 +45,65 @@ public static class GroundTilePalette
         [GroundSurface.Meadow] =
         [
             new(Terrain + "grass_02.png", 7.0f),
-            new(Ground + "mixed_grass_03.png", 2.6f),
-            new(Terrain + "grass_01.png", 1.2f),
-            new(Ground + "meadow_flowers_03.png", .4f)
+            new(Terrain + "grass_01.png", 2.5f),
+            new(Terrain + "grass_dirt_01.png", .8f)
         ],
         [GroundSurface.RichMeadow] =
         [
-            new(Ground + "lush_grass_flowers_01.png", 5.5f),
+            new(Ground + "lush_grass_flowers_01.png", 6.0f),
             new(Terrain + "grass_01.png", 3.0f),
-            new(Ground + "wildflower_grass_02.png", 1.6f),
-            new(Ground + "meadow_flowers_03.png", .6f)
+            new(Terrain + "grass_02.png", 1.2f)
         ],
-        // Dominant variants are chosen to sit close in value to one another.
-        // sparse_grass_01 is a dry tan; leading with it turned the outskirts
-        // arid, so the greener mixed grass carries the mass and the dry tufts
-        // appear as relief.
         [GroundSurface.Pasture] =
         [
             new(Terrain + "grass_dirt_01.png", 6.0f),
             new(Ground + "sparse_grass_01.png", 3.0f),
-            new(Terrain + "grass_02.png", 1.8f),
-            new(Ground + "mixed_grass_03.png", .8f)
+            new(Terrain + "grass_02.png", 1.6f)
         ],
         [GroundSurface.DryGrass] =
         [
-            new(Ground + "sparse_grass_01.png", 5.5f),
-            new(Ground + "dry_grass_rock_01.png", 2.6f),
-            new(Ground + "sparse_ground_02.png", 1.6f)
+            new(Ground + "sparse_grass_01.png", 6.0f),
+            new(Ground + "grass_dirt_edge_01.png", 2.2f),
+            new(Ground + "rocky_dirt_01.png", 1.0f)
         ],
         // leaf_litter_02 and leaves_01 are deliberately absent here: they are
         // partial scatters rather than full diamonds, so as a base layer they
         // punch holes through to the macro ground. They belong in LeafDetail.
+        //
+        // forest_floor_02 was the dominant tile here and is only 141px, so the
+        // whole woodland floor was the softest surface in the county. The brown
+        // it provided is now a tint over a full-resolution earth diamond.
         [GroundSurface.ForestFloor] =
         [
-            new(Ground + "forest_floor_02.png", 7.0f),
-            new(Ground + "mushroom_meadow_01.png", 1.6f),
-            new(Ground + "sparse_ground_02.png", 1.2f),
-            new(Ground + "mixed_grass_03.png", 1.0f)
+            new(Terrain + "grass_dirt_01.png", 5.0f),
+            new(Terrain + "dirt_01.png", 3.0f),
+            new(Ground + "sparse_grass_01.png", 1.6f)
         ],
         [GroundSurface.PineFloor] =
         [
-            new(Ground + "forest_floor_02.png", 6.5f),
-            new(Ground + "sparse_ground_02.png", 2.0f),
-            new(Ground + "rocky_ground_03.png", 1.6f),
-            new(Ground + "stone_outcrop_ground_01.png", .5f)
+            new(Terrain + "dirt_01.png", 4.2f),
+            new(Terrain + "grass_dirt_01.png", 3.0f),
+            new(Ground + "rocky_dirt_01.png", 2.2f)
         ],
         [GroundSurface.Scrub] =
         [
-            new(Ground + "dry_grass_rock_01.png", 5.5f),
-            new(Ground + "rocky_dirt_01.png", 2.0f),
-            new(Ground + "sparse_ground_02.png", 1.6f)
+            new(Ground + "rocky_dirt_01.png", 5.0f),
+            new(Ground + "sparse_grass_01.png", 2.6f),
+            new(Ground + "grass_dirt_edge_01.png", 1.4f)
         ],
         // A worked field commits to one treatment across its whole area. Mixing
         // plough patterns inside a single field is what made the agricultural
         // belt read as corduroy noise rather than as fields.
         [GroundSurface.Farmland] =
         [
-            new(Ground + "ploughed_rows_02.png", 9.0f),
-            new(Ground + "farm_rows_muddy_01.png", 1.0f)
+            new(Ground + "farm_rows_muddy_01.png", 9.0f),
+            new(Terrain + "grass_dirt_01.png", 1.0f)
         ],
         [GroundSurface.Ploughed] =
         [
-            new(Ground + "farm_rows_muddy_01.png", 8.0f),
-            new(Ground + "bare_dirt_01.png", 1.2f)
+            new(Terrain + "dirt_01.png", 6.0f),
+            new(Ground + "bare_dirt_01.png", 3.0f),
+            new(Ground + "farm_rows_muddy_01.png", 1.4f)
         ],
         [GroundSurface.BareEarth] =
         [
@@ -111,20 +119,20 @@ public static class GroundTilePalette
         ],
         [GroundSurface.Mud] =
         [
-            new(Ground + "muddy_ground_02.png", 6.5f),
-            new(Ground + "bare_dirt_01.png", 1.6f),
-            new(Ground + "sparse_dirt_01.png", 1.0f)
+            new(Ground + "bare_dirt_01.png", 6.0f),
+            new(Ground + "sparse_dirt_01.png", 2.0f),
+            new(Terrain + "dirt_01.png", 1.2f)
         ],
         [GroundSurface.Wetland] =
         [
-            new(Ground + "muddy_ground_02.png", 4.0f),
-            new(Ground + "mixed_grass_03.png", 2.6f),
-            new(Ground + "sparse_grass_01.png", 1.6f)
+            new(Terrain + "grass_dirt_01.png", 4.5f),
+            new(Ground + "sparse_grass_01.png", 2.6f),
+            new(Ground + "bare_dirt_01.png", 1.4f)
         ],
         [GroundSurface.TownGround] =
         [
             new(Ground + "gravel_ground_01.png", 6.0f),
-            new(Ground + "sparse_ground_02.png", 1.8f),
+            new(Ground + "sparse_dirt_01.png", 1.8f),
             new(Ground + "rocky_dirt_01.png", 1.0f)
         ],
         [GroundSurface.Trodden] =
@@ -134,6 +142,32 @@ public static class GroundTilePalette
             new(Ground + "grass_dirt_edge_01.png", 1.8f),
             new(Terrain + "dirt_path_01.png", .5f)
         ]
+    };
+
+    /// <summary>
+    /// Per-surface colour multiplier.
+    ///
+    /// Restricting base terrain to the high-resolution diamonds costs some of
+    /// the library's colour range, because several of the distinctly coloured
+    /// tiles are the low-resolution ones. Recovering that range as a tint is
+    /// both sharper and cheaper than drawing the soft art: a woodland floor is a
+    /// brown-olive earth diamond, wet ground is the same diamond taken down and
+    /// desaturated, and a standing crop is a green cast over plough rows.
+    /// </summary>
+    public static Color SurfaceTint(GroundSurface surface) => surface switch
+    {
+        // Woodland floors are in shade and mostly needle and leaf litter, so
+        // they are taken down in value and pulled away from the orange that the
+        // bare earth diamonds carry on their own.
+        GroundSurface.ForestFloor => new Color(.74f, .74f, .60f),
+        GroundSurface.PineFloor => new Color(.72f, .70f, .56f),
+        GroundSurface.Wetland => new Color(.82f, .89f, .78f),
+        GroundSurface.Mud => new Color(.70f, .68f, .60f),
+        GroundSurface.Farmland => new Color(.92f, 1.00f, .82f),
+        GroundSurface.DryGrass => new Color(1.00f, .97f, .82f),
+        GroundSurface.Scrub => new Color(1.00f, .96f, .80f),
+        GroundSurface.Ploughed => new Color(.94f, .90f, .82f),
+        _ => Colors.White
     };
 
     /// <summary>Detail overlays stamped sparsely on top of the base diamonds.</summary>

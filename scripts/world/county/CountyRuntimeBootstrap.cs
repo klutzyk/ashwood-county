@@ -54,6 +54,8 @@ public partial class CountyRuntimeBootstrap : Node
             root.AddChild(new EarlyGameCoreLoopValidation{Name="EarlyGameCoreLoopValidation"});
         if(root.GetNodeOrNull<TerrainStreamingValidation>("TerrainStreamingValidation") is null)
             root.AddChild(new TerrainStreamingValidation{Name="TerrainStreamingValidation"});
+        if(root.GetNodeOrNull<AshwoodCounty.World.County.Visual.AssetInspector>("AssetInspector") is null)
+            root.AddChild(new AshwoodCounty.World.County.Visual.AssetInspector{Name="AssetInspector"});
         if(root.GetNodeOrNull<InteriorVerticalSliceValidation>("InteriorVerticalSliceValidation") is null)
             root.AddChild(new InteriorVerticalSliceValidation{Name="InteriorVerticalSliceValidation"});
         if(root.GetNodeOrNull<ItemVerticalSliceValidation>("ItemVerticalSliceValidation") is null)

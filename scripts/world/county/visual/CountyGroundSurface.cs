@@ -158,6 +158,7 @@ internal partial class CountyGroundDetailChunk : Node2D
         Position = _canvasOrigin;
         ZAsRelative = false;
         ZIndex = -118;
+        AddToGroup(CountyVisualChunk.RedrawGroup);
     }
 
     public override void _Ready() => QueueRedraw();
@@ -173,7 +174,9 @@ internal partial class CountyGroundDetailChunk : Node2D
         // Collected per texture first: the renderer batches consecutive
         // commands that share a texture, and ground diamonds are flat, so
         // grouping costs nothing visually and saves a lot of state changes.
-        Dictionary<string, List<(Vector2 Center, Color Tint, float Scale)>> byTexture = [];
+        // Keyed by texture and by half-turn, because a half-turn needs a canvas
+        // transform and grouping keeps that to one state change per group.
+        Dictionary<(string Path, bool Turned), List<(Vector2 Center, Color Tint, float Scale)>> byTexture = [];
 
         int startX = CountyTerrain.LatticeStart(_gridBounds.Position.X, Block);
         int startY = CountyTerrain.LatticeStart(_gridBounds.Position.Y, Block);
@@ -198,6 +201,18 @@ internal partial class CountyGroundDetailChunk : Node2D
                     (CountyTerrain.Hash01(x, y, 823) - .5f) * .34f);
                 float scale = .96f + CountyTerrain.Hash01(x, y, 829) * .16f;
 
+                // Half of the diamonds are drawn rotated by a half-turn.
+                //
+                // These tiles are seamless at their borders, but each one places
+                // its grass tufts and stones in a fixed arrangement, so tiling
+                // them lines that arrangement up along the lattice diagonals and
+                // the ground reads as a grid of identical patches. A half-turn
+                // maps a diamond exactly onto itself, so it is the one transform
+                // that reshuffles the contents without breaking the tiling or
+                // distorting the art.
+                bool turned = CountyTerrain.Hash01(x, y, 617) > .5f;
+
+                Color surfaceTint = GroundTilePalette.SurfaceTint(surface);
                 Color region = CountyTerrain.RegionColor(lattice);
                 // A firm pull towards the regional colour unifies tiles from
                 // different sources. Value variation comes from a broad noise
@@ -211,30 +226,44 @@ internal partial class CountyGroundDetailChunk : Node2D
                 // slightly cool, open country stays bright. Without it every
                 // region is lit identically and the landscape has no hierarchy
                 // above the level of individual tiles.
+                tint = new Color(tint.R * surfaceTint.R, tint.G * surfaceTint.G, tint.B * surfaceTint.B, tint.A);
+
                 float canopy = CountyTerrain.CanopyShade(lattice);
                 if (canopy > .01f)
                     tint = tint.Darkened(canopy * .30f).Lerp(new Color(.62f, .70f, .64f, tint.A), canopy * .22f);
 
-                if (!byTexture.TryGetValue(path, out List<(Vector2, Color, float)>? list))
+                if (!byTexture.TryGetValue((path, turned), out List<(Vector2, Color, float)>? list))
                 {
                     list = [];
-                    byTexture[path] = list;
+                    byTexture[(path, turned)] = list;
                 }
                 list.Add((center, tint, scale));
             }
         }
 
         Vector2 unit = new(Block * IsometricGrid.TileWidth * Bleed, Block * IsometricGrid.TileHeight * Bleed);
-        foreach ((string path, List<(Vector2 Center, Color Tint, float Scale)> entries) in byTexture)
+        foreach (((string path, bool turned), List<(Vector2 Center, Color Tint, float Scale)> entries) in byTexture)
         {
             Texture2D texture = TextureRegistry.Get(path);
             if (texture is null)
                 continue;
+
+            // A half-turn about the canvas origin sends a point to its negation,
+            // so the destination is negated to land the tile back where it
+            // belongs with its contents rotated.
+            if (turned)
+                DrawSetTransform(Vector2.Zero, Mathf.Pi, Vector2.One);
+            Vector2 native = texture.GetSize();
             foreach ((Vector2 center, Color tint, float scale) in entries)
             {
                 Vector2 size = unit * scale;
-                DrawTextureRect(texture, new Rect2(P(center) - size * .5f, size), false, tint);
+                Vector2 anchor = turned ? -P(center) : P(center);
+                DrawTextureRect(texture, new Rect2(anchor - size * .5f, size), false, tint);
+                if (AssetInspector.Capturing)
+                    AssetInspector.Record(path, center, native, size, true);
             }
+            if (turned)
+                DrawSetTransform(Vector2.Zero, 0f, Vector2.One);
         }
     }
 

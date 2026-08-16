@@ -39,7 +39,8 @@ public readonly record struct RoadSurfaceProfile(
     float ShoulderWidth,
     bool CentreLine,
     string WearTexture,
-    float WearSpacing);
+    float WearSpacing,
+    float Wander);
 
 public static class RoadSurfacePalette
 {
@@ -57,36 +58,36 @@ public static class RoadSurfacePalette
     private static readonly RoadSurfaceProfile Highway = new(
         Materials + "asphalt_surface.png", 0f, 1f, 1.0f, new Color(.92f, .92f, .90f),
         Materials + "asphalt_shoulder.png", .20f, .78f, 1.0f, new Color(.74f, .72f, .66f),
-        .80f, true, RoadTiles + "asphalt_wear_01.png", 17f);
+        .80f, true, RoadTiles + "asphalt_wear_01.png", 17f, .05f);
 
     private static readonly RoadSurfaceProfile TownStreet = new(
         Materials + "asphalt_worn_surface.png", 0f, 1f, 1.0f, new Color(.86f, .86f, .84f),
         Materials + "asphalt_shoulder.png", .22f, .76f, 1.0f, new Color(.70f, .69f, .64f),
-        .55f, false, RoadTiles + "asphalt_cracked_01.png", 21f);
+        .55f, false, RoadTiles + "asphalt_cracked_01.png", 21f, .06f);
 
     // Clearly readable, but sat down into the landscape: the tint is pulled
     // well below white so a dirt road stops out-shouting the ground it crosses.
     private static readonly RoadSurfaceProfile CountyRoad = new(
         Materials + "dirt_surface.png", .30f, .70f, 1.0f, new Color(.80f, .77f, .70f),
         Materials + "dirt_shoulder.png", .06f, .34f, 1.0f, new Color(.72f, .71f, .62f),
-        .62f, false, RoadTiles + "gravel_road_01.png", 22f);
+        .62f, false, RoadTiles + "gravel_road_01.png", 22f, .16f);
 
     // Quieter again, and narrower.
     private static readonly RoadSurfaceProfile FarmTrack = new(
         Materials + "farm_track_surface.png", .32f, .68f, 1.0f, new Color(.76f, .73f, .66f),
         Materials + "dirt_shoulder.png", .08f, .34f, 1.0f, new Color(.70f, .69f, .60f),
-        .46f, false, RoadTiles + "dirt_ruts_02.png", 28f);
+        .46f, false, RoadTiles + "dirt_ruts_02.png", 28f, .24f);
 
     private static readonly RoadSurfaceProfile ForestTrack = new(
         Materials + "two_track_surface.png", .30f, .70f, 1.0f, new Color(.72f, .73f, .65f),
         Materials + "mud_surface.png", .34f, .66f, 1.0f, new Color(.66f, .65f, .57f),
-        .44f, false, RoadTiles + "forest_track_02.png", 26f);
+        .44f, false, RoadTiles + "forest_track_02.png", 26f, .28f);
 
     // Quietest: a worn line through the grass, no more.
     private static readonly RoadSurfaceProfile Footpath = new(
         Materials + "footpath_surface.png", .38f, .62f, 1.0f, new Color(.78f, .75f, .68f),
         Materials + "dirt_shoulder.png", .12f, .36f, 1.0f, new Color(.72f, .71f, .64f),
-        .38f, false, RoadTiles + "rural_path_grass_01.png", 30f);
+        .38f, false, RoadTiles + "rural_path_grass_01.png", 30f, .34f);
 
     public static RoadSurfaceProfile For(CountyRoadDefinition road)
     {

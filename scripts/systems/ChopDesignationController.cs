@@ -15,6 +15,11 @@ public partial class ChopDesignationController : CanvasLayer
 
     public override void _Ready()
     {
+        // Pausing stops the simulation, not the player. GetTree().Paused halts
+        // _Process and input for every node that is not ProcessMode.Always, so
+        // without this the pause key froze the camera, selection and orders as
+        // well as the clock, and the map became completely inert.
+        ProcessMode = ProcessModeEnum.Always;
         _chopButton = GetNode<Button>("Panel/Margin/Rows/ChopButton");
         _forageButton = GetNode<Button>("Panel/Margin/Rows/ForageButton");
         _status = GetNode<Label>("Panel/Margin/Rows/Status");

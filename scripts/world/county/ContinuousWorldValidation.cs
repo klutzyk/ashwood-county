@@ -66,11 +66,6 @@ public partial class ContinuousWorldValidation:Node
             zoom = parsedZoom;
         camera.SnapTo(gridPosition, zoom);
 
-        // Optional wall-clock override so a capture can be taken at dusk or at
-        // night without waiting out a real day cycle.
-        string? hour = System.Environment.GetEnvironmentVariable("ASHWOOD_CAPTURE_HOUR");
-        if (!string.IsNullOrWhiteSpace(hour) && double.TryParse(hour, System.Globalization.CultureInfo.InvariantCulture, out double parsed))
-            GetNode<AshwoodCounty.Systems.GameClock>("../GameClock").SetTotalMinutes(parsed * 60d);
         CountyFogOfWar fog = GetNode<CountyFogOfWar>("../World/CountyFog");
         fog.DebugMode = FogDebugMode.RevealAll;
         // Optional: select a survivor so HUD checks can see the survivor panel.
@@ -86,10 +81,30 @@ public partial class ContinuousWorldValidation:Node
     }
     private async void CapturePngAfterFrames(string path)
     {
+        // The starting scenario sets the clock to first light during its own
+        // deferred start-up, so a wall-clock override has to be applied after
+        // that has run or it is silently overwritten and every capture comes
+        // back in morning light.
+        for(int i=0;i<20;i++)await ToSignal(GetTree(),SceneTree.SignalName.ProcessFrame);
+        string? hour = System.Environment.GetEnvironmentVariable("ASHWOOD_CAPTURE_HOUR");
+        if (!string.IsNullOrWhiteSpace(hour) && double.TryParse(hour, System.Globalization.CultureInfo.InvariantCulture, out double parsed))
+            GetNode<AshwoodCounty.Systems.GameClock>("../GameClock").SetTotalMinutes(parsed * 60d);
+
+        // Optional sprite-scale audit: record what the terrain layers place, so
+        // any artwork being enlarged past its source resolution is named.
+        bool audit = System.Environment.GetEnvironmentVariable("ASHWOOD_AUDIT_SPRITE_SCALE") == "1";
+        if (audit)
+        {
+            AshwoodCounty.World.County.Visual.AssetInspector.BeginAudit();
+            foreach (Node node in GetTree().GetNodesInGroup(AshwoodCounty.World.County.Visual.CountyVisualChunk.RedrawGroup))
+                if (node is CanvasItem item) item.QueueRedraw();
+        }
+
         // Terrain detail streams from the visible rectangle, so the capture has
         // to give the layers a couple of refresh ticks to build.
         for(int i=0;i<90;i++)await ToSignal(GetTree(),SceneTree.SignalName.ProcessFrame);
         ReportRenderCost();
+        if (audit) AshwoodCounty.World.County.Visual.AssetInspector.ReportScaleAudit();
         Error error=GetViewport().GetTexture().GetImage().SavePng(path);
         GD.Print($"VISUAL_CAPTURE_PNG: {error} {path}");
     }

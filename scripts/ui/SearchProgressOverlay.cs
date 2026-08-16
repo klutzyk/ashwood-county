@@ -22,6 +22,11 @@ public partial class SearchProgressOverlay : CanvasLayer
     public override void _Ready()
     {
         Layer = 13;
+        // Pausing stops the simulation, not the player. GetTree().Paused halts
+        // _Process and input for every node that is not ProcessMode.Always, so
+        // without this the pause key froze the camera, selection and orders as
+        // well as the clock, and the map became completely inert.
+        ProcessMode = ProcessModeEnum.Always;
         AddToGroup(GroupName);
         _drawer = new ProgressDrawer();
         AddChild(_drawer);
