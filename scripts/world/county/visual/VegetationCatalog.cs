@@ -33,13 +33,20 @@ public enum UndergrowthLayer
 /// <summary>
 /// The vegetation library and how it is distributed across the county.
 ///
-/// Everything here comes from three sources, all of which hold detail at the
-/// size they are drawn: the trees sheet, the undergrowth sheet, and the large
-/// original isometric trees. Nothing from terrain_asset_sheet_02 is referenced.
-/// That sheet's vegetation was authored at roughly a third the resolution of the
-/// rest of the library, so drawing it at a believable tree size meant enlarging
-/// it past its own pixels, and it was the visible soft artwork in the world.
-/// Its rocks, roads, rails and props are unaffected and still in use elsewhere.
+/// The canopy comes from the three dedicated tree sheets, which are authored
+/// between 539 and 964 pixels tall. Drawn at a 300px canopy they are reduced to
+/// roughly a third to a half of native, which is where this renderer is at its
+/// sharpest, and it is why they hold trunk, branch and leaf detail that the
+/// earlier sets could not.
+///
+/// Two earlier sources are kept because they are genuinely high resolution and
+/// sit beside the new art without a visible quality step: the original
+/// isometric oak and pine, and the snag pieces used as standing deadwood.
+/// Everything else from the older tree sheet is retired from generation, and
+/// terrain_asset_sheet_02's vegetation remains excluded outright: it was
+/// authored at about a third the resolution of the rest of the library, so any
+/// believable tree size meant enlarging it past its own pixels. Its rocks,
+/// roads, rails and props are unaffected and still in use elsewhere.
 ///
 /// Distribution is per biome rather than one shared pool. A region reads as
 /// itself because of what grows there and in what proportion, so Pine Ridge is
@@ -61,11 +68,19 @@ public static class VegetationCatalog
     /// and the smallest in the large pool is 403px, so 300 is comfortably under
     /// all of them.
     /// </summary>
+    /// <summary>
+    /// Canvas heights at zoom 1, against a survivor of about 100px.
+    ///
+    /// Every sprite that can land in a tier is taller than the tier's target, so
+    /// the renderer is always reducing. The new sheets sit between 539 and 964
+    /// pixels, which means a full-grown tree is drawn at roughly a third of its
+    /// native size and stays crisp.
+    /// </summary>
     public static float HeightFor(VegetationTier tier) => tier switch
     {
         VegetationTier.Large => 300f,
         VegetationTier.Medium => 200f,
-        _ => 130f
+        _ => 132f
     };
 
     public static float HeightFor(UndergrowthLayer layer) => layer switch
@@ -85,34 +100,40 @@ public static class VegetationCatalog
 
     // ------------------------------------------------------------------ trees
 
+    // Conifers. fir_full_01 keeps its skirt to the ground, fir_tall_01 is
+    // narrower, and the Scots pine carries a bare lower trunk, so a stand of
+    // them reads as a wood rather than one sprite repeated.
     private static readonly string[] ConiferLarge =
-        [Trees + "spruce_large_01.png", Trees + "pine_large_01.png", Legacy + "pine_01.png"];
+        [Trees + "fir_tall_01.png", Trees + "fir_full_01.png", Trees + "pine_scots_tall_01.png", Legacy + "pine_01.png"];
     private static readonly string[] ConiferMedium =
-        [Trees + "spruce_medium_01.png", Trees + "spruce_medium_02.png", Trees + "pine_medium_01.png"];
+        [Trees + "fir_full_01.png", Trees + "fir_tall_01.png", Trees + "pine_scots_tall_01.png"];
     private static readonly string[] ConiferSapling =
-        [Trees + "spruce_small_01.png"];
+        [Trees + "fir_full_01.png", Trees + "fir_tall_01.png"];
 
+    // Broadleaf. The two new oaks differ in habit: one tall and domed, one
+    // low and spreading.
     private static readonly string[] BroadleafLarge =
-        [Trees + "oak_large_01.png", Trees + "maple_large_01.png", Legacy + "oak_01.png", Legacy + "young_tree_01.png"];
+        [Trees + "oak_grand_01.png", Trees + "oak_spreading_01.png", Legacy + "oak_01.png"];
     private static readonly string[] BroadleafMedium =
-        [Trees + "maple_medium_01.png", Trees + "blossom_medium_01.png"];
-    // Young broadleaf is the medium art drawn small. The sheet's only small
-    // broadleaf sprites are autumn-coloured, and scattering those through every
-    // meadow would put the county in two seasons at once.
+        [Trees + "oak_spreading_01.png", Trees + "oak_grand_01.png", Legacy + "young_tree_01.png"];
     private static readonly string[] BroadleafSapling =
-        [Trees + "birch_medium_01.png", Trees + "maple_medium_01.png"];
+        [Trees + "oak_spreading_01.png", Legacy + "young_tree_01.png"];
 
-    private static readonly string[] BirchLarge = [Trees + "birch_large_01.png"];
-    private static readonly string[] BirchMedium = [Trees + "birch_medium_01.png"];
+    private static readonly string[] BirchLarge =
+        [Trees + "birch_weeping_tall_01.png", Trees + "birch_weeping_02.png", Trees + "birch_slender_01.png"];
+    private static readonly string[] BirchMedium =
+        [Trees + "birch_slender_01.png", Trees + "birch_weeping_02.png"];
 
     /// <summary>Autumn colour, used sparingly so the county stays one season.</summary>
-    private static readonly string[] AutumnLarge = [Trees + "oak_autumn_large_01.png"];
-    private static readonly string[] AutumnMedium = [Trees + "birch_autumn_medium_01.png"];
+    private static readonly string[] AutumnLarge =
+        [Trees + "maple_autumn_grand_01.png", Trees + "maple_autumn_02.png"];
+    private static readonly string[] AutumnMedium =
+        [Trees + "maple_autumn_01.png", Trees + "maple_autumn_02.png"];
 
     private static readonly string[] DeadLarge =
-        [Trees + "dead_oak_large_01.png", Legacy + "dead_tree_01.png"];
+        [Trees + "dead_hollow_01.png", Legacy + "dead_tree_01.png"];
     private static readonly string[] DeadMedium =
-        [Trees + "dead_tree_medium_01.png", Trees + "snag_large_01.png", Trees + "snag_medium_01.png"];
+        [Trees + "dead_hollow_01.png", Trees + "snag_large_01.png", Trees + "snag_medium_01.png"];
     private static readonly string[] DeadSapling = [Trees + "snag_medium_01.png"];
 
     /// <summary>Pick tree art for a biome, tier and deterministic roll.</summary>

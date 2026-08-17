@@ -81,8 +81,8 @@ public static class StartingAreaComposition
         Prop(Roadside + "rusty_barrel_01.png", 224.6f, 152.0f, .20f),
         Plant(Growth + "bush_white_flower_01.png", 215.6f, 150.2f, .24f),
         Plant(Growth + "bush_berry_red_01.png", 224.4f, 156.4f, .24f),
-        Plant(Tree + "birch_medium_01.png", 226.0f, 150.6f, .30f),
-        Plant(Tree + "maple_large_01.png", 213.6f, 148.6f, .30f),
+        Plant(Tree + "birch_slender_01.png", 226.0f, 150.6f, .30f),
+        Plant(Tree + "oak_grand_01.png", 213.6f, 148.6f, .30f),
 
         // ----------------------------------------------------- cabin terrace
         Prop(Resources + "wood_stack_01.png", 197.4f, 141.6f, .28f),
@@ -91,7 +91,7 @@ public static class StartingAreaComposition
         Prop(Rural + "picnic_table_01.png", 210.2f, 139.6f, .22f),
         Prop(Rural + "campfire_01.png", 196.0f, 144.4f, .24f),
         Fence(211.6f, 141.0f), Fence(212.4f, 142.2f), Fence(212.8f, 143.4f),
-        Plant(Tree + "spruce_small_01.png", 194.0f, 137.0f, .26f),
+        Plant(Tree + "fir_full_01.png", 194.0f, 137.0f, .26f),
         Plant(Growth + "bush_autumn_01.png", 213.4f, 138.2f, .24f),
 
         // ------------------------------------------------------- lane frontage
@@ -111,13 +111,13 @@ public static class StartingAreaComposition
         // ------------------------------------------------- woodland pocket
         // A deliberate tree line north-west of the camp: dense trunks, an
         // understory band, and deadfall the settlement has started working.
-        Plant(Tree + "spruce_large_01.png", 191.0f, 152.0f, .30f),
-        Plant(Tree + "spruce_large_01.png", 189.4f, 155.4f, .32f),
-        Plant(Tree + "pine_medium_01.png", 192.6f, 157.6f, .26f),
+        Plant(Tree + "fir_tall_01.png", 191.0f, 152.0f, .30f),
+        Plant(Tree + "fir_tall_01.png", 189.4f, 155.4f, .32f),
+        Plant(Tree + "pine_scots_tall_01.png", 192.6f, 157.6f, .26f),
         Plant(OldVeg + "oak_01.png", 187.6f, 150.4f, .26f),
-        Plant(Tree + "maple_large_01.png", 190.2f, 148.2f, .30f),
-        Plant(Tree + "birch_medium_01.png", 193.8f, 146.4f, .28f),
-        Plant(Tree + "maple_autumn_small_01.png", 194.6f, 150.2f, .24f),
+        Plant(Tree + "oak_grand_01.png", 190.2f, 148.2f, .30f),
+        Plant(Tree + "birch_slender_01.png", 193.8f, 146.4f, .28f),
+        Plant(Tree + "maple_autumn_01.png", 194.6f, 150.2f, .24f),
         Plant(Growth + "fern_large_01.png", 192.0f, 154.4f, .22f),
         Plant(Growth + "fern_01.png", 190.6f, 158.0f, .22f),
         Plant(Growth + "bush_green_01.png", 194.2f, 158.8f, .24f),
@@ -128,9 +128,9 @@ public static class StartingAreaComposition
         Prop(Rocks + "rock_cluster_01.png", 196.0f, 148.0f, .24f),
 
         // South-east woodland edge, closing the pocket without walling it off.
-        Plant(Tree + "spruce_large_01.png", 212.4f, 168.6f, .30f),
-        Plant(Tree + "maple_large_01.png", 216.6f, 167.0f, .30f),
-        Plant(Tree + "spruce_small_01.png", 209.8f, 170.2f, .24f),
+        Plant(Tree + "fir_tall_01.png", 212.4f, 168.6f, .30f),
+        Plant(Tree + "oak_grand_01.png", 216.6f, 167.0f, .30f),
+        Plant(Tree + "fir_full_01.png", 209.8f, 170.2f, .24f),
         Plant(Growth + "bush_green_02.png", 214.2f, 169.4f, .24f),
         Plant(OldVeg + "dead_tree_01.png", 219.6f, 166.0f, .26f),
         Prop(Roadside + "rock_formation_02.png", 207.0f, 171.0f, .24f),

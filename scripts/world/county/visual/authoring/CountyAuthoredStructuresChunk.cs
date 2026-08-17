@@ -239,7 +239,7 @@ public partial class CountyAuthoredStructuresChunk : Node2D
                 Vector2 at = new(x, y + 2.2f);
                 if (!Owns(at)) continue;
                 DrawAsset("street_tree", at, .24f, Colors.White,
-                    "res://assets/art/trees/maple_autumn_small_01.png");
+                    "res://assets/art/trees/maple_autumn_01.png");
                 if (((x + y) / 11 & 1) == 0)
                     DrawUrbanProp("street_light", at + new Vector2(2.5f, .4f), .28f,
                         "res://assets/art/props/urban/street_light_01.png", "res://assets/art/props/roadside/street_light_01.png");
@@ -462,7 +462,7 @@ public partial class CountyAuthoredStructuresChunk : Node2D
             DrawAsset("ridge_outcrop", at, .34f, Colors.White, "res://assets/art/props/roadside/rock_formation_02.png");
         foreach (Vector2 at in new[] { new Vector2(58, 31), new Vector2(63, 42), new Vector2(75, 31), new Vector2(80, 43), new Vector2(88, 36), new Vector2(54, 47) })
             DrawAssetAtHeight("ridge_pine_cluster", at, 150f, new Color(.84f, .91f, .85f),
-                "res://assets/art/trees/spruce_medium_01.png");
+                "res://assets/art/trees/fir_tall_01.png");
     }
 
     private void DrawFireLookout()
