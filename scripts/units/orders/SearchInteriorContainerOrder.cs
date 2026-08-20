@@ -1,9 +1,11 @@
 #nullable enable
 
+using System.Collections.Generic;
 using System.Linq;
 using AshwoodCounty.Buildings.Interiors;
-using AshwoodCounty.Resources;
+using AshwoodCounty.Items;
 using AshwoodCounty.UI;
+using AshwoodCounty.World;
 using Godot;
 
 namespace AshwoodCounty.Units.Orders;
@@ -23,10 +25,38 @@ public sealed class SearchInteriorContainerOrder(InteriorContainerRuntime contai
     public void Start(Survivor survivor)
     {
         _survivorId = survivor.GetInstanceId();
-        if (!GodotObject.IsInstanceValid(container) || !container.TryClaim(_survivorId)) { IsComplete = true; return; }
+        if (!GodotObject.IsInstanceValid(container))
+        {
+            Notify(survivor, "Unavailable");
+            IsComplete = true;
+            return;
+        }
+        if (container.IsSearched)
+        {
+            Notify(survivor, "Already searched");
+            IsComplete = true;
+            return;
+        }
+        if (!survivor.IsInsideInterior(container.Building))
+        {
+            Notify(survivor, "Enter the building first");
+            IsComplete = true;
+            return;
+        }
+        if (!container.TryClaim(_survivorId))
+        {
+            Notify(survivor, "Already being searched");
+            IsComplete = true;
+            return;
+        }
         _claimed = true;
         _elapsed = container.SearchProgress * container.SearchDuration;
         _path.Plan(survivor, container.InteractionPosition);
+        if (_path.Unreachable)
+        {
+            Notify(survivor, "Can't reach");
+            Complete();
+        }
     }
 
     public void Tick(Survivor survivor, double delta)
@@ -34,6 +64,12 @@ public sealed class SearchInteriorContainerOrder(InteriorContainerRuntime contai
         if (IsComplete || !GodotObject.IsInstanceValid(container)) { Complete(); return; }
         if (_phase == Phase.Moving)
         {
+            if (_path.Blocked)
+            {
+                Notify(survivor, "Can't reach");
+                Complete();
+                return;
+            }
             if (_path.Tick(survivor, delta)) _phase = Phase.Searching;
             return;
         }
@@ -41,12 +77,30 @@ public sealed class SearchInteriorContainerOrder(InteriorContainerRuntime contai
         _elapsed += (float)delta * survivor.WorkSpeedMultiplier * survivor.SkillMultiplier(SurvivorSkill.Scavenging);
         container.ReportProgress(_survivorId, _elapsed / Mathf.Max(.1f, container.SearchDuration));
         if (_elapsed < container.SearchDuration) return;
-        SettlementInventory? inventory = survivor.GetTree().GetFirstNodeInGroup(SettlementInventory.GroupName) as SettlementInventory;
-        if (inventory is null) { Complete(); return; }
-        var found = container.CompleteSearch(_survivorId, inventory);
-        survivor.GainSkillExperience(SurvivorSkill.Scavenging, 3f + found.Sum(stack => stack.Amount));
-        string result = found.Count == 0 ? "Nothing useful" : string.Join("  •  ", found.Select(stack => $"{stack.Resource} +{stack.Amount}"));
-        (survivor.GetTree().GetFirstNodeInGroup(GameHud.GroupName) as GameHud)?.Notify($"{container.DisplayName.ToUpperInvariant()} SEARCHED\n{result}");
+        IReadOnlyList<ItemStack> found = container.CompleteSearch(_survivorId);
+        survivor.GainSkillExperience(SurvivorSkill.Scavenging, 3f + found.Sum(stack => stack.Quantity));
+        if (found.Count == 0)
+        {
+            SpawnReveal(container, [], "Nothing useful");
+        }
+        else
+        {
+            List<(Texture2D Texture, string Label)> entries = found
+                .Select(stack => (TextureRegistry.Get(ItemCatalog.Get(stack.ItemId).IconPath), $"x{stack.Quantity}"))
+                .ToList();
+            SpawnReveal(container, entries, "");
+            GameHud? hud = survivor.GetTree().GetFirstNodeInGroup(GameHud.GroupName) as GameHud;
+            if (hud is not null)
+            {
+                // Let the world-space item reveal register first, then slide the
+                // loot panel in over a short, readable beat.
+                survivor.GetTree().CreateTimer(0.28f).Timeout += () =>
+                {
+                    if (GodotObject.IsInstanceValid(container) && GodotObject.IsInstanceValid(survivor) && GodotObject.IsInstanceValid(hud))
+                        hud.ShowContainerLoot(container, survivor);
+                };
+            }
+        }
         _claimed = false;
         IsComplete = true;
     }
@@ -57,5 +111,20 @@ public sealed class SearchInteriorContainerOrder(InteriorContainerRuntime contai
     {
         if (_claimed && GodotObject.IsInstanceValid(container)) container.ReleaseClaim(_survivorId);
         _claimed = false; IsComplete = true;
+    }
+
+    private void Notify(Survivor survivor, string message)
+    {
+        if (!GodotObject.IsInstanceValid(container)) return;
+        (survivor.GetTree().GetFirstNodeInGroup(GameHud.GroupName) as GameHud)?.Notify($"{container.DisplayName.ToUpperInvariant()}\n{message}");
+    }
+
+    private static void SpawnReveal(InteriorContainerRuntime container, IReadOnlyList<(Texture2D Texture, string Label)> entries, string emptyText)
+    {
+        Node? parent = container.GetParent();
+        if (parent is null) return;
+        ItemRevealFeedback reveal = new();
+        parent.AddChild(reveal);
+        reveal.Initialize(container.Position + new Vector2(0f, -54f), entries, emptyText);
     }
 }

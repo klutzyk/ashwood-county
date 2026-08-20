@@ -1,5 +1,9 @@
+#nullable enable annotations
+
 using System.Linq;
+using System.Collections.Generic;
 using AshwoodCounty.Buildings;
+using AshwoodCounty.Items;
 using AshwoodCounty.Jobs;
 using AshwoodCounty.Resources;
 using AshwoodCounty.Units.Orders;
@@ -7,8 +11,18 @@ using AshwoodCounty.World;
 using Godot;
 using AshwoodCounty.Threats;
 using AshwoodCounty.Buildings.Interiors;
+using AshwoodCounty.UI;
 
 namespace AshwoodCounty.Units;
+
+/// <summary>Authoritative per-survivor building membership state.</summary>
+public enum SurvivorLocationState
+{
+    Outdoors,
+    Entering,
+    Indoors,
+    Exiting
+}
 
 [Tool]
 public partial class Survivor : Node2D
@@ -16,6 +30,10 @@ public partial class Survivor : Node2D
     public const string GroupName = "survivors";
 
     private Vector2 _simulationPosition;
+    private IReadOnlyList<Vector2> _navRoute = [];
+    private int _navRouteIndex;
+    private Vector2 _navDestination = new(float.NaN, float.NaN);
+    private double _interiorStateElapsed;
 
     [Export]
     public Vector2 SimulationPosition
@@ -38,7 +56,9 @@ public partial class Survivor : Node2D
     [Export] public int CarryCapacityMaterials { get; set; } = 8;
     [Export] public int CarryCapacityMedicine { get; set; } = 4;
     [Export] public float Hunger { get; set; } = 82.0f;
-    [Export] public float HungerDepletionPerSecond { get; set; } = 0.22f;
+    [Export] public float HungerDepletionPerSecond { get; set; } = 0.07f;
+    [Export] public float EnergyDrainWhileWorking { get; set; } = 0.08f;
+    [Export] public float EnergyRecoveryIdle { get; set; } = 0.25f;
     [Export] public float HungryThreshold { get; set; } = 55.0f;
     [Export] public float CriticalHungerThreshold { get; set; } = 25.0f;
     [Export] public float MealRestoration { get; set; } = 48.0f;
@@ -47,6 +67,7 @@ public partial class Survivor : Node2D
     [Export] public float AutoDefenseRange { get; set; } = 2.2f;
     [Export] public float Energy { get; set; } = 100.0f;
     [Export] public float Morale { get; set; } = 72.0f;
+    [Export] public float BaseCarryCapacityKg { get; set; } = 20.0f;
 
     private CanvasItem _selectionIndicator = null!;
     private CanvasItem _visual = null!;
@@ -56,39 +77,64 @@ public partial class Survivor : Node2D
     private float _health;
     private bool _dead;
     private float _defenseScanElapsed;
+    private bool _hungerWarned;
+    private bool _criticalHungerWarned;
+    private bool _energyWarned;
 
     public bool IsSelected { get; private set; }
     public bool HasMoveOrder => CurrentOrderType == SurvivorOrderType.Move;
-    public Vector2 Destination => _destination;
+    public Vector2 Destination => float.IsNaN(_navDestination.X) ? _destination : _navDestination;
     public SurvivorOrderType CurrentOrderType => _currentOrder?.Type ?? SurvivorOrderType.None;
     public int CarriedAmount { get; private set; }
     public ResourceType CarriedResourceType { get; private set; } = ResourceType.Wood;
     public ResourceType LastCarriedResourceType { get; private set; } = ResourceType.Wood;
     public Vector2 MovementVector { get; private set; }
     public bool IsMoving => MovementVector.LengthSquared() > 0.000001f;
+    public SurvivorDirection FacingDirection =>
+        GetNodeOrNull<DirectionalSurvivorVisual>("Visual") is { } visual
+            ? visual.DisplayedDirection
+            : SurvivorDirection.S;
     public bool IsAutonomousOrder => _isAutonomousOrder && _currentOrder is not null;
     public bool IsAvailableForAutonomousWork => _currentOrder is null;
     public bool IsAlive => !_dead;
     public float Health => _health;
+    public string CurrentWorkLabel { get; private set; } = string.Empty;
+    public bool IsIndoors => CurrentInterior is not null;
+    public InteriorBuildingRuntime? CurrentInterior { get; private set; }
+    public SurvivorLocationState LocationState { get; private set; } = SurvivorLocationState.Outdoors;
     public SurvivorProfile Profile { get; private set; } = new();
+    public SurvivorInventory Inventory { get; private set; } = new();
+    public float EffectiveMeleeDamage
+    {
+        get
+        {
+            float weaponDamage = Inventory.EquippedWeaponId is string weaponId
+                && ItemCatalog.TryGet(weaponId, out ItemDefinition weapon)
+                    ? weapon.DamageValue
+                    : 0f;
+            return Mathf.Max(0f, MeleeDamage + weaponDamage);
+        }
+    }
     public bool NeedsMeal => Hunger <= HungryThreshold;
     public bool IsCriticallyHungry => Hunger <= CriticalHungerThreshold;
     public float WorkSpeedMultiplier => (IsCriticallyHungry ? .65f : NeedsMeal ? .85f : 1.0f) * Mathf.Lerp(.65f, 1.05f, Energy / 100f);
     public string Activity => CurrentOrderType switch
     {
         SurvivorOrderType.Move => "Moving",
-        SurvivorOrderType.HarvestResource => CarriedAmount > 0 ? "Carrying / Delivering" : "Chopping",
+        SurvivorOrderType.HarvestResource => CarriedAmount > 0 ? $"Delivering {CarriedResourceType}" : (string.IsNullOrEmpty(CurrentWorkLabel) ? "Chopping" : CurrentWorkLabel),
         SurvivorOrderType.Build => "Building",
         SurvivorOrderType.Eat => "Eating",
-        SurvivorOrderType.Scavenge => CarriedAmount > 0 ? "Delivering salvage" : "Scavenging",
+        SurvivorOrderType.Scavenge => CarriedAmount > 0 ? "Delivering salvage" : IsMoving ? "Moving to scavenge" : "Scavenging",
         SurvivorOrderType.Rest => "Resting",
         SurvivorOrderType.Treat => "Providing treatment",
         SurvivorOrderType.AttackZombie => "Fighting",
-        SurvivorOrderType.SearchContainer => "Searching a container",
+        SurvivorOrderType.SearchContainer => IsMoving ? "Moving to search" : "Searching a container",
         SurvivorOrderType.UseBed => "Resting in bed",
         SurvivorOrderType.UseDoor => "Using a door",
+        SurvivorOrderType.Haul => string.IsNullOrEmpty(CurrentWorkLabel) ? "Moving to haul" : CurrentWorkLabel,
+        SurvivorOrderType.EnterBuilding => "Entering building",
         _ when _dead => "Dead",
-        _ => NeedsMeal ? "Idle • Hungry" : "Idle"
+        _ => WorkSearchStatus() ?? (NeedsMeal ? "Idle • Hungry" : "Idle")
     };
 
     public override void _Ready()
@@ -103,6 +149,7 @@ public partial class Survivor : Node2D
         AddToGroup(GroupName);
         int profileIndex = int.TryParse(new string(Name.ToString().Where(char.IsDigit).ToArray()), out int parsed) ? Mathf.Max(0, parsed - 1) : GetIndex();
         Profile = SurvivorProfile.ForIndex(profileIndex);
+        Inventory.BaseCapacityKg = BaseCarryCapacityKg;
         _health = MaxHealth;
         _selectionIndicator = GetNode<CanvasItem>("SelectionIndicator");
         _visual = GetNode<CanvasItem>("Visual");
@@ -119,9 +166,16 @@ public partial class Survivor : Node2D
 
         Hunger = Mathf.Max(0, Hunger - HungerDepletionPerSecond * (float)delta);
         bool working = _currentOrder is not null && CurrentOrderType is not SurvivorOrderType.Eat;
-        Energy = Mathf.Clamp(Energy + (working ? -0.32f : 0.20f) * (float)delta, 0, 100);
+        Energy = Mathf.Clamp(Energy + (working ? -EnergyDrainWhileWorking : EnergyRecoveryIdle) * (float)delta, 0, 100);
         Morale = Mathf.Clamp(Morale + (Hunger < 25 ? -0.08f : Hunger > 60 ? 0.015f : 0) * (float)delta, 0, 100);
         if(_dead)return;
+        UpdateNeedWarnings();
+        _interiorStateElapsed -= delta;
+        if (_interiorStateElapsed <= 0)
+        {
+            _interiorStateElapsed = 0.2;
+            UpdateInteriorState();
+        }
         _defenseScanElapsed-=(float)delta;
         if(_defenseScanElapsed<=0){_defenseScanElapsed=.3f;TryAutoDefend();}
         if (_currentOrder is null)
@@ -183,12 +237,35 @@ public partial class Survivor : Node2D
         AssignOrder(new ScavengeOrder(target, stockpile, interactionPosition, deliveryPosition), true);
     }
 
+    public void IssueScavengeOrder(ScavengeSource target, Stockpile stockpile, Vector2 interactionPosition, Vector2 deliveryPosition)
+    {
+        AssignOrder(new ScavengeOrder(target, stockpile, interactionPosition, deliveryPosition, notifyOnComplete: true), false);
+    }
+
     public void IssueAutonomousRestOrder(CompletedBuilding shelter) => AssignOrder(new RestOrder(shelter), true);
     public void IssueSearchContainerOrder(InteriorContainerRuntime container) => AssignOrder(new SearchInteriorContainerOrder(container), false);
+    public void IssueAutonomousSearchContainerOrder(InteriorContainerRuntime container) => AssignOrder(new SearchInteriorContainerOrder(container), true);
+    public void IssueEnterBuildingOrder(InteriorBuildingRuntime building) => AssignOrder(new EnterBuildingOrder(building), false);
+    public void IssueAutonomousEnterBuildingOrder(InteriorBuildingRuntime building) => AssignOrder(new EnterBuildingOrder(building), true);
+    public void IssueAutonomousHaulOrder(HaulableDrop target, Stockpile stockpile, SettlementItemStorage itemStorage, Vector2 interactionPosition, Vector2 deliveryPosition)
+        => AssignOrder(new HaulOrder(target, stockpile, itemStorage, interactionPosition, deliveryPosition), true);
     public void IssueBedRestOrder(InteriorBedRuntime bed) => AssignOrder(new UseInteriorBedOrder(bed), false);
     public void IssueDoorOrder(InteriorDoorRuntime door) => AssignOrder(new UseInteriorDoorOrder(door), false);
     public void IssueAutonomousTreatOrder(Survivor patient, SettlementInventory inventory) => AssignOrder(new TreatOrder(patient, inventory, (target, amount) => target.ReceiveTreatment(amount)), true);
     public void ReceiveTreatment(float amount) { if (!_dead) { _health = Mathf.Min(MaxHealth, _health + Mathf.Max(0, amount)); RefreshVisual(); } }
+
+    /// <summary>Consumes one unit of a carried usable item (food restores Hunger, medical restores Health). Instant; no travel required since the item is already carried.</summary>
+    public bool UseItem(string itemId)
+    {
+        if (!ItemCatalog.TryGet(itemId, out ItemDefinition definition) || !definition.Usable || _dead) return false;
+        if (!Inventory.TryRemove(itemId, 1)) return false;
+        if (definition.NutritionValue > 0) Hunger = Mathf.Min(100, Hunger + definition.NutritionValue);
+        if (definition.HealValue > 0) { _health = Mathf.Min(MaxHealth, _health + definition.HealValue); RefreshVisual(); }
+        return true;
+    }
+
+    public bool EquipItem(string itemId) => Inventory.Equip(itemId);
+    public bool UnequipSlot(EquipmentSlot slot) => Inventory.Unequip(slot);
 
     public bool MoveTowardsGridPosition(Vector2 destination, double delta)
     {
@@ -216,6 +293,53 @@ public partial class Survivor : Node2D
         return arrived;
     }
 
+    /// <summary>
+    /// Straight-line movement wrapped with exterior obstacle avoidance. The
+    /// route is planned once per destination (interior door routing plus
+    /// corner-bypass waypoints around substantial world objects) and followed
+    /// cheaply each tick.
+    /// </summary>
+    public bool MoveTowardsGridPositionNavigated(Vector2 destination, double delta)
+    {
+        if (float.IsNaN(_navDestination.X) || !_navDestination.IsEqualApprox(destination) || _navRouteIndex >= _navRoute.Count)
+        {
+            PlanNavigatedRoute(destination);
+        }
+
+        while (_navRouteIndex < _navRoute.Count)
+        {
+            Vector2 target = _navRoute[_navRouteIndex];
+            if (target.DistanceTo(SimulationPosition) <= ArrivalThreshold * 1.25f)
+            {
+                _navRouteIndex++;
+                continue;
+            }
+
+            return MoveTowardsGridPosition(target, delta);
+        }
+
+        _navDestination = new Vector2(float.NaN, float.NaN);
+        return MoveTowardsGridPosition(destination, delta);
+    }
+
+    public bool IsInsideInterior(InteriorBuildingRuntime building)
+    {
+        return building is not null && building.Definition.Footprint.Grow(-0.10f).HasPoint(SimulationPosition);
+    }
+
+    public void SetWorkLabel(string label)
+    {
+        CurrentWorkLabel = label;
+    }
+
+    public void CancelCurrentOrder()
+    {
+        if (_currentOrder is null) return;
+        ReleaseAutonomousClaim();
+        _currentOrder.Cancel(this);
+        _currentOrder = null!;
+    }
+
     public int GetRemainingCarryCapacity(ResourceType resourceType)
     {
         if (CarriedAmount > 0 && CarriedResourceType != resourceType)
@@ -230,6 +354,31 @@ public partial class Survivor : Node2D
     public bool AllowsWork(WorkCategory category) => Profile.Priority(category) != WorkPriority.Disabled;
     public float SkillMultiplier(SurvivorSkill skill) => 1f + (Profile.Skill(skill) - 1) * .06f;
     public void GainSkillExperience(SurvivorSkill skill, float amount) => Profile.AddExperience(skill, amount);
+
+    /// <summary>True when the survivor is inside a building or near an established shelter/outpost.</summary>
+    public bool IsSheltered()
+    {
+        foreach (Node node in GetTree().GetNodesInGroup(InteriorBuildingRuntime.GroupName))
+        {
+            if (node is InteriorBuildingRuntime building
+                && building.Definition.Footprint.Grow(-0.10f).HasPoint(SimulationPosition))
+            {
+                return true;
+            }
+        }
+
+        foreach (Node node in GetTree().GetNodesInGroup(CompletedBuilding.GroupName))
+        {
+            if (node is CompletedBuilding building
+                && (building.BuildingType == BuildingType.Shelter || building.BuildingType == BuildingType.Outpost)
+                && SimulationPosition.DistanceTo(building.OccupancyFootprint.Center) <= 2.6f)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     public void EatMeal()
     {
@@ -298,6 +447,16 @@ public partial class Survivor : Node2D
         _currentOrder?.Cancel(this);
         _currentOrder = order;
         _isAutonomousOrder = autonomous;
+        CurrentWorkLabel = order switch
+        {
+            HarvestResourceOrder harvest => harvest.Target?.ResourceType == ResourceType.Food ? "Foraging" : "Chopping",
+            ScavengeOrder => "Scavenging",
+            SearchInteriorContainerOrder => "Searching a container",
+            BuildOrder => "Building",
+            HaulOrder => "Moving to haul",
+            EnterBuildingOrder => "Entering building",
+            _ => string.Empty
+        };
         _currentOrder.Start(this);
         if (_currentOrder.IsComplete)
         {
@@ -305,6 +464,60 @@ public partial class Survivor : Node2D
             _currentOrder = null!;
         }
     }
+
+    private void PlanNavigatedRoute(Vector2 destination)
+    {
+        _navDestination = destination;
+        _navRouteIndex = 0;
+        IReadOnlyList<Vector2> route = [destination];
+        if (IsInsideTree())
+        {
+            if (GetTree().GetFirstNodeInGroup(InteriorNavigationService.GroupName) is InteriorNavigationService navigation)
+            {
+                route = navigation.PlanRoute(SimulationPosition, destination);
+            }
+
+            if (GetTree().GetFirstNodeInGroup(WorldNavigationService.GroupName) is WorldNavigationService exterior)
+            {
+                route = exterior.SpliceBypass(route);
+            }
+        }
+
+        _navRoute = route;
+    }
+
+    private void UpdateInteriorState()
+    {
+        InteriorBuildingRuntime? interior = null;
+        foreach (Node node in GetTree().GetNodesInGroup(InteriorBuildingRuntime.GroupName))
+        {
+            if (node is not InteriorBuildingRuntime building) continue;
+            if (!building.Definition.Footprint.Grow(-0.10f).HasPoint(SimulationPosition)) continue;
+            interior = building;
+            break;
+        }
+
+        CurrentInterior = interior;
+        if (interior is not null)
+        {
+            bool leaving = (CurrentOrderType is SurvivorOrderType.Move or SurvivorOrderType.Haul or SurvivorOrderType.HarvestResource)
+                && !interior.Definition.Footprint.Grow(-0.10f).HasPoint(Destination);
+            LocationState = leaving ? SurvivorLocationState.Exiting : SurvivorLocationState.Indoors;
+        }
+        else
+        {
+            LocationState = CurrentOrderType == SurvivorOrderType.EnterBuilding
+                ? SurvivorLocationState.Entering
+                : SurvivorLocationState.Outdoors;
+        }
+    }
+
+    private string? WorkSearchStatus()
+    {
+        if (GetTree() is null || !IsInsideTree()) return null;
+        return (GetTree().GetFirstNodeInGroup(SettlementJobSystem.GroupName) as SettlementJobSystem)?.WorkStatusFor(this);
+    }
+
     private void TryAutoDefend()
     {
         if(_currentOrder is not null&&!_isAutonomousOrder)return;
@@ -328,6 +541,50 @@ public partial class Survivor : Node2D
         {
             _visual.QueueRedraw();
         }
+    }
+
+    private void UpdateNeedWarnings()
+    {
+        if (IsCriticallyHungry && !_criticalHungerWarned)
+        {
+            _criticalHungerWarned = true;
+            _hungerWarned = true;
+            NotifySurvivorStatus($"{Profile.DisplayName} is starving.");
+        }
+        else if (!IsCriticallyHungry)
+        {
+            _criticalHungerWarned = false;
+        }
+
+        if (NeedsMeal && !IsCriticallyHungry && !_hungerWarned)
+        {
+            _hungerWarned = true;
+            NotifySurvivorStatus($"{Profile.DisplayName} is hungry.");
+        }
+        else if (!NeedsMeal)
+        {
+            _hungerWarned = false;
+        }
+
+        if (Energy <= 28f && !_energyWarned)
+        {
+            _energyWarned = true;
+            NotifySurvivorStatus($"{Profile.DisplayName} is exhausted.");
+        }
+        else if (Energy >= 34f)
+        {
+            _energyWarned = false;
+        }
+    }
+
+    private void NotifySurvivorStatus(string message)
+    {
+        if (GetTree() is null)
+        {
+            return;
+        }
+
+        (GetTree().GetFirstNodeInGroup(GameHud.GroupName) as GameHud)?.Notify(message);
     }
 
     private void UpdateRenderedPosition()

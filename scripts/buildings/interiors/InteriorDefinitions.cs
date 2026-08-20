@@ -1,7 +1,7 @@
 #nullable enable
 
 using System.Collections.Generic;
-using AshwoodCounty.Resources;
+using AshwoodCounty.Items;
 using Godot;
 
 namespace AshwoodCounty.Buildings.Interiors;
@@ -20,32 +20,10 @@ public sealed record FurnitureDefinition(
     bool BlocksMovement=true,Color? Tint=null);
 public sealed record ContainerDefinition(
     string Id,string DisplayName,string RoomId,Vector2 Position,Vector2 InteractionPosition,Rect2 Footprint,
-    string TexturePath,float TargetHeight,LootTableDefinition LootTable,float SearchDuration=3.5f);
+    string TexturePath,float TargetHeight,ItemLootTableDefinition ItemLootTable,float SearchDuration=3.5f);
 public sealed record BedDefinition(
     string Id,string DisplayName,string RoomId,Vector2 Position,Vector2 InteractionPosition,Rect2 Footprint,
     string TexturePath,float TargetHeight);
-
-public sealed record LootOption(ResourceType? Resource,int Minimum,int Maximum,float Weight);
-public readonly record struct LootStack(ResourceType Resource,int Amount);
-
-public sealed class LootTableDefinition(string id,int rolls,params LootOption[] options)
-{
-    public string Id { get; }=id;
-    public int Rolls { get; }=Mathf.Max(1,rolls);
-    public IReadOnlyList<LootOption> Options { get; }=options;
-    public IReadOnlyList<LootStack> Roll(ulong seed)
-    {
-        RandomNumberGenerator random=new(){Seed=seed};Dictionary<ResourceType,int> totals=[];float totalWeight=0;
-        foreach(LootOption option in Options)totalWeight+=Mathf.Max(0,option.Weight);if(totalWeight<=0)return [];
-        for(int roll=0;roll<Rolls;roll++)
-        {
-            float choice=random.RandfRange(0,totalWeight);LootOption selected=Options[^1];
-            foreach(LootOption option in Options){choice-=Mathf.Max(0,option.Weight);if(choice<=0){selected=option;break;}}
-            if(selected.Resource is not ResourceType resource)continue;int amount=random.RandiRange(Mathf.Max(0,selected.Minimum),Mathf.Max(selected.Minimum,selected.Maximum));if(amount>0)totals[resource]=totals.GetValueOrDefault(resource)+amount;
-        }
-        List<LootStack> result=[];foreach((ResourceType resource,int amount) in totals)result.Add(new LootStack(resource,amount));return result;
-    }
-}
 
 public sealed record InteriorBuildingDefinition(
     string Id,string DisplayName,Vector2 ExteriorAnchor,Rect2 Footprint,string ExteriorTexturePath,float ExteriorTargetHeight,float ExteriorTargetWidth,float ExteriorRotationDegrees,
@@ -57,7 +35,7 @@ public sealed class ContainerRuntimeState
 {
     public bool Searched { get; set; }
     public float SearchProgress { get; set; }
-    public List<LootStack> RemainingLoot { get; }=[];
+    public List<ItemStack> RemainingLoot { get; }=[];
 }
 public sealed class InteriorBuildingRuntimeState
 {

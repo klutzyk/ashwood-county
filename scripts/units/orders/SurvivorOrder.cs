@@ -13,7 +13,9 @@ public enum SurvivorOrderType
     AttackZombie,
     SearchContainer,
     UseBed,
-    UseDoor
+    UseDoor,
+    Haul,
+    EnterBuilding
 }
 
 public interface ISurvivorOrder

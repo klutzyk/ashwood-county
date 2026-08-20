@@ -99,15 +99,23 @@ public static class CountyMacroLayout
 
     public static readonly CountyRoadDefinition[] Roads =
     [
+        // The county's through route, carried to both borders. It used to stop
+        // twenty cells short of each edge in open ground, which made the one
+        // road that should obviously continue past Ashwood look like a fragment.
         new("highway_16", "Highway 16", 2.25f,
-        [new(18, 151), new(70, 150), new(116, 153), new(153, 150), new(192, 146), new(229, 144), new(264, 143), new(307, 137), new(364, 130)], true),
+        [new(0, 152), new(18, 151), new(70, 150), new(116, 153), new(153, 150), new(192, 146), new(229, 144), new(264, 143), new(307, 137), new(364, 130), new(384, 128)], true),
 
         // The first real traversal spine: camp -> Farm District -> Mill Creek.
+        // Camp to Farm District to Mill Creek. It now ends at the Old Mill
+        // rather than fourteen cells past it in a field.
         new("farm_mill_road", "Farm and Mill Road", 1.45f,
-        [new(206, 157), new(199, 166), new(192, 176), new(180, 190), new(170, 204), new(166, 218), new(160, 232), new(154, 250), new(151, 262)]),
+        [new(206, 157), new(199, 166), new(192, 176), new(180, 190), new(170, 204), new(166, 218), new(160, 232), new(154, 250)]),
 
+        // Leaves Highway 16 and sweeps the south of the county to the fairgrounds
+        // and the trailer park. Previously it began in an empty field forty
+        // cells from anything, which is not how a road of this length exists.
         new("south_county_road", "South County Road", 1.35f,
-        [new(142, 169), new(151, 202), new(164, 232), new(190, 245), new(224, 240), new(247, 233), new(277, 211)]),
+        [new(150, 150), new(145, 160), new(142, 169), new(151, 202), new(164, 232), new(190, 245), new(224, 240), new(247, 233), new(277, 211)]),
         new("ashwood_south_approach", "Ashwood South Approach", 1.5f,
         [new(229, 144), new(227, 166), new(226, 190), new(247, 202), new(277, 211)]),
         new("old_mill_road", "Old Mill Road", 1.2f,
@@ -129,8 +137,77 @@ public static class CountyMacroLayout
         new(208, 78), new(186, 66)
     ];
 
+    /// <summary>
+    /// Blackwater Lake's rendered shoreline: the authored polygon subdivided and
+    /// perturbed deterministically. The blockout's ten points make a shape that
+    /// reads as a cut-out from the air; a real lake edge bays and juts. Water
+    /// rendering, shore dressing and ground surfacing all use this one outline
+    /// so they cannot disagree about where the waterline is.
+    /// </summary>
+    public static readonly Vector2[] BlackwaterLakeOutline = BuildLakeOutline();
+
+    private static Vector2[] BuildLakeOutline()
+    {
+        const int subdivisions = 7;
+        List<Vector2> outline = [];
+        for (int index = 0; index < BlackwaterLake.Length; index++)
+        {
+            Vector2 a = BlackwaterLake[index];
+            Vector2 b = BlackwaterLake[(index + 1) % BlackwaterLake.Length];
+            Vector2 tangent = (b - a).Normalized();
+            Vector2 normal = new(-tangent.Y, tangent.X);
+            for (int step = 0; step < subdivisions; step++)
+            {
+                float t = step / (float)subdivisions;
+                Vector2 point = a.Lerp(b, t);
+                // Two scales of wobble: broad bays plus a smaller ragged edge.
+                float wobble =
+                    Mathf.Sin((index * subdivisions + step) * .93f) * 2.3f +
+                    Mathf.Sin((index * subdivisions + step) * 2.61f + 1.7f) * 1.1f;
+                outline.Add(point + normal * wobble);
+            }
+        }
+        return [.. outline];
+    }
+
     public static readonly Vector2[] BlackwaterRiver =
     [new(286, 79), new(296, 101), new(282, 124), new(257, 146), new(224, 171), new(187, 193), new(149, 207), new(111, 220), new(82, 245), new(63, 287)];
+
+    /// <summary>
+    /// The river as drawn: the blockout course subdivided and given a gentle
+    /// meander. Straight twenty-cell runs read as a canal, not a river. Water
+    /// rendering, bank dressing and ground surfacing all use this one course so
+    /// they cannot disagree about where the water is.
+    /// </summary>
+    public static readonly Vector2[] BlackwaterRiverCourse = Meander(BlackwaterRiver, 6, 2.1f, 0.77f);
+
+    /// <summary>
+    /// Subdivide a polyline and push each new point sideways on a smooth,
+    /// deterministic wave. Endpoints stay put so connections are preserved.
+    /// </summary>
+    public static Vector2[] Meander(Vector2[] line, int subdivisions, float amplitude, float wavelength)
+    {
+        List<Vector2> course = [];
+        int sample = 0;
+        for (int index = 0; index < line.Length - 1; index++)
+        {
+            Vector2 a = line[index];
+            Vector2 b = line[index + 1];
+            Vector2 tangent = (b - a).Normalized();
+            Vector2 normal = new(-tangent.Y, tangent.X);
+            for (int step = 0; step < subdivisions; step++, sample++)
+            {
+                float t = step / (float)subdivisions;
+                bool anchor = index == 0 && step == 0;
+                float wobble = anchor ? 0f
+                    : Mathf.Sin(sample * wavelength) * amplitude
+                      + Mathf.Sin(sample * wavelength * 2.7f + 1.3f) * amplitude * .38f;
+                course.Add(a.Lerp(b, t) + normal * wobble);
+            }
+        }
+        course.Add(line[^1]);
+        return [.. course];
+    }
 
     public static CountyLocationDefinition? Find(string id) =>
         Locations.FirstOrDefault(location => location.Id == id);

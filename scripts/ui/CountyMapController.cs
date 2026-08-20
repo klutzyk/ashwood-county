@@ -144,7 +144,7 @@ public partial class CountyMapController : CanvasLayer
             $"{string.Join("  •  ", region.Resources)}\n\n" +
             "DISCOVERED LANDMARKS\n" +
             $"{landmarks}\n\n" +
-            "Strategic overview only — survivors travel physically.";
+            "Strategic overview only. Survivors travel physically.";
     }
 
     private void UpdateMarkerPresentation(int selectedIndex, string currentRegionId)

@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using AshwoodCounty.Buildings.Interiors;
-using AshwoodCounty.Resources;
+using AshwoodCounty.Items;
 using Godot;
 
 namespace AshwoodCounty.Authoring;
@@ -236,16 +236,7 @@ public static class AuthoredContentRepository
 
 public static class AuthoredInteriorConverter
 {
-    private static readonly Dictionary<string, LootTableDefinition> LootPresets = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["Kitchen Refrigerator"] = new("kitchen_refrigerator",2,new(ResourceType.Food,1,3,.63f),new(ResourceType.Medicine,1,1,.08f),new(null,0,0,.29f)),
-        ["Kitchen Cupboard"] = new("kitchen_cupboard",2,new(ResourceType.Food,1,2,.48f),new(ResourceType.Materials,1,2,.25f),new(null,0,0,.27f)),
-        ["Bathroom Cabinet"] = new("bathroom_cabinet",2,new(ResourceType.Medicine,1,2,.34f),new(ResourceType.Materials,1,1,.18f),new(null,0,0,.48f)),
-        ["Bedroom Storage"] = new("bedroom_storage",2,new(ResourceType.Materials,1,2,.37f),new(ResourceType.Medicine,1,1,.10f),new(ResourceType.Food,1,1,.08f),new(null,0,0,.45f)),
-        ["Garage Shelf"] = new("garage_shelf",3,new(ResourceType.Materials,1,3,.62f),new(ResourceType.Medicine,1,1,.06f),new(null,0,0,.32f))
-    };
-
-    public static IReadOnlyList<string> LootPresetNames => LootPresets.Keys.OrderBy(name => name).ToArray();
+    public static IReadOnlyList<string> LootPresetNames => ItemLootPresets.Names;
 
     public static InteriorBuildingDefinition Convert(AuthoredBuildingData source) => new(
         source.Id, source.DisplayName, new Vector2(source.ExteriorX,source.ExteriorY),
@@ -261,7 +252,7 @@ public static class AuthoredInteriorConverter
     private static Rect2 Centered(float x,float y,float width,float height)=>new(x-width*.5f,y-height*.5f,width,height);
     private static Color ParseColor(string value)=>Color.FromHtml(string.IsNullOrWhiteSpace(value)?"ffffff":value);
     private static InteriorDoorState ParseDoorState(string value)=>Enum.TryParse(value,true,out InteriorDoorState state)?state:InteriorDoorState.Closed;
-    private static LootTableDefinition GetLoot(string name)=>LootPresets.GetValueOrDefault(name,LootPresets["Bedroom Storage"]);
+    private static ItemLootTableDefinition GetLoot(string name)=>ItemLootPresets.Get(name);
     private static Vector2 Start(this AuthoredWallData wall)=>new(wall.StartX,wall.StartY);
     private static Vector2 End(this AuthoredWallData wall)=>new(wall.EndX,wall.EndY);
 }

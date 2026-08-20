@@ -319,6 +319,7 @@ public sealed partial class CountyFogOfWar : Node2D
                 chunk.Configure(this, new Vector2I(x, y), new Vector2I(
                     Math.Min(safeChunkSize, right - x),
                     Math.Min(safeChunkSize, bottom - y)));
+                chunk.LightMask = 0;
                 _chunks[chunkCoordinate] = chunk;
                 AddChild(chunk);
             }

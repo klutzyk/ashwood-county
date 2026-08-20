@@ -1,9 +1,15 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using AshwoodCounty.Buildings;
+using AshwoodCounty.Buildings.Interiors;
+using AshwoodCounty.Items;
 using AshwoodCounty.Resources;
 using AshwoodCounty.Systems;
 using AshwoodCounty.Units;
+using AshwoodCounty.World;
 using Godot;
 
 namespace AshwoodCounty.UI;
@@ -13,9 +19,10 @@ public partial class GameHud : CanvasLayer
     public const string GroupName = "game_hud";
 
     private enum HudCategory { Build, Work, People, County }
-    private enum SurvivorTab { Overview, Skills, Work }
+    private enum SurvivorTab { Overview, Skills, Work, Inventory }
 
     private SettlementInventory _inventory = null!;
+    private SettlementItemStorage _itemStorage = null!;
     private GameClock _clock = null!;
     private SimulationController _simulation = null!;
     private SurvivorSelectionController _selection = null!;
@@ -34,6 +41,7 @@ public partial class GameHud : CanvasLayer
     private readonly Dictionary<WorkCategory, Dictionary<WorkPriority, Button>> _priorityButtons = [];
 
     private Label _time = null!;
+    private Label _phase = null!;
     private Label _simulationState = null!;
     private Label _survivorName = null!;
     private Label _survivorMeta = null!;
@@ -43,6 +51,8 @@ public partial class GameHud : CanvasLayer
     private PanelContainer _survivorPanel = null!;
     private PanelContainer _toastPanel = null!;
     private Label _toast = null!;
+    private PanelContainer _objectivePanel = null!;
+    private Label _objective = null!;
     private HBoxContainer _vitals = null!;
     private HBoxContainer _tabs = null!;
     private double _toastRemaining;
@@ -50,11 +60,34 @@ public partial class GameHud : CanvasLayer
     private HudCategory? _activeCategory;
     private SurvivorTab _activeSurvivorTab = SurvivorTab.Overview;
 
+    private Label _inventoryWeight = null!;
+    private Label _inventoryWeapon = null!;
+    private Label _inventoryBackpack = null!;
+    private Label _inventoryLight = null!;
+    private Button _unequipLight = null!;
+    private Button _unequipWeapon = null!;
+    private Button _unequipBackpack = null!;
+    private VBoxContainer _inventoryRows = null!;
+
+    private PanelContainer _lootPanel = null!;
+    private Label _lootTitle = null!;
+    private Label _lootWeight = null!;
+    private VBoxContainer _lootRows = null!;
+    private InteriorContainerRuntime? _lootContainer;
+    private Survivor? _lootSurvivor;
+    private string _lastLootSignature = "";
+    private string _lastInventorySignature = "";
+
     public override void _Ready()
     {
         ProcessMode = ProcessModeEnum.Always;
+        // Above the world-space overlays (hover 12, search progress 13). The
+        // scene had the HUD on layer 10, so a search bar floating over a
+        // container drew straight across the survivor panel and the masthead.
+        Layer = 30;
         AddToGroup(GroupName);
         _inventory = GetNode<SettlementInventory>("../SettlementInventory");
+        _itemStorage = GetNode<SettlementItemStorage>("../SettlementItemStorage");
         _clock = GetNode<GameClock>("../GameClock");
         _simulation = GetNode<SimulationController>("../SimulationController");
         _selection = GetNode<SurvivorSelectionController>("../SelectionController");
@@ -69,10 +102,10 @@ public partial class GameHud : CanvasLayer
         };
         AddChild(safe);
         safe.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        safe.AddThemeConstantOverride("margin_left", 16);
-        safe.AddThemeConstantOverride("margin_top", 10);
-        safe.AddThemeConstantOverride("margin_right", 16);
-        safe.AddThemeConstantOverride("margin_bottom", 12);
+        safe.AddThemeConstantOverride("margin_left", 0);
+        safe.AddThemeConstantOverride("margin_top", 0);
+        safe.AddThemeConstantOverride("margin_right", 0);
+        safe.AddThemeConstantOverride("margin_bottom", 0);
 
         VBoxContainer screen = Layout<VBoxContainer>();
         safe.AddChild(screen);
@@ -80,65 +113,120 @@ public partial class GameHud : CanvasLayer
         screen.AddChild(new Control { SizeFlagsVertical = Control.SizeFlags.ExpandFill, MouseFilter = Control.MouseFilterEnum.Ignore });
         screen.AddChild(BuildLowerHud());
 
+        CenterContainer lootOverlay = new()
+        {
+            AnchorsPreset = (int)Control.LayoutPreset.FullRect,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+            Theme = AshwoodTheme.Create()
+        };
+        AddChild(lootOverlay);
+        lootOverlay.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        lootOverlay.AddChild(BuildContainerLootPanel());
+
         CollapsePalettes();
         SelectSurvivorTab(SurvivorTab.Overview);
     }
 
+    /// <summary>
+    /// The masthead: county identity, stores, then time and tempo. It spans the
+    /// window rather than floating as a pill, which reads as part of the game
+    /// rather than a widget dropped on top of it.
+    /// </summary>
     private Control BuildTopBar()
     {
-        CenterContainer center = Layout<CenterContainer>();
-        PanelContainer panel = Panel("HudTopPanel", new Vector2(760, 0));
-        center.AddChild(panel);
+        PanelContainer panel = Panel("HudTopPanel");
+        panel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
 
         HBoxContainer bar = Layout<HBoxContainer>();
+        bar.AddThemeConstantOverride("separation", 14);
         panel.AddChild(bar);
 
         HBoxContainer identity = Layout<HBoxContainer>();
-        identity.CustomMinimumSize = new Vector2(140, 0);
-        identity.AddChild(Icon("county", 28));
+        identity.AddThemeConstantOverride("separation", 9);
+        identity.AddChild(Icon("county", 26));
         VBoxContainer brand = Layout<VBoxContainer>();
+        brand.AddThemeConstantOverride("separation", 0);
         brand.AddChild(Text("ASHWOOD", "HudTitle"));
         brand.AddChild(Text("COUNTY", "HudTiny"));
         identity.AddChild(brand);
         bar.AddChild(identity);
         bar.AddChild(Separator(true));
 
-        AddResourceReadout(bar, ResourceType.Wood, "WOOD", "wood");
-        AddResourceReadout(bar, ResourceType.Food, "FOOD", "food");
-        AddResourceReadout(bar, ResourceType.Materials, "MATERIALS", "materials");
-        AddResourceReadout(bar, ResourceType.Medicine, "MEDICINE", "medicine");
+        // Stores are one group with even rhythm, so the eye reads a row of
+        // numbers rather than four separate widgets.
+        HBoxContainer stores = Layout<HBoxContainer>();
+        stores.AddThemeConstantOverride("separation", 18);
+        AddResourceReadout(stores, ResourceType.Wood, "WOOD", "wood");
+        AddResourceReadout(stores, ResourceType.Food, "FOOD", "food");
+        AddResourceReadout(stores, ResourceType.Materials, "MATERIALS", "materials");
+        AddResourceReadout(stores, ResourceType.Medicine, "MEDICINE", "medicine");
+        bar.AddChild(stores);
 
         Control stretch = new() { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, MouseFilter = Control.MouseFilterEnum.Ignore };
         bar.AddChild(stretch);
-        bar.AddChild(Separator(true));
 
         VBoxContainer clock = Layout<VBoxContainer>();
-        clock.CustomMinimumSize = new Vector2(82, 0);
+        clock.AddThemeConstantOverride("separation", 0);
         clock.MouseFilter = Control.MouseFilterEnum.Stop;
         clock.TooltipText = "County day, local time, and current simulation speed.";
-        _time = Text("DAY 1  09:00", "HudHeading");
+        _time = Text("DAY 1  09:00", "HudTitle");
         _time.HorizontalAlignment = HorizontalAlignment.Right;
+        HBoxContainer subline = Layout<HBoxContainer>();
+        subline.Alignment = BoxContainer.AlignmentMode.End;
+        subline.AddThemeConstantOverride("separation", 6);
+        _phase = Text("DAY", "HudTiny");
         _simulationState = Text("1x", "HudTiny");
-        _simulationState.HorizontalAlignment = HorizontalAlignment.Right;
+        subline.AddChild(_phase);
+        subline.AddChild(_simulationState);
         clock.AddChild(_time);
-        clock.AddChild(_simulationState);
+        clock.AddChild(subline);
         bar.AddChild(clock);
 
-        AddSpeedButton(bar, string.Empty, 0, "Pause or resume [Space]", "pause");
-        AddSpeedButton(bar, "1×", 1, "Normal speed [1]");
-        AddSpeedButton(bar, "2×", 2, "Fast speed [2]");
-        AddSpeedButton(bar, "3×", 3, "Very fast speed [3]");
-        return center;
+        bar.AddChild(Separator(true));
+        HBoxContainer tempo = Layout<HBoxContainer>();
+        tempo.AddThemeConstantOverride("separation", 0);
+        AddSpeedButton(tempo, string.Empty, 0, "Pause or resume [Space]", "pause");
+        AddSpeedButton(tempo, "1x", 1, "Normal speed [1]");
+        AddSpeedButton(tempo, "2x", 2, "Fast speed [2]");
+        AddSpeedButton(tempo, "3x", 3, "Very fast speed [3]");
+        bar.AddChild(tempo);
+        return panel;
     }
 
+    /// <summary>
+    /// The lower band: notifications on the left, the command bar centred, the
+    /// selected survivor on the right. Only the command bar is full bleed; the
+    /// floating panels keep an inset so they read as separate objects.
+    /// </summary>
     private Control BuildLowerHud()
     {
+        VBoxContainer lower = Layout<VBoxContainer>();
+        lower.AddThemeConstantOverride("separation", 0);
+
+        MarginContainer inset = new() { MouseFilter = Control.MouseFilterEnum.Ignore };
+        inset.AddThemeConstantOverride("margin_left", 16);
+        inset.AddThemeConstantOverride("margin_right", 16);
+        inset.AddThemeConstantOverride("margin_bottom", 8);
+        lower.AddChild(inset);
+
         HBoxContainer row = Layout<HBoxContainer>();
         row.Alignment = BoxContainer.AlignmentMode.End;
+        inset.AddChild(row);
 
         VBoxContainer notificationColumn = Layout<VBoxContainer>();
         notificationColumn.CustomMinimumSize = new Vector2(326, 0);
         notificationColumn.SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin;
+        _objectivePanel = Panel("HudToastPanel");
+        _objectivePanel.CustomMinimumSize = new Vector2(326, 0);
+        _objectivePanel.SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin;
+        _objectivePanel.MouseFilter = Control.MouseFilterEnum.Ignore;
+        _objective = Text(string.Empty, "HudMuted");
+        _objective.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        _objective.CustomMinimumSize = new Vector2(268, 0);
+        _objective.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        _objectivePanel.AddChild(_objective);
+        notificationColumn.AddChild(_objectivePanel);
+
         _toastPanel = Panel("HudToastPanel");
         _toastPanel.CustomMinimumSize = new Vector2(326, 0);
         _toastPanel.SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin;
@@ -163,7 +251,25 @@ public partial class GameHud : CanvasLayer
         survivorColumn.CustomMinimumSize = new Vector2(326, 0);
         survivorColumn.AddChild(BuildSurvivorPanel());
         row.AddChild(survivorColumn);
-        return row;
+
+        lower.AddChild(BuildCommandBar());
+        return lower;
+    }
+
+    /// <summary>The always-visible command bar, spanning the window.</summary>
+    private Control BuildCommandBar()
+    {
+        PanelContainer toolbarPanel = Panel("HudToolbarPanel");
+        toolbarPanel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        HBoxContainer toolbar = Layout<HBoxContainer>();
+        toolbar.Alignment = BoxContainer.AlignmentMode.Center;
+        toolbar.AddThemeConstantOverride("separation", 2);
+        toolbarPanel.AddChild(toolbar);
+        AddCategory(toolbar, HudCategory.Build, "BUILD", "build", "Construction and settlement structures");
+        AddCategory(toolbar, HudCategory.Work, "WORK", "work", "Harvesting and scavenging designations");
+        AddCategory(toolbar, HudCategory.People, "PEOPLE", "people", "Selected survivor information");
+        AddCategory(toolbar, HudCategory.County, "COUNTY", "county", "County map, discoveries and regional control");
+        return toolbarPanel;
     }
 
     private Control BuildActionArea()
@@ -181,15 +287,6 @@ public partial class GameHud : CanvasLayer
         _palettes[HudCategory.County] = BuildCountyPalette();
         foreach (Control palette in _palettes.Values) column.AddChild(palette);
 
-        PanelContainer toolbarPanel = Panel("HudToolbarPanel");
-        HBoxContainer toolbar = Layout<HBoxContainer>();
-        toolbar.Alignment = BoxContainer.AlignmentMode.Center;
-        toolbarPanel.AddChild(toolbar);
-        AddCategory(toolbar, HudCategory.Build, "BUILD", "build", "Construction and settlement structures");
-        AddCategory(toolbar, HudCategory.Work, "WORK", "work", "Harvesting and scavenging designations");
-        AddCategory(toolbar, HudCategory.People, "PEOPLE", "people", "Selected survivor information");
-        AddCategory(toolbar, HudCategory.County, "COUNTY", "county", "County map, discoveries and regional control");
-        column.AddChild(toolbarPanel);
         return column;
     }
 
@@ -270,15 +367,22 @@ public partial class GameHud : CanvasLayer
         rows.AddChild(Separator(false));
 
         _tabs = Layout<HBoxContainer>();
-        _tabs.Alignment = BoxContainer.AlignmentMode.Center;
+        _tabs.Alignment = BoxContainer.AlignmentMode.Begin;
+        _tabs.AddThemeConstantOverride("separation", 2);
         AddTab(_tabs, SurvivorTab.Overview);
         AddTab(_tabs, SurvivorTab.Skills);
         AddTab(_tabs, SurvivorTab.Work);
+        AddTab(_tabs, SurvivorTab.Inventory);
         rows.AddChild(_tabs);
+        // A rule under the whole row ties the tabs to the panel below them, so
+        // the active tab's brass underline reads as a selection on a ledger
+        // rather than as one more highlighted box.
+        rows.AddChild(Separator(false));
 
         _tabContents[SurvivorTab.Overview] = BuildOverviewTab();
         _tabContents[SurvivorTab.Skills] = BuildSkillsTab();
         _tabContents[SurvivorTab.Work] = BuildWorkTab();
+        _tabContents[SurvivorTab.Inventory] = BuildInventoryTab();
         foreach (Control content in _tabContents.Values) rows.AddChild(content);
 
         _groupText = Text(string.Empty, "HudMuted");
@@ -354,14 +458,119 @@ public partial class GameHud : CanvasLayer
         return content;
     }
 
+    private Control BuildInventoryTab()
+    {
+        VBoxContainer content = Layout<VBoxContainer>();
+
+        _inventoryWeight = Text("0.0 / 20 KG", "HudHeading");
+        _inventoryWeight.HorizontalAlignment = HorizontalAlignment.Center;
+        content.AddChild(_inventoryWeight);
+        content.AddChild(Separator(false));
+
+        content.AddChild(EquippedRow("WEAPON", out _inventoryWeapon, out _unequipWeapon, EquipmentSlot.Weapon));
+        content.AddChild(EquippedRow("BACKPACK", out _inventoryBackpack, out _unequipBackpack, EquipmentSlot.Backpack));
+        content.AddChild(EquippedRow("LIGHT", out _inventoryLight, out _unequipLight, EquipmentSlot.Light));
+        content.AddChild(Separator(false));
+
+        _inventoryRows = Layout<VBoxContainer>();
+        content.AddChild(_inventoryRows);
+        return content;
+    }
+
+    private Control EquippedRow(string label, out Label valueLabel, out Button unequipButton, EquipmentSlot slot)
+    {
+        HBoxContainer row = Layout<HBoxContainer>();
+        Label name = Text(label, "HudMuted");
+        name.CustomMinimumSize = new Vector2(72, 0);
+        row.AddChild(name);
+        valueLabel = Text("None", "HudTiny");
+        valueLabel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        row.AddChild(valueLabel);
+        Button button = HudButton("UNEQUIP", "HudActionButton");
+        button.CustomMinimumSize = new Vector2(66, 22);
+        button.Visible = false;
+        button.Pressed += () =>
+        {
+            if (_selection.SelectedCount != 1) return;
+            _selection.SelectedSurvivors[0].UnequipSlot(slot);
+        };
+        row.AddChild(button);
+        unequipButton = button;
+        return row;
+    }
+
+    private Control BuildInventoryItemRow(Survivor survivor, ItemStack stack)
+    {
+        ItemDefinition definition = ItemCatalog.Get(stack.ItemId);
+        HBoxContainer row = Layout<HBoxContainer>();
+        row.AddChild(ItemIcon(definition.IconPath, 22));
+        Label name = Text(definition.DisplayName, "HudMuted");
+        name.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        row.AddChild(name);
+        Label qty = Text($"x{stack.Quantity}", "HudTiny");
+        qty.CustomMinimumSize = new Vector2(26, 0);
+        row.AddChild(qty);
+
+        if (definition.Equippable)
+        {
+            Button equip = HudButton("EQUIP", "HudActionButton");
+            equip.CustomMinimumSize = new Vector2(56, 22);
+            equip.Pressed += () => survivor.EquipItem(stack.ItemId);
+            row.AddChild(equip);
+        }
+        if (definition.Usable)
+        {
+            Button use = HudButton("USE", "HudActionButton");
+            use.CustomMinimumSize = new Vector2(46, 22);
+            use.Pressed += () => survivor.UseItem(stack.ItemId);
+            row.AddChild(use);
+        }
+        Button store = HudButton("STORE", "HudActionButton");
+        store.CustomMinimumSize = new Vector2(54, 22);
+        store.TooltipText = "Deposit at a nearby stockpile.";
+        store.Pressed += () => StoreItem(survivor, stack.ItemId, stack.Quantity);
+        row.AddChild(store);
+        return row;
+    }
+
+    private void StoreItem(Survivor survivor, string itemId, int quantity)
+    {
+        Stockpile? nearest = GetTree().GetNodesInGroup(Stockpile.GroupName).OfType<Stockpile>()
+            .Where(s => s.WorldPosition.DistanceTo(survivor.SimulationPosition) <= 3.0f)
+            .FirstOrDefault();
+        if (nearest is null)
+        {
+            Notify("Move closer to a stockpile to store items.");
+            return;
+        }
+        if (!survivor.Inventory.TryRemove(itemId, quantity)) return;
+        _itemStorage.Deposit(itemId, quantity);
+        Notify($"STORED  {ItemCatalog.Get(itemId).DisplayName} x{quantity}");
+    }
+
+    private static TextureRect ItemIcon(string iconPath, int size)
+    {
+        return new TextureRect
+        {
+            Texture = TextureRegistry.Get(iconPath),
+            CustomMinimumSize = new Vector2(size, size),
+            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+            StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+            SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter,
+            SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
+            MouseFilter = Control.MouseFilterEnum.Ignore
+        };
+    }
+
     private void AddResourceReadout(Container parent, ResourceType resource, string name, string iconName)
     {
         HBoxContainer readout = Layout<HBoxContainer>();
-        readout.CustomMinimumSize = new Vector2(resource == ResourceType.Materials ? 82 : 67, 0);
+        readout.AddThemeConstantOverride("separation", 7);
         readout.MouseFilter = Control.MouseFilterEnum.Stop;
         readout.TooltipText = $"{name[..1]}{name[1..].ToLowerInvariant()} available to the settlement.";
-        readout.AddChild(Icon(iconName, 20));
+        readout.AddChild(Icon(iconName, 19));
         VBoxContainer copy = Layout<VBoxContainer>();
+        copy.AddThemeConstantOverride("separation", 0);
         Label value = Text("0", "HudResourceValue");
         Label caption = Text(name, "HudResourceName");
         copy.AddChild(value);
@@ -370,7 +579,6 @@ public partial class GameHud : CanvasLayer
         parent.AddChild(readout);
         _resourceValues[resource] = value;
     }
-
     private void AddVital(Container parent, string name, Color color)
     {
         HBoxContainer row = Layout<HBoxContainer>();
@@ -400,14 +608,7 @@ public partial class GameHud : CanvasLayer
             CustomMinimumSize = new Vector2(120, 10),
             MouseFilter = Control.MouseFilterEnum.Ignore
         };
-        StyleBoxFlat fill = new()
-        {
-            BgColor = color,
-            CornerRadiusTopLeft = 3,
-            CornerRadiusTopRight = 3,
-            CornerRadiusBottomLeft = 3,
-            CornerRadiusBottomRight = 3
-        };
+        StyleBoxFlat fill = new() { BgColor = color };
         bar.AddThemeStyleboxOverride("fill", fill);
         return bar;
     }
@@ -416,7 +617,7 @@ public partial class GameHud : CanvasLayer
     {
         Button button = HudButton(text, "HudCategoryButton", tooltip, icon);
         button.ToggleMode = true;
-        button.CustomMinimumSize = new Vector2(92, 40);
+        button.CustomMinimumSize = new Vector2(104, 34);
         button.Pressed += () => SelectCategory(category);
         parent.AddChild(button);
         _categoryButtons[category] = button;
@@ -428,11 +629,16 @@ public partial class GameHud : CanvasLayer
         {
             SurvivorTab.Overview => "Background, current activity, and defining trait.",
             SurvivorTab.Skills => "Current survivor skill levels.",
+            SurvivorTab.Inventory => "Carried items, equipped gear, and carry weight.",
             _ => "Allowed, preferred, and disabled work priorities."
         };
         Button button = HudButton(tab.ToString().ToUpperInvariant(), "HudTabButton", tooltip);
         button.ToggleMode = true;
-        button.CustomMinimumSize = new Vector2(88, 27);
+        // Sized to its own label: a fixed width narrower than "INVENTORY" would
+        // clip the word away entirely, and equal-width tabs read as a segmented
+        // control rather than a row of headings.
+        button.ClipText = false;
+        button.CustomMinimumSize = new Vector2(0, 24);
         button.Pressed += () => SelectSurvivorTab(tab);
         parent.AddChild(button);
         _tabButtons[tab] = button;
@@ -449,7 +655,8 @@ public partial class GameHud : CanvasLayer
     private void AddSpeedButton(Container parent, string text, int speed, string tooltip, string icon = "")
     {
         Button button = HudButton(text, "HudSpeedButton", tooltip, icon);
-        button.CustomMinimumSize = new Vector2(29, 27);
+        button.CustomMinimumSize = new Vector2(38, 32);
+        button.ClipText = false;
         button.Pressed += () =>
         {
             if (speed == 0) _simulation.TogglePause();
@@ -522,6 +729,176 @@ public partial class GameHud : CanvasLayer
         _toastRemaining = 6;
     }
 
+    private Control BuildContainerLootPanel()
+    {
+        _lootPanel = Panel("HudSurvivorPanel", new Vector2(360, 0));
+        _lootPanel.Visible = false;
+        VBoxContainer rows = Layout<VBoxContainer>();
+        rows.AddThemeConstantOverride("separation", 7);
+        _lootPanel.AddChild(rows);
+
+        HBoxContainer header = Layout<HBoxContainer>();
+        _lootTitle = Text("CONTAINER", "HudHeading");
+        _lootTitle.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        header.AddChild(_lootTitle);
+        Button close = HudButton("CLOSE", "HudActionButton");
+        close.CustomMinimumSize = new Vector2(58, 24);
+        close.Pressed += CloseLootPanel;
+        header.AddChild(close);
+        rows.AddChild(header);
+
+        _lootWeight = Text("", "HudTiny");
+        rows.AddChild(_lootWeight);
+        rows.AddChild(Separator(false));
+
+        _lootRows = Layout<VBoxContainer>();
+        _lootRows.AddThemeConstantOverride("separation", 5);
+        rows.AddChild(_lootRows);
+        rows.AddChild(Separator(false));
+
+        Button takeAll = HudButton("TAKE ALL", "HudActionButton");
+        takeAll.CustomMinimumSize = new Vector2(0, 32);
+        takeAll.Pressed += () =>
+        {
+            if (_lootContainer is null || _lootSurvivor is null || !GodotObject.IsInstanceValid(_lootContainer)) return;
+            int before = _lootContainer.RemainingLoot.Sum(stack => stack.Quantity);
+            int taken = _lootContainer.TakeAll(_lootSurvivor.Inventory);
+            RefreshLootPanel();
+            if (taken < before)
+                Notify("INVENTORY FULL\nNot enough carry weight for all loot.");
+        };
+        rows.AddChild(takeAll);
+        return _lootPanel;
+    }
+
+    /// <summary>Test-only hook for the ASHWOOD_VALIDATE_* automated validation scripts; not used by normal input handling.</summary>
+    internal void DebugShowInventoryTab() => SelectSurvivorTab(SurvivorTab.Inventory);
+
+    public void ShowContainerLoot(InteriorContainerRuntime container, Survivor survivor)
+    {
+        _lootContainer = container;
+        _lootSurvivor = survivor;
+        _lootTitle.Text = container.DisplayName.ToUpperInvariant();
+        _lootPanel.Visible = true;
+        _lootPanel.Modulate = new Color(1, 1, 1, 0);
+        _lootPanel.CreateTween().TweenProperty(_lootPanel, "modulate:a", 1f, 0.18f);
+        RefreshLootPanel();
+    }
+
+    private void CloseLootPanel()
+    {
+        _lootPanel.Visible = false;
+        _lootContainer = null;
+        _lootSurvivor = null;
+        _lastLootSignature = "";
+    }
+
+    private void RefreshLootPanel()
+    {
+        if (_lootContainer is null || _lootSurvivor is null || !GodotObject.IsInstanceValid(_lootContainer))
+        {
+            CloseLootPanel();
+            return;
+        }
+
+        _lootWeight.Text = $"CARRIED  {_lootSurvivor.Inventory.CurrentWeightKg:0.0} / {_lootSurvivor.Inventory.TotalCapacityKg:0.0} KG";
+
+        // Rows are only rebuilt when the revealed contents actually change.
+        // Rebuilding every refresh destroys the buttons under the cursor before
+        // a click can register, which made hover flicker and clicks fail.
+        string signature = $"{_lootContainer.Id}|{_lootSurvivor.GetInstanceId()}|"
+            + string.Join(",", _lootContainer.RemainingLoot.Select(stack => $"{stack.ItemId}x{stack.Quantity}"));
+        if (signature == _lastLootSignature) return;
+        _lastLootSignature = signature;
+        RebuildLootRows();
+    }
+
+    private void RebuildLootRows()
+    {
+        if (_lootContainer is null || _lootSurvivor is null) return;
+        foreach (Node child in _lootRows.GetChildren()) child.QueueFree();
+        if (_lootContainer.RemainingLoot.Count == 0)
+        {
+            Label empty = Text("Nothing useful found.", "HudMuted");
+            empty.HorizontalAlignment = HorizontalAlignment.Center;
+            empty.CustomMinimumSize = new Vector2(0, 28);
+            _lootRows.AddChild(empty);
+            return;
+        }
+
+        Survivor survivor = _lootSurvivor;
+        foreach (ItemStack stack in _lootContainer.RemainingLoot.ToArray())
+        {
+            ItemDefinition definition = ItemCatalog.Get(stack.ItemId);
+            PanelContainer card = Panel("HudLootRowPanel");
+            card.CustomMinimumSize = new Vector2(0, 64);
+            HBoxContainer row = Layout<HBoxContainer>();
+            row.AddThemeConstantOverride("separation", 8);
+            card.AddChild(row);
+
+            row.AddChild(ItemIcon(definition.IconPath, 52));
+
+            VBoxContainer info = Layout<VBoxContainer>();
+            info.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+            info.AddThemeConstantOverride("separation", 1);
+            Label name = Text(definition.DisplayName, "HudMuted");
+            name.ClipText = true;
+            info.AddChild(name);
+            Label detail = Text($"{definition.Weight:0.0} kg  •  {CategoryLabel(definition.Category)}", "HudTiny");
+            info.AddChild(detail);
+            row.AddChild(info);
+
+            Label qty = Text($"x{stack.Quantity}", "HudHeading");
+            qty.CustomMinimumSize = new Vector2(40, 0);
+            qty.HorizontalAlignment = HorizontalAlignment.Right;
+            row.AddChild(qty);
+
+            Button take = HudButton("TAKE", "HudActionButton");
+            take.CustomMinimumSize = new Vector2(58, 30);
+            string itemId = stack.ItemId;
+            take.Pressed += () =>
+            {
+                if (_lootContainer is null || !GodotObject.IsInstanceValid(_lootContainer)) return;
+                int before = _lootContainer.RemainingLoot
+                    .Where(stack => stack.ItemId == itemId)
+                    .Sum(stack => stack.Quantity);
+                int taken = _lootContainer.TakeItem(itemId, int.MaxValue, survivor.Inventory);
+                RefreshLootPanel();
+                if (taken < before)
+                    Notify("INVENTORY FULL\nNot enough carry weight for that item.");
+            };
+            row.AddChild(take);
+            _lootRows.AddChild(card);
+        }
+    }
+
+    private static string CategoryLabel(ItemCategory category) => category switch
+    {
+        ItemCategory.Food => "Food",
+        ItemCategory.Medical => "Medical",
+        ItemCategory.Tool => "Tool",
+        ItemCategory.Material => "Material",
+        ItemCategory.MeleeWeapon => "Melee Weapon",
+        ItemCategory.Equipment => "Equipment",
+        _ => "Misc"
+    };
+
+    private static string PhaseLabel(TimeOfDay phase) => phase switch
+    {
+        TimeOfDay.Dawn => "DAWN",
+        TimeOfDay.Day => "DAY",
+        TimeOfDay.Dusk => "DUSK",
+        _ => "NIGHT"
+    };
+
+    private static Color PhaseColor(TimeOfDay phase) => phase switch
+    {
+        TimeOfDay.Dawn => new Color("#e7b06a"),
+        TimeOfDay.Day => new Color("#c6d0a9"),
+        TimeOfDay.Dusk => new Color("#e08748"),
+        _ => new Color("#8fa4c9")
+    };
+
     public override void _Process(double delta)
     {
         if (_toastRemaining > 0)
@@ -539,10 +916,20 @@ public partial class GameHud : CanvasLayer
             value.Text = _inventory.DevUnlimitedResources ? "∞" : _inventory.GetAmount(type).ToString();
         }
 
+        if (SurvivalObjectives.Active is { } objectives)
+        {
+            _objectivePanel.Visible = true;
+            _objective.Text = objectives.CurrentPriority;
+        }
+
         _time.Text = _clock.DisplayTime.ToUpperInvariant();
+        TimeOfDay timeOfDay = SurvivalCycle.Active?.Phase ?? TimeOfDay.Day;
+        _phase.Text = PhaseLabel(timeOfDay);
+        _phase.AddThemeColorOverride("font_color", PhaseColor(timeOfDay));
         _simulationState.Text = _simulation.IsPaused ? "PAUSED" : $"{_simulation.Speed}x SPEED";
         RefreshActionHint();
         RefreshSelection();
+        if (_lootPanel.Visible) RefreshLootPanel();
     }
 
     private void RefreshActionHint()
@@ -555,7 +942,7 @@ public partial class GameHud : CanvasLayer
         else if (_designation.IsDesignationActive)
         {
             _paletteHint.Visible = true;
-            _paletteHint.Text = "Designation active — click targets; right-click or Esc to finish.";
+            _paletteHint.Text = "Designation active. Click targets; right-click or Esc to finish.";
         }
         else if (_activeCategory is HudCategory category)
         {
@@ -613,6 +1000,53 @@ public partial class GameHud : CanvasLayer
             _skillValues[skill].Text = level.ToString();
         }
         RefreshPriorities(profile);
+        RefreshInventoryTab(survivor);
+    }
+
+    private void RefreshInventoryTab(Survivor survivor)
+    {
+        SurvivorInventory inventory = survivor.Inventory;
+        _inventoryWeight.Text = $"{inventory.CurrentWeightKg:0.0} / {inventory.TotalCapacityKg:0.0} KG";
+
+        SetEquippedRow(inventory.EquippedWeaponId, _inventoryWeapon, _unequipWeapon);
+        SetEquippedRow(inventory.EquippedBackpackId, _inventoryBackpack, _unequipBackpack);
+        SetEquippedRow(inventory.EquippedLightId, _inventoryLight, _unequipLight);
+
+        // Same stability rule as the loot panel: only rebuild item rows when the
+        // carried contents or equipped gear actually changed.
+        string signature = $"{survivor.GetInstanceId()}|{inventory.EquippedWeaponId}|{inventory.EquippedBackpackId}|{inventory.EquippedLightId}|{inventory.CurrentWeightKg:0.00}|"
+            + string.Join(",", inventory.Items.OrderBy(stack => stack.ItemId).Select(stack => $"{stack.ItemId}x{stack.Quantity}"));
+        if (signature == _lastInventorySignature) return;
+        _lastInventorySignature = signature;
+        RebuildInventoryRows(survivor);
+    }
+
+    private void RebuildInventoryRows(Survivor survivor)
+    {
+        SurvivorInventory inventory = survivor.Inventory;
+        foreach (Node child in _inventoryRows.GetChildren()) child.QueueFree();
+        if (inventory.Items.Count == 0)
+        {
+            Label empty = Text("Nothing carried.", "HudMuted");
+            _inventoryRows.AddChild(empty);
+            return;
+        }
+        foreach (ItemStack stack in inventory.Items.OrderBy(s => ItemCatalog.Get(s.ItemId).DisplayName))
+        {
+            _inventoryRows.AddChild(BuildInventoryItemRow(survivor, stack));
+        }
+    }
+
+    private static void SetEquippedRow(string? itemId, Label label, Button unequipButton)
+    {
+        if (itemId is null)
+        {
+            label.Text = "None";
+            unequipButton.Visible = false;
+            return;
+        }
+        label.Text = ItemCatalog.Get(itemId).DisplayName;
+        unequipButton.Visible = true;
     }
 
     private void SetVital(string name, float value)
@@ -620,6 +1054,7 @@ public partial class GameHud : CanvasLayer
         float clamped = Mathf.Clamp(value, 0, 100);
         _vitalBars[name].Value = clamped;
         _vitalValues[name].Text = $"{clamped:0}%";
+        _vitalBars[name].SelfModulate = clamped <= 30f ? new Color(1f, 0.62f, 0.42f) : Colors.White;
     }
 
     private static T Layout<T>() where T : Control, new()

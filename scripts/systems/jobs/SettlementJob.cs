@@ -9,7 +9,10 @@ public enum SettlementJobType
     BuildConstruction,
     Eat,
     Rest,
-    Treat
+    Treat,
+    SearchContainer,
+    EnterBuilding,
+    Haul
 }
 
 public sealed class SettlementJob(SettlementJobType type, GodotObject target)

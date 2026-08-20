@@ -1,3 +1,4 @@
+using AshwoodCounty.Combat;
 using AshwoodCounty.Resources;
 using Godot;
 
@@ -27,6 +28,7 @@ public sealed class HarvestResourceOrder(
 
     public SurvivorOrderType Type => SurvivorOrderType.HarvestResource;
     public bool IsComplete { get; private set; }
+    public HarvestableResource Target => _target;
 
     public void Start(Survivor survivor)
     {
@@ -82,7 +84,7 @@ public sealed class HarvestResourceOrder(
             return;
         }
 
-        if (survivor.MoveTowardsGridPosition(_interactionPosition, delta))
+        if (survivor.MoveTowardsGridPositionNavigated(_interactionPosition, delta))
         {
             _harvestElapsed = 0;
             _phase = HarvestPhase.Harvesting;
@@ -113,12 +115,13 @@ public sealed class HarvestResourceOrder(
             return;
         }
 
+        EmitNoise(survivor, 3.5f);
         _phase = HarvestPhase.Delivering;
     }
 
     private void Deliver(Survivor survivor, double delta)
     {
-        if (!survivor.MoveTowardsGridPosition(_deliveryPosition, delta))
+        if (!survivor.MoveTowardsGridPositionNavigated(_deliveryPosition, delta))
         {
             return;
         }
@@ -148,5 +151,13 @@ public sealed class HarvestResourceOrder(
 
         _registeredWithTarget = false;
         IsComplete = true;
+    }
+
+    private static void EmitNoise(Survivor survivor, float radius)
+    {
+        if (survivor.GetTree().GetFirstNodeInGroup(NoiseSystem.GroupName) is NoiseSystem noise)
+        {
+            noise.Emit(survivor.SimulationPosition, radius);
+        }
     }
 }

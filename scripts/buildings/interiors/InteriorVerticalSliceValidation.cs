@@ -2,7 +2,6 @@
 
 using System;
 using System.Linq;
-using AshwoodCounty.Resources;
 using AshwoodCounty.Threats;
 using AshwoodCounty.Units;
 using AshwoodCounty.Jobs;
@@ -19,7 +18,6 @@ public partial class InteriorVerticalSliceValidation : Node
     private Survivor _first = null!;
     private Survivor _second = null!;
     private Survivor[] _otherSurvivors = [];
-    private SettlementInventory _inventory = null!;
     private InteriorContainerRuntime _fridge = null!;
     private InteriorContainerRuntime _utility = null!;
     private InteriorBedRuntime _bed = null!;
@@ -28,8 +26,6 @@ public partial class InteriorVerticalSliceValidation : Node
     private Vector2 _lastSecond;
     private double _elapsed;
     private double _phaseElapsed;
-    private int _startingFood;
-    private int _startingMaterials;
     private Vector2 _outsideLeft;
     private Vector2 _outsideRight;
 
@@ -65,7 +61,7 @@ public partial class InteriorVerticalSliceValidation : Node
                 _second.IssueSearchContainerOrder(_utility);Next(Phase.Search);break;
             case Phase.Search:
                 if(!_fridge.IsSearched||!_utility.IsSearched)return;
-                if(_inventory.GetAmount(ResourceType.Food)<=_startingFood&&_inventory.GetAmount(ResourceType.Materials)<=_startingMaterials){Fail("search produced no authoritative resource change");return;}
+                if(_fridge.RemainingLoot.Count==0&&_utility.RemainingLoot.Count==0){Fail("search revealed no itemized loot on either container");return;}
                 _first.Energy=10;_first.IssueBedRestOrder(_bed);
                 if(_bed.TryReserve(_second.GetInstanceId())){_bed.Release(_second.GetInstanceId());Fail("bed reservation allowed a second survivor");return;}
                 _second.IssueMoveOrder(new Vector2(218.7f,156.55f));Next(Phase.Rest);break;
@@ -110,8 +106,6 @@ public partial class InteriorVerticalSliceValidation : Node
         _outsideRight=new Vector2(_building.Definition.Footprint.End.X+.8f,_building.Definition.Footprint.End.Y+1f);
         _otherSurvivors=GetTree().GetNodesInGroup(Survivor.GroupName).OfType<Survivor>().Where(s=>s.IsAlive&&s!=_first&&s!=_second).ToArray();
         for(int i=0;i<_otherSurvivors.Length;i++){_otherSurvivors[i].MovementSpeed=8;_otherSurvivors[i].IssueMoveOrder(new Vector2(180,157+i));}
-        _inventory=GetTree().GetFirstNodeInGroup(SettlementInventory.GroupName) as SettlementInventory ?? throw new InvalidOperationException("Inventory missing");
-        _startingFood=_inventory.GetAmount(ResourceType.Food);_startingMaterials=_inventory.GetAmount(ResourceType.Materials);
         _lastFirst=_first.SimulationPosition;_lastSecond=_second.SimulationPosition;
         _first.IssueMoveOrder(new Vector2(218.7f,156.55f));_second.IssueMoveOrder(new Vector2(218.95f,152.95f));
         GD.Print("INTERIOR_VALIDATION: physical approach started");Next(Phase.Approach);

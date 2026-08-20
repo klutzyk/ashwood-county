@@ -9,7 +9,7 @@ public partial class SettlementInventory : Node
 
     private readonly Dictionary<ResourceType, int> _amounts = [];
 
-    [Export] public bool DevUnlimitedResources { get; set; } = true;
+    [Export] public bool DevUnlimitedResources { get; set; } = false;
 
     public override void _Ready()
     {

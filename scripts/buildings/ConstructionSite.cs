@@ -61,6 +61,18 @@ public partial class ConstructionSite : Node2D, IGridOccupant
         }
 
         AddToGroup(GroupName);
+        if (GetTree().GetFirstNodeInGroup(WorldNavigationService.GroupName) is WorldNavigationService navigationService)
+        {
+            navigationService.RegisterObstacle(OccupancyFootprint, this, allowTraversalInside: true);
+        }
+    }
+
+    public override void _ExitTree()
+    {
+        if (IsInsideTree() && GetTree().GetFirstNodeInGroup(WorldNavigationService.GroupName) is WorldNavigationService navigationService)
+        {
+            navigationService.UnregisterObstacle(this);
+        }
     }
 
     public void Initialize(BuildingDefinition definition, Vector2 position, GridOccupancy occupancy, SettlementInventory inventory)

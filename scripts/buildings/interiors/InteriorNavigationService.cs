@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using AshwoodCounty.Units;
+using AshwoodCounty.World;
 using Godot;
 
 namespace AshwoodCounty.Buildings.Interiors;
@@ -215,11 +216,25 @@ public sealed class InteriorPathFollower
 {
     private IReadOnlyList<Vector2> _route = [];
     private int _index;
+    private bool _unreachable;
+    private bool _blocked;
+
+    /// <summary>True when route planning could not reach the destination at all.</summary>
+    public bool Unreachable => _unreachable;
+
+    /// <summary>True when traversal was blocked mid-route (for example a locked door).</summary>
+    public bool Blocked => _blocked;
 
     public void Plan(Survivor survivor, Vector2 destination)
     {
         InteriorNavigationService? navigation = survivor.GetTree().GetFirstNodeInGroup(InteriorNavigationService.GroupName) as InteriorNavigationService;
         _route = navigation?.PlanRoute(survivor.SimulationPosition, destination) ?? [destination];
+        if (survivor.GetTree().GetFirstNodeInGroup(WorldNavigationService.GroupName) is WorldNavigationService exterior)
+        {
+            _route = exterior.SpliceBypass(_route);
+        }
+        _unreachable = _route.Count == 1 && _route[0].DistanceTo(destination) > 0.5f;
+        _blocked = false;
         _index = _route.Count > 1 && survivor.SimulationPosition.DistanceTo(_route[0]) <= survivor.ArrivalThreshold ? 1 : 0;
     }
 
@@ -231,6 +246,7 @@ public sealed class InteriorPathFollower
         if (navigation is not null && !navigation.PrepareTraversal(survivor.SimulationPosition, target, survivor))
         {
             survivor.StopMovement();
+            _blocked = true;
             return false;
         }
         if (!survivor.MoveTowardsGridPosition(target, delta)) return false;

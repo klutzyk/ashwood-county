@@ -40,7 +40,9 @@ public partial class ContinuousWorldValidation:Node
         ["fire_lookout"] = new Vector2(311, 54),
         ["highway"] = new Vector2(307, 137),
         ["outskirts_road"] = new Vector2(197, 166),
-        ["interior_house"] = new Vector2(220, 155)
+        ["interior_house"] = new Vector2(220, 155),
+        // Deliberately on a chunk corner, for checking streaming seams.
+        ["chunk_seam"] = new Vector2(224, 160)
     };
 
     private static readonly Vector2[] Route=[new(180,190),new(160,232),new(203,157)];
@@ -56,20 +58,70 @@ public partial class ContinuousWorldValidation:Node
         }
 
         StrategyCamera camera = GetNode<StrategyCamera>("../World/StrategyCamera");
-        camera.CenterOnGridPosition(gridPosition);
-        camera.SetZoom(capture is "interior_house" ? .82f : capture is "ashwood" ? .48f : .57f);
+        float zoom = capture is "interior_house" ? .82f : capture is "ashwood" ? .48f : .57f;
+        // The game starts at zoom 1. Framing checks need to be able to ask for
+        // the zoom the player actually plays at, not just the survey framing.
+        string? zoomOverride = System.Environment.GetEnvironmentVariable("ASHWOOD_CAPTURE_ZOOM");
+        if (!string.IsNullOrWhiteSpace(zoomOverride) && float.TryParse(zoomOverride, System.Globalization.CultureInfo.InvariantCulture, out float parsedZoom))
+            zoom = parsedZoom;
+        camera.SnapTo(gridPosition, zoom);
+
         CountyFogOfWar fog = GetNode<CountyFogOfWar>("../World/CountyFog");
         fog.DebugMode = FogDebugMode.RevealAll;
+        // Optional: select a survivor so HUD checks can see the survivor panel.
+        if (System.Environment.GetEnvironmentVariable("ASHWOOD_CAPTURE_SELECT") == "1")
+        {
+            Survivor? first = GetTree().GetNodesInGroup(Survivor.GroupName).OfType<Survivor>().FirstOrDefault();
+            if (first is not null)
+                GetNode<AshwoodCounty.Systems.SurvivorSelectionController>("../SelectionController").DebugSelectOnly(first);
+        }
         GD.Print($"VISUAL_CAPTURE: {capture} at {gridPosition}");
         string? pngPath = System.Environment.GetEnvironmentVariable("ASHWOOD_CAPTURE_PNG");
         if (!string.IsNullOrWhiteSpace(pngPath)) CapturePngAfterFrames(pngPath);
     }
     private async void CapturePngAfterFrames(string path)
     {
-        for(int i=0;i<4;i++)await ToSignal(GetTree(),SceneTree.SignalName.ProcessFrame);
+        // The starting scenario sets the clock to first light during its own
+        // deferred start-up, so a wall-clock override has to be applied after
+        // that has run or it is silently overwritten and every capture comes
+        // back in morning light.
+        for(int i=0;i<20;i++)await ToSignal(GetTree(),SceneTree.SignalName.ProcessFrame);
+        string? hour = System.Environment.GetEnvironmentVariable("ASHWOOD_CAPTURE_HOUR");
+        if (!string.IsNullOrWhiteSpace(hour) && double.TryParse(hour, System.Globalization.CultureInfo.InvariantCulture, out double parsed))
+            GetNode<AshwoodCounty.Systems.GameClock>("../GameClock").SetTotalMinutes(parsed * 60d);
+
+        // Optional sprite-scale audit: record what the terrain layers place, so
+        // any artwork being enlarged past its source resolution is named.
+        bool audit = System.Environment.GetEnvironmentVariable("ASHWOOD_AUDIT_SPRITE_SCALE") == "1";
+        if (audit)
+        {
+            AshwoodCounty.World.County.Visual.AssetInspector.BeginAudit();
+            foreach (Node node in GetTree().GetNodesInGroup(AshwoodCounty.World.County.Visual.CountyVisualChunk.RedrawGroup))
+                if (node is CanvasItem item) item.QueueRedraw();
+        }
+
+        // Terrain detail streams from the visible rectangle, so the capture has
+        // to give the layers a couple of refresh ticks to build.
+        for(int i=0;i<90;i++)await ToSignal(GetTree(),SceneTree.SignalName.ProcessFrame);
+        ReportRenderCost();
+        if (audit) AshwoodCounty.World.County.Visual.AssetInspector.ReportScaleAudit();
         Error error=GetViewport().GetTexture().GetImage().SavePng(path);
         GD.Print($"VISUAL_CAPTURE_PNG: {error} {path}");
     }
+    /// <summary>
+    /// Renderer cost at the moment of capture. The terrain layers stream chunks
+    /// from the visible rectangle, so this is the number that matters when
+    /// judging whether an environment-art pass has become too expensive.
+    /// </summary>
+    private void ReportRenderCost()
+    {
+        ulong objects=RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TotalObjectsInFrame);
+        ulong draws=RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TotalDrawCallsInFrame);
+        ulong primitives=RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TotalPrimitivesInFrame);
+        int nodes=GetTree().GetNodeCount();
+        GD.Print($"RENDER_COST: fps={Engine.GetFramesPerSecond()} nodes={nodes} objects={objects} draw_calls={draws} primitives={primitives}");
+    }
+
     private async void ConfigureInteriorCapture()
     {
         for(int i=0;i<4;i++)await ToSignal(GetTree(),SceneTree.SignalName.ProcessFrame);

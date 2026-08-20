@@ -11,6 +11,7 @@
 [ext_resource type="PackedScene" path="res://scenes/world/ResourceTree.tscn" id="9_tree"]
 [ext_resource type="PackedScene" path="res://scenes/buildings/Stockpile.tscn" id="10_stockpile"]
 [ext_resource type="Script" path="res://scripts/systems/resources/SettlementInventory.cs" id="11_inventory"]
+[ext_resource type="Script" path="res://scripts/systems/resources/SettlementItemStorage.cs" id="48_item_storage"]
 [ext_resource type="Script" path="res://scripts/world/GridOccupancy.cs" id="12_occupancy"]
 [ext_resource type="Script" path="res://scripts/buildings/BuildingPlacementController.cs" id="13_placement"]
 [ext_resource type="Script" path="res://scripts/world/ArtDecoration.cs" id="14_decoration"]
@@ -92,6 +93,9 @@ corner_radius_bottom_left = 6
 
 [node name="SettlementInventory" type="Node" parent="."]
 script = ExtResource("11_inventory")
+
+[node name="SettlementItemStorage" type="Node" parent="."]
+script = ExtResource("48_item_storage")
 
 [node name="GridOccupancy" type="Node" parent="."]
 script = ExtResource("12_occupancy")

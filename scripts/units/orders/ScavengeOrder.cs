@@ -1,9 +1,12 @@
+using AshwoodCounty.Combat;
 using AshwoodCounty.Resources;
+using AshwoodCounty.UI;
+using AshwoodCounty.World;
 using Godot;
 
 namespace AshwoodCounty.Units.Orders;
 
-public sealed class ScavengeOrder(ScavengeSource target, Stockpile stockpile, Vector2 interactionPosition, Vector2 deliveryPosition) : ISurvivorOrder
+public sealed class ScavengeOrder(ScavengeSource target, Stockpile stockpile, Vector2 interactionPosition, Vector2 deliveryPosition, bool notifyOnComplete = false) : ISurvivorOrder
 {
     private enum Phase { MovingToSource, Searching, Delivering }
     private readonly ScavengeSource _target = target;
@@ -14,6 +17,7 @@ public sealed class ScavengeOrder(ScavengeSource target, Stockpile stockpile, Ve
     private float _elapsed;
     private ulong _workerId;
     private bool _claimed;
+    private bool _notified;
 
     public SurvivorOrderType Type => SurvivorOrderType.Scavenge;
     public bool IsComplete { get; private set; }
@@ -21,7 +25,24 @@ public sealed class ScavengeOrder(ScavengeSource target, Stockpile stockpile, Ve
     public void Start(Survivor survivor)
     {
         _workerId = survivor.GetInstanceId();
-        if (!GodotObject.IsInstanceValid(_target) || !GodotObject.IsInstanceValid(_stockpile) || !_target.TryClaim(_workerId)) { IsComplete = true; return; }
+        if (!GodotObject.IsInstanceValid(_target) || !GodotObject.IsInstanceValid(_stockpile))
+        {
+            Notify(survivor, "Unavailable");
+            IsComplete = true;
+            return;
+        }
+        if (_target.IsDepleted)
+        {
+            Notify(survivor, "Already cleared");
+            IsComplete = true;
+            return;
+        }
+        if (!_target.TryClaim(_workerId))
+        {
+            Notify(survivor, "Already being searched");
+            IsComplete = true;
+            return;
+        }
         _claimed = true;
         _phase = survivor.CarriedAmount > 0 ? Phase.Delivering : Phase.MovingToSource;
     }
@@ -32,7 +53,7 @@ public sealed class ScavengeOrder(ScavengeSource target, Stockpile stockpile, Ve
         if (_phase == Phase.MovingToSource)
         {
             if (_target.IsDepleted) { Complete(); return; }
-            if (survivor.MoveTowardsGridPosition(_interactionPosition, delta)) { _elapsed = 0; _phase = Phase.Searching; }
+            if (survivor.MoveTowardsGridPositionNavigated(_interactionPosition, delta)) { _elapsed = 0; _phase = Phase.Searching; }
         }
         else if (_phase == Phase.Searching)
         {
@@ -40,11 +61,22 @@ public sealed class ScavengeOrder(ScavengeSource target, Stockpile stockpile, Ve
             _target.ReportSearchProgress(_workerId, _elapsed / Mathf.Max(.1f, _target.SearchDuration));
             if (_elapsed < _target.SearchDuration) return;
             int found = _target.TakeLoot(_workerId, survivor.GetRemainingCarryCapacity(_target.LootType));
-            if (found <= 0 || !survivor.TryAddCarriedResource(_target.LootType, found)) { Complete(); return; }
+            if (found <= 0 || !survivor.TryAddCarriedResource(_target.LootType, found))
+            {
+                if (notifyOnComplete && !_notified) Notify(survivor, "No room to carry loot");
+                Complete();
+                return;
+            }
             survivor.GainSkillExperience(SurvivorSkill.Scavenging, found * 1.5f);
+            if (notifyOnComplete && !_notified)
+            {
+                _notified = true;
+                SpawnResourceReveal(_target, found, _target.LootType);
+            }
+            EmitNoise(survivor, 3.0f);
             _phase = Phase.Delivering;
         }
-        else if (survivor.MoveTowardsGridPosition(_deliveryPosition, delta))
+        else if (survivor.MoveTowardsGridPositionNavigated(_deliveryPosition, delta))
         {
             int delivered = survivor.RemoveCarriedResource();
             if (delivered > 0) _stockpile.Deposit(survivor.LastCarriedResourceType, delivered);
@@ -59,5 +91,38 @@ public sealed class ScavengeOrder(ScavengeSource target, Stockpile stockpile, Ve
         if (_claimed && GodotObject.IsInstanceValid(_target)) _target.ReleaseClaim(_workerId);
         _claimed = false;
         IsComplete = true;
+    }
+
+    private void Notify(Survivor survivor, string message)
+    {
+        if (!GodotObject.IsInstanceValid(_target)) return;
+        (survivor.GetTree().GetFirstNodeInGroup(GameHud.GroupName) as GameHud)?.Notify($"{_target.ResolvedDisplayName.ToUpperInvariant()}\n{message}");
+    }
+
+    private static void SpawnResourceReveal(ScavengeSource source, int amount, ResourceType resourceType)
+    {
+        Node parent = source.GetParent();
+        if (parent is null) return;
+        string iconPath = resourceType switch
+        {
+            ResourceType.Wood => "res://assets/ui/icons/wood.svg",
+            ResourceType.Food => "res://assets/ui/icons/food.svg",
+            ResourceType.Medicine => "res://assets/ui/icons/medicine.svg",
+            _ => "res://assets/ui/icons/materials.svg"
+        };
+        ItemRevealFeedback reveal = new();
+        parent.AddChild(reveal);
+        reveal.Initialize(
+            source.Position + new Vector2(0f, -50f),
+            [(TextureRegistry.Get(iconPath), amount.ToString())],
+            "");
+    }
+
+    private static void EmitNoise(Survivor survivor, float radius)
+    {
+        if (survivor.GetTree().GetFirstNodeInGroup(NoiseSystem.GroupName) is NoiseSystem noise)
+        {
+            noise.Emit(survivor.SimulationPosition, radius);
+        }
     }
 }

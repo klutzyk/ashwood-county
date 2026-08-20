@@ -13,7 +13,7 @@ public sealed class EatOrder(SettlementInventory inventory, Stockpile stockpile,
     }
     public void Tick(Survivor survivor, double delta)
     {
-        if (IsComplete || !survivor.MoveTowardsGridPosition(interactionPosition, delta)) return;
+        if (IsComplete || !survivor.MoveTowardsGridPositionNavigated(interactionPosition, delta)) return;
         if (inventory.TrySpend(ResourceType.Food, 1)) survivor.EatMeal();
         IsComplete = true;
     }

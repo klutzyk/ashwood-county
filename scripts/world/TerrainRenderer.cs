@@ -2,34 +2,20 @@ using Godot;
 
 namespace AshwoodCounty.World;
 
+/// <summary>
+/// The starting area's floor used to be a single flat blanket drawn here. That
+/// ground, its roads and its dressing are now painted by the county terrain
+/// layers from authored isometric art, so at runtime this node only owns the
+/// optional debug grid. The editor still gets a cheap blockout preview.
+/// </summary>
 [Tool]
 public partial class TerrainRenderer : Node2D
 {
-    private static readonly Color Grass = new("#769f52");
+    private static readonly Color Grass = new("#4d6a3f");
     private static readonly Color GrassEdge = new("#567b3d");
     private int _width = IsometricWorld.MapWidth;
     private int _height = IsometricWorld.MapHeight;
     private bool _runtimeGridVisible;
-    private Texture2D _regionGround = null!;
-
-    private readonly (string Path, Vector2 Position, float Scale, Color Tint)[] _groundPatches =
-    [
-        ("res://assets/art/terrain/grass_scatter_01.png", new(5, 5), .72f, new(1, 1, 1, .34f)),
-        ("res://assets/art/terrain/grass_scatter_01.png", new(16, 5), .62f, new(1, 1, 1, .28f)),
-        ("res://assets/art/terrain/dirt_scatter_01.png", new(30, 6), .70f, new(1, 1, 1, .32f)),
-        ("res://assets/art/terrain/leaves_01.png", new(7, 11), .65f, new(1, 1, 1, .34f)),
-        ("res://assets/art/terrain/grass_scatter_01.png", new(18, 11), .74f, new(1, 1, 1, .30f)),
-        ("res://assets/art/terrain/dirt_scatter_01.png", new(27, 12), .67f, new(1, 1, 1, .32f)),
-        ("res://assets/art/terrain/grass_scatter_01.png", new(38, 13), .68f, new(1, 1, 1, .28f)),
-        ("res://assets/art/terrain/leaves_01.png", new(5, 20), .66f, new(1, 1, 1, .36f)),
-        ("res://assets/art/terrain/grass_scatter_01.png", new(15, 20), .62f, new(1, 1, 1, .28f)),
-        ("res://assets/art/terrain/dirt_scatter_01.png", new(25, 22), .72f, new(1, 1, 1, .32f)),
-        ("res://assets/art/terrain/gravel_scatter_01.png", new(33, 21), .66f, new(1, 1, 1, .34f)),
-        ("res://assets/art/terrain/grass_scatter_01.png", new(9, 29), .74f, new(1, 1, 1, .29f)),
-        ("res://assets/art/terrain/mud_scatter_01.png", new(18, 31), .64f, new(1, 1, 1, .30f)),
-        ("res://assets/art/terrain/dirt_scatter_01.png", new(29, 30), .72f, new(1, 1, 1, .31f)),
-        ("res://assets/art/terrain/leaves_01.png", new(38, 31), .64f, new(1, 1, 1, .35f))
-    ];
 
     private readonly (Vector2 Position, Vector2 Radius, Color Color)[] _broadVariations =
     [
@@ -48,7 +34,6 @@ public partial class TerrainRenderer : Node2D
     {
         _width = width;
         _height = height;
-        _regionGround ??= TextureRegistry.Get("res://assets/art/terrain/ashwood_outskirts_ground.png");
         QueueRedraw();
     }
 
@@ -60,18 +45,7 @@ public partial class TerrainRenderer : Node2D
             return;
         }
 
-        Vector2[] terrain = IsometricGrid.ProjectRectangle(Vector2.Zero, new Vector2(_width, _height));
-        DrawColoredPolygon(terrain, Grass);
-        _regionGround ??= TextureRegistry.Get("res://assets/art/terrain/ashwood_outskirts_ground.png");
-        if (_regionGround is not null)
-        {
-            DrawTexture(_regionGround, new Vector2(-_regionGround.GetWidth() * .5f, 0));
-        }
-        DrawBroadVariations();
-        DrawAccessRoad();
-        DrawGroundPatches();
-
-        if (!IsGridVisible)
+        if (!_runtimeGridVisible)
         {
             return;
         }
@@ -89,52 +63,18 @@ public partial class TerrainRenderer : Node2D
 
     private void DrawLightweightEditorPreview()
     {
-        // Never load/draw the 4032x1920 composite from a Tool CanvasItem.
+        // Never load/draw a county-sized composite from a Tool CanvasItem.
         // Godot 4.7.1's 2D editor caches that custom texture draw at enormous
         // memory cost. This uses the same projection and preserves a useful
-        // terrain/road/grid preview with a tiny fixed command count.
-        Vector2[] terrain=IsometricGrid.ProjectRectangle(Vector2.Zero,new Vector2(_width,_height));
-        DrawColoredPolygon(terrain,Grass);
+        // terrain/grid preview with a tiny fixed command count.
+        Vector2[] terrain = IsometricGrid.ProjectRectangle(Vector2.Zero, new Vector2(_width, _height));
+        DrawColoredPolygon(terrain, Grass);
         DrawBroadVariations();
-        DrawAccessRoad();
-        Color grid=new(GrassEdge,.55f);
-        for(int x=0;x<=_width;x++)DrawLine(IsometricGrid.GridToScreen(new Vector2(x,0)),IsometricGrid.GridToScreen(new Vector2(x,_height)),grid,1,true);
-        for(int y=0;y<=_height;y++)DrawLine(IsometricGrid.GridToScreen(new Vector2(0,y)),IsometricGrid.GridToScreen(new Vector2(_width,y)),grid,1,true);
-    }
-
-    private void DrawAccessRoad()
-    {
-        Vector2[] centerLine =
-        [
-            new(-2, 33), new(5, 31), new(11, 29), new(17, 27),
-            new(23, 26), new(29, 23), new(35, 19), new(44, 16)
-        ];
-        DrawRoadRibbon(centerLine, .95f, new Color("#806c4b"));
-        DrawRoadRibbon(centerLine, .66f, new Color("#a08759"));
-
-        Vector2[] farmTrack = [new(11, 29), new(10, 24), new(9, 18), new(7, 11), new(3, 5)];
-        DrawRoadRibbon(farmTrack, .52f, new Color("#806c4b"));
-        DrawRoadRibbon(farmTrack, .31f, new Color("#a08759"));
-    }
-
-    private static Vector2[] BuildRibbon(Vector2[] line, float halfWidth)
-    {
-        Vector2[] polygon = new Vector2[line.Length * 2];
-        for (int index = 0; index < line.Length; index++)
-        {
-            Vector2 tangent = index == 0 ? line[1] - line[0]
-                : index == line.Length - 1 ? line[^1] - line[^2]
-                : line[index + 1] - line[index - 1];
-            Vector2 normal = new Vector2(-tangent.Y, tangent.X).Normalized() * halfWidth;
-            polygon[index] = IsometricGrid.GridToScreen(line[index] + normal);
-            polygon[polygon.Length - 1 - index] = IsometricGrid.GridToScreen(line[index] - normal);
-        }
-        return polygon;
-    }
-
-    private void DrawRoadRibbon(Vector2[] line, float halfWidth, Color color)
-    {
-        DrawColoredPolygon(BuildRibbon(line, halfWidth), color);
+        Color grid = new(GrassEdge, .55f);
+        for (int x = 0; x <= _width; x++)
+            DrawLine(IsometricGrid.GridToScreen(new Vector2(x, 0)), IsometricGrid.GridToScreen(new Vector2(x, _height)), grid, 1, true);
+        for (int y = 0; y <= _height; y++)
+            DrawLine(IsometricGrid.GridToScreen(new Vector2(0, y)), IsometricGrid.GridToScreen(new Vector2(_width, y)), grid, 1, true);
     }
 
     private void DrawBroadVariations()
@@ -154,17 +94,6 @@ public partial class TerrainRenderer : Node2D
             }
 
             DrawColoredPolygon(points, color);
-        }
-    }
-
-    private void DrawGroundPatches()
-    {
-        foreach ((string path, Vector2 gridPosition, float scale, Color tint) in _groundPatches)
-        {
-            Texture2D texture = TextureRegistry.Get(path);
-            Vector2 size = texture.GetSize() * scale;
-            Vector2 position = IsometricGrid.GridToScreen(gridPosition);
-            DrawTextureRect(texture, new Rect2(position - size * 0.5f, size), false, tint);
         }
     }
 

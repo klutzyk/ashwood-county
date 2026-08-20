@@ -8,30 +8,32 @@ using Godot;
 namespace AshwoodCounty.World.County.Visual;
 
 /// <summary>
-/// Batched painterly landscape for one county chunk. Decorative sprites are
-/// draw commands rather than scene nodes, and generation is deterministic.
+/// Everything that sits on the county floor for one chunk: waterways, roads,
+/// field structure, vegetation masses, clutter and authored set dressing.
+///
+/// It is one CanvasItem per chunk so Godot can cull it, and every placement is
+/// a pure function of county coordinates so the same chunk always draws the
+/// same landscape. Sprites are draw commands rather than scene nodes.
 /// </summary>
 public partial class CountyVisualChunk : Node2D
 {
-    private enum Biome
-    {
-        Meadow,
-        Forest,
-        PineRidge,
-        Logging,
-        Outskirts,
-        Farm,
-        Mill,
-        SouthFarm,
-        Urban,
-        TrailerPark,
-        Fairgrounds,
-        Scrub,
-        Water
-    }
+    /// <summary>Chunks that can be asked to redraw, for the asset inspector.</summary>
+    public const string RedrawGroup = "county_landscape_chunk";
 
     private readonly record struct Field(Rect2 Bounds, Color Soil, bool RowsAlongX);
     private readonly record struct Prop(string Texture, Vector2 Position, float Scale, Color Tint);
+
+    /// <summary>
+    /// A sprite queued for the standing-art pass.
+    ///
+    /// <c>Tall</c> separates the two things that need different treatment:
+    /// trees, buildings and set dressing genuinely occlude one another and must
+    /// be depth sorted, whereas ferns, flowers, grass and rubble sit flat on the
+    /// ground and effectively never overlap. Drawing the low layer grouped by
+    /// texture instead of by depth collapses hundreds of individual draws into a
+    /// handful of batches for no visible difference.
+    /// </summary>
+    private readonly record struct Placement(string Texture, Vector2 Position, float Scale, Color Tint, bool Tall);
 
     private const string TerrainRoot = "res://assets/art/terrain/";
     private const string VegetationRoot = "res://assets/art/environment/vegetation/";
@@ -40,35 +42,18 @@ public partial class CountyVisualChunk : Node2D
     private const string ResourcesRoot = "res://assets/art/resources/";
     private const string Ground02Root = "res://assets/art/terrain/ground/";
     private const string RoadArtRoot = "res://assets/art/terrain/roads/";
-    private const string Vegetation02Root = "res://assets/art/vegetation/";
+    private const string TreesRoot = "res://assets/art/trees/";
+    private const string UndergrowthRoot = "res://assets/art/undergrowth/";
     private const string FarmPropsRoot = "res://assets/art/props/farm/";
     private const string LoggingPropsRoot = "res://assets/art/props/logging/";
     private const string RoadsidePropsRoot = "res://assets/art/props/roadside/";
     private const string RailArtRoot = "res://assets/art/terrain/rail/";
     private const string IndustrialPropsRoot = "res://assets/art/props/industrial/";
+    private const string RuralBuildingsRoot = "res://assets/art/buildings/rural/";
+    private const string WaterPropsRoot = "res://assets/art/water/props/";
 
-    private static readonly Vector2[] MillCreek =
-    [
-        new(190, 214), new(181, 220), new(176, 230), new(166, 238),
-        new(159, 248), new(151, 257), new(142, 269), new(129, 277)
-    ];
-
-    private static readonly Vector2[] OldMillTributary =
-    [
-        new(150, 111), new(158, 116), new(166, 121), new(174, 126), new(183, 130)
-    ];
-
-    private static readonly CountyRoadDefinition[] FarmTracks =
-    [
-        new("farm_north_track", "North Field Track", .52f,
-            [new(145, 180), new(157, 184), new(170, 188), new(184, 192)]),
-        new("farm_west_track", "West Field Track", .46f,
-            [new(151, 180), new(151, 197), new(148, 216), new(151, 232)]),
-        new("farmyard_track", "Farmyard Track", .56f,
-            [new(183, 191), new(173, 198), new(164, 204), new(155, 211)]),
-        new("mill_logging_track", "Mill Logging Track", .48f,
-            [new(154, 250), new(143, 246), new(132, 247), new(122, 254)])
-    ];
+    private static readonly Vector2[] LakeOutline =
+        [.. CountyMacroLayout.BlackwaterLakeOutline, CountyMacroLayout.BlackwaterLakeOutline[0]];
 
     private static readonly Field[] Fields =
     [
@@ -120,36 +105,52 @@ public partial class CountyVisualChunk : Node2D
         P(RocksRoot + "rock_cluster_01.png", 151, 266, .29f),
         P(VegetationRoot + "dead_tree_01.png", 166, 260, .30f),
         P(FarmPropsRoot + "fence_overgrown_02.png", 154, 196, .40f),
-        P(Vegetation02Root + "hedge_01.png", 158, 184, .45f),
-        P(Vegetation02Root + "bush_berries_01.png", 181, 197, .34f),
+        P(UndergrowthRoot + "bush_green_01.png", 158, 184, .40f),
+        P(UndergrowthRoot + "bush_berry_red_01.png", 181, 197, .34f),
         P(LoggingPropsRoot + "stump_02.png", 149, 251, .36f),
         P(LoggingPropsRoot + "rotted_log_01.png", 139, 256, .38f),
         P(RoadsidePropsRoot + "mossy_boulder_02.png", 145, 264, .31f),
-        P(RoadsidePropsRoot + "rock_formation_02.png", 161, 263, .34f)
-        ,P(Vegetation02Root + "pine_02.png", 132, 246, .25f)
-        ,P(Vegetation02Root + "pine_03.png", 143, 269, .30f)
-        ,P(Vegetation02Root + "deciduous_02.png", 170, 239, .28f)
-        ,P(Vegetation02Root + "dead_tree_02.png", 126, 258, .27f)
-        ,P(Vegetation02Root + "reeds_01.png", 157, 248, .30f)
-        ,P(FarmPropsRoot + "corn_rows_01.png", 145, 190, .43f)
-        ,P(FarmPropsRoot + "crop_rows_green_01.png", 177, 186, .46f)
-        ,P(FarmPropsRoot + "hay_bale_round_01.png", 181, 205, .31f)
-        ,P(RoadsidePropsRoot + "stop_sign_01.png", 229, 146, .27f)
-        ,P(RoadsidePropsRoot + "utility_pole_01.png", 216, 148, .28f)
-        ,P(IndustrialPropsRoot + "abandoned_pickup_01.png", 260, 157, .32f)
-        ,P(IndustrialPropsRoot + "scrap_pile_01.png", 151, 253, .27f)
-        ,P(IndustrialPropsRoot + "corrugated_shed_01.png", 145, 249, .30f)
-        ,P(IndustrialPropsRoot + "road_barrier_01.png", 272, 144, .30f)
+        P(RoadsidePropsRoot + "rock_formation_02.png", 161, 263, .34f),
+        P(TreesRoot + "fir_tall_01.png", 132, 246, .30f),
+        P(TreesRoot + "pine_scots_tall_01.png", 143, 269, .26f),
+        P(TreesRoot + "oak_spreading_01.png", 170, 239, .30f),
+        P(TreesRoot + "dead_hollow_01.png", 126, 258, .26f),
+        P(UndergrowthRoot + "grass_pampas_01.png", 157, 248, .36f),
+        P(FarmPropsRoot + "corn_rows_01.png", 145, 190, .43f),
+        P(FarmPropsRoot + "crop_rows_green_01.png", 177, 186, .46f),
+        P(FarmPropsRoot + "hay_bale_round_01.png", 181, 205, .31f),
+        P(RoadsidePropsRoot + "stop_sign_01.png", 229, 146, .27f),
+        P(RoadsidePropsRoot + "utility_pole_01.png", 216, 148, .28f),
+        P(IndustrialPropsRoot + "abandoned_pickup_01.png", 260, 157, .32f),
+        P(IndustrialPropsRoot + "scrap_pile_01.png", 151, 253, .27f),
+        P(IndustrialPropsRoot + "corrugated_shed_01.png", 145, 249, .30f),
+        P(IndustrialPropsRoot + "road_barrier_01.png", 272, 144, .30f)
     ];
+
+    /// <summary>
+    /// Canvas heights in pixels at zoom 1, for procedurally placed art.
+    ///
+    /// A survivor sprite is about 100px tall, which is the human reference.
+    /// Mature trees were previously 172px, barely taller than a person, which
+    /// is why woodland read as scrub. The concept art puts a mature tree at
+    /// roughly two and a half times a figure.
+    ///
+    /// Fewer, larger trees also cost less: canopy density is reduced to
+    /// compensate, so the same coverage arrives in fewer draws.
+    /// </summary>
+    private const float UnderstoryHeight = 62f;
+    private const float ClutterHeight = 56f;
+
+    /// <summary>Cell pitch of the vegetation sample lattice.</summary>
+    private const int VegetationStep = 3;
+
+    /// <summary>Cell pitch of the ground-clutter sample lattice.</summary>
+    private const int ClutterStep = 7;
 
     private Vector2I _coordinate;
     private Rect2 _gridBounds;
+    private Rect2 _grownBounds;
     private Vector2 _canvasOrigin;
-
-    // CountyGroundSurface now owns the seamless macro terrain. These legacy
-    // stamp helpers remain available while localized art is migrated, but are
-    // deliberately not invoked by the production draw list.
-#pragma warning disable IDE0051
 
     public bool DrawLocationLabels { get; init; } = true;
 
@@ -157,206 +158,76 @@ public partial class CountyVisualChunk : Node2D
     {
         _coordinate = coordinate;
         _gridBounds = CountyCoordinateSpace.ChunkGridBounds(coordinate);
+        _grownBounds = _gridBounds.Grow(6);
         _canvasOrigin = IsometricGrid.GridToScreen(_gridBounds.Position);
         Position = _canvasOrigin;
         ZAsRelative = false;
         ZIndex = -100;
+        AddToGroup(RedrawGroup);
     }
 
-    public override void _Ready() => QueueRedraw();
+    public override void _Ready()
+    {
+        // Shore dressing has to sit above the animated water surfaces, which
+        // render between this chunk and the actors. A thin child CanvasItem at
+        // the right depth is cheaper than promoting the whole landscape.
+        CountyShorelineChunk shoreline = new() { Name = "Shoreline" };
+        shoreline.Initialize(_coordinate);
+        AddChild(shoreline);
+        QueueRedraw();
+    }
 
     public override void _Draw()
     {
-        DrawFarmGround();
-        DrawMillGround();
-        DrawUrbanGround();
         DrawWaterways();
         DrawRoadNetwork();
-        DrawRoadArtStamps();
+        DrawRoadJunctions();
+        DrawRoadDressing();
         DrawRailwayCorridor();
-        DrawFarmComposition();
-        DrawForestComposition();
-        DrawAuthoredProps();
-        DrawAshwoodTown();
+        DrawFieldStructure();
+
+        // Everything with height shares one depth-sorted pass so trunks, bushes,
+        // rocks and set dressing overlap each other correctly rather than
+        // layering by which rule happened to produce them.
+        List<Placement> standing = [];
+        CollectVegetation(standing);
+        CollectGroundClutter(standing);
+        CollectAuthoredProps(standing);
+        CollectStartingArea(standing);
+        DrawStanding(standing);
+
         DrawLandmarks();
     }
 
-    private void DrawTerrainFoundation()
-    {
-        const int block = 6;
-        int startX = Mathf.FloorToInt(_gridBounds.Position.X);
-        int startY = Mathf.FloorToInt(_gridBounds.Position.Y);
-        int endX = Mathf.CeilToInt(_gridBounds.End.X);
-        int endY = Mathf.CeilToInt(_gridBounds.End.Y);
-        for (int y = startY; y < endY; y += block)
-        {
-            for (int x = startX; x < endX; x += block)
-            {
-                Rect2 cell = new(new Vector2(x, y), new Vector2(Mathf.Min(block, endX - x), Mathf.Min(block, endY - y)));
-                Vector2 sample = cell.GetCenter();
-                Color color = TerrainColor(sample);
-                float shade = (Hash01(x, y, 3) - .5f) * .075f;
-                color = shade >= 0 ? color.Lightened(shade) : color.Darkened(-shade);
-                DrawColoredPolygon(ProjectRectangle(cell), color);
-
-                // Cover the low-frequency biome color with a shared painterly
-                // ground tile. Regional tint remains visible without reading as
-                // a large flat blockout.
-                string foundation = BiomeAt(sample) switch
-                {
-                    Biome.PineRidge => Ground02Root + (Hash01(x, y, 5) > .42f ? "forest_floor_02.png" : "rocky_ground_03.png"),
-                    Biome.Logging => Ground02Root + (Hash01(x, y, 5) > .48f ? "bare_dirt_01.png" : "forest_floor_02.png"),
-                    Biome.Farm or Biome.SouthFarm => TerrainRoot + (Hash01(x, y, 5) > .48f ? "grass_dirt_01.png" : "grass_02.png"),
-                    Biome.Mill or Biome.Forest => TerrainRoot + (Hash01(x, y, 5) > .52f ? "leaves_01.png" : "grass_01.png"),
-                    Biome.Urban => Ground02Root + "gravel_ground_01.png",
-                    Biome.TrailerPark => Ground02Root + (Hash01(x, y, 5) > .52f ? "gravel_ground_01.png" : "sparse_dirt_01.png"),
-                    Biome.Fairgrounds => Ground02Root + (Hash01(x, y, 5) > .52f ? "dry_grass_rock_01.png" : "mixed_grass_03.png"),
-                    Biome.Scrub => Ground02Root + "dry_grass_rock_01.png",
-                    _ => TerrainRoot + (Hash01(x, y, 5) > .45f ? "grass_01.png" : "grass_02.png")
-                };
-                float foundationScale = foundation.StartsWith(Ground02Root, StringComparison.Ordinal) ? 3.75f : 1.62f;
-                Vector2 jittered = sample + new Vector2((Hash01(x, y, 7) - .5f) * 1.1f, (Hash01(x, y, 9) - .5f) * .7f);
-                DrawGroundTexture(foundation, jittered, foundationScale, new Color(color.Lightened(.12f), .58f));
-            }
-        }
-    }
-
-    private void DrawFarmGround()
-    {
-        foreach (Field field in Fields)
-        {
-            if (!TryIntersect(field.Bounds, _gridBounds, out Rect2 visible))
-                continue;
-
-            DrawColoredPolygon(ProjectRectangle(visible), field.Soil);
-        }
-
-        DrawPatch(new Vector2(169, 201), new Vector2(13, 10), new Color(.43f, .34f, .20f, .62f), 18);
-        DrawPatch(new Vector2(170, 231), new Vector2(23, 12), new Color(.27f, .33f, .16f, .32f), 22);
-    }
-
-    private void DrawMillGround()
-    {
-        DrawPatch(new Vector2(154, 250), new Vector2(39, 34), new Color(.10f, .21f, .13f, .38f), 28);
-        DrawPatch(new Vector2(147, 247), new Vector2(14, 11), new Color(.30f, .23f, .14f, .55f), 20);
-        DrawPatch(new Vector2(137, 255), new Vector2(12, 8), new Color(.25f, .20f, .13f, .48f), 18);
-    }
-
-    private void DrawUrbanGround()
-    {
-        DrawPatch(new Vector2(252, 145), new Vector2(47, 38), new Color(.27f, .28f, .25f, .67f), 36);
-        DrawPatch(new Vector2(252, 144), new Vector2(24, 19), new Color(.34f, .33f, .28f, .42f), 28);
-    }
-
-    private void DrawCountyRegionGround()
-    {
-        // Low-frequency regional shapes establish identity beneath the art
-        // layer. They are chunk-tessellated by DrawPatch and never become
-        // large uncullable polygons.
-        DrawPatch(new Vector2(72, 37), new Vector2(65, 35), new Color(.12f, .20f, .16f, .42f), 24);
-        DrawPatch(new Vector2(105, 74), new Vector2(30, 23), new Color(.31f, .23f, .14f, .55f), 20);
-        DrawPatch(new Vector2(279, 211), new Vector2(31, 24), new Color(.34f, .32f, .27f, .55f), 20);
-        DrawPatch(new Vector2(246, 234), new Vector2(40, 29), new Color(.47f, .46f, .29f, .38f), 22);
-        DrawPatch(new Vector2(311, 54), new Vector2(19, 15), new Color(.28f, .29f, .23f, .38f), 18);
-        DrawPatch(new Vector2(301, 103), new Vector2(22, 16), new Color(.29f, .30f, .28f, .50f), 18);
-    }
-
-    private void DrawGroundTexturePatches()
-    {
-        int startX = Mathf.FloorToInt(_gridBounds.Position.X) + 2;
-        int startY = Mathf.FloorToInt(_gridBounds.Position.Y) + 2;
-        int endX = Mathf.CeilToInt(_gridBounds.End.X);
-        int endY = Mathf.CeilToInt(_gridBounds.End.Y);
-
-        for (int y = startY; y < endY; y += 6)
-        {
-            for (int x = startX; x < endX; x += 6)
-            {
-                Vector2 point = new(
-                    x + (Hash01(x, y, 11) - .5f) * 2.4f,
-                    y + (Hash01(x, y, 13) - .5f) * 2.4f);
-                if (IsInLake(point) || DistanceToPolyline(point, CountyMacroLayout.BlackwaterRiver) < 3.5f
-                    || DistanceToPolyline(point, MillCreek) < 2.6f)
-                    continue;
-
-                Biome biome = BiomeAt(point);
-                float choice = Hash01(x, y, 17);
-                string path = biome switch
-                {
-                    Biome.PineRidge => Ground02Root + (choice < .38f ? "rocky_ground_03.png" : choice < .70f ? "leaf_litter_02.png" : "stone_outcrop_ground_01.png"),
-                    Biome.Logging => Ground02Root + (choice < .45f ? "bare_dirt_01.png" : choice < .76f ? "forest_floor_02.png" : "muddy_ground_02.png"),
-                    Biome.Farm or Biome.SouthFarm => TerrainRoot + (choice < .34f ? "grass_dirt_01.png" : choice < .66f ? "grass_02.png" : "dirt_scatter_01.png"),
-                    Biome.Mill or Biome.Forest => TerrainRoot + (choice < .40f ? "leaves_01.png" : choice < .68f ? "grass_scatter_01.png" : "mud_scatter_01.png"),
-                    Biome.Urban => Ground02Root + (choice < .54f ? "gravel_scatter_02.png" : "sparse_ground_02.png"),
-                    Biome.TrailerPark => Ground02Root + (choice < .54f ? "gravel_ground_01.png" : "sparse_dirt_01.png"),
-                    Biome.Fairgrounds => Ground02Root + (choice < .50f ? "dry_grass_rock_01.png" : "mixed_grass_03.png"),
-                    Biome.Scrub => Ground02Root + (choice < .50f ? "dry_grass_rock_01.png" : "rocky_dirt_01.png"),
-                    _ => TerrainRoot + (choice < .26f ? "grass_01.png" : choice < .58f ? "grass_scatter_01.png" : choice < .80f ? "grass_02.png" : "dirt_scatter_01.png")
-                };
-                bool compactAsset = path.StartsWith(Ground02Root, StringComparison.Ordinal);
-                float scale = compactAsset ? 1.18f + Hash01(x, y, 19) * .32f : .52f + Hash01(x, y, 19) * .22f;
-                float alpha = biome is Biome.Mill or Biome.Farm or Biome.Logging or Biome.PineRidge ? .57f : .48f;
-                DrawGroundTexture(path, point, scale, new Color(1, 1, 1, alpha));
-            }
-        }
-    }
+    // ---------------------------------------------------------------- water
 
     private void DrawWaterways()
     {
         // The animated lake polygon owns its continuous water fill. A narrow,
         // subdued earth ribbon softens the edge without forming the broad
         // angular tan wedges produced by the old macro shoreline.
-        DrawPolylineRibbon(CountyMacroLayout.BlackwaterLake.Append(CountyMacroLayout.BlackwaterLake[0]).ToArray(), .30f, new Color(.22f, .29f, .20f, .58f), 1.8f);
+        DrawPolylineRibbon(LakeOutline, .30f, new Color(.22f, .29f, .20f, .58f), 1.8f);
 
         // A narrow north-country tributary gives Old Mill Bridge its actual
         // geographic crossing. It is visual only and does not affect pathing.
-        DrawStreamBanks(OldMillTributary, .48f);
-
-        DrawStreamBanks(CountyMacroLayout.BlackwaterRiver, .95f);
-        DrawStreamBanks(MillCreek, .60f);
-        DrawShorelineDressing();
+        DrawStreamBanks(CountyTerrain.OldMillTributary, .48f);
+        DrawStreamBanks(CountyMacroLayout.BlackwaterRiverCourse, .95f);
+        DrawStreamBanks(CountyTerrain.MillCreek, .60f);
         DrawWaterArtDetails();
     }
 
-    private void DrawLakeInterior()
-    {
-        int startX = Mathf.FloorToInt(_gridBounds.Position.X / 4f) * 4;
-        int startY = Mathf.FloorToInt(_gridBounds.Position.Y / 4f) * 4;
-        for (int y = startY; y < _gridBounds.End.Y; y += 4)
-        {
-            for (int x = startX; x < _gridBounds.End.X; x += 4)
-            {
-                Vector2 center = new(x + 2, y + 2);
-                if (!IsInLake(center))
-                    continue;
-                Color water = new Color("#315d61").Lerp(new Color("#47787a"), Hash01(x, y, 31) * .33f);
-                DrawColoredPolygon(ProjectRectangle(new Rect2(x, y, 4.15f, 4.15f)), water);
-            }
-        }
-    }
-
+    /// <summary>
+    /// A damp margin along a watercourse.
+    ///
+    /// This used to be two opaque strokes, which gave every creek a hard olive
+    /// border and made the rivers read as lined canals. The ground layer already
+    /// surfaces the banks as mud and wetland, so all that is wanted here is a
+    /// soft darkening right at the waterline.
+    /// </summary>
     private void DrawStreamBanks(Vector2[] points, float bankWidth)
     {
-        DrawPolylineRibbon(points, bankWidth + .7f, new Color("#4b4734"), 2.5f);
-        DrawPolylineRibbon(points, bankWidth, new Color("#6f5b3e"), 2.5f);
-    }
-
-    private void DrawShorelineDressing()
-    {
-        for (int y = Mathf.FloorToInt(_gridBounds.Position.Y); y < _gridBounds.End.Y; y += 5)
-        {
-            for (int x = Mathf.FloorToInt(_gridBounds.Position.X); x < _gridBounds.End.X; x += 5)
-            {
-                Vector2 point = new(x + Hash01(x, y, 101) * 3f, y + Hash01(x, y, 103) * 3f);
-                float riverDistance = DistanceToPolyline(point, CountyMacroLayout.BlackwaterRiver);
-                float creekDistance = DistanceToPolyline(point, MillCreek);
-                if ((riverDistance < 3.8f && riverDistance > 2.1f) || (creekDistance < 3.2f && creekDistance > 1.2f))
-                {
-                    string texture = Hash01(x, y, 107) > .52f ? RocksRoot + "mossy_rock_01.png" : VegetationRoot + "fern_01.png";
-                    DrawAnchoredTexture(texture, point, .19f + Hash01(x, y, 109) * .07f, new Color(1, 1, 1, .88f));
-                }
-            }
-        }
+        DrawPolylineRibbon(points, bankWidth + .55f, new Color(.29f, .28f, .20f, .34f), 2.5f);
+        DrawPolylineRibbon(points, bankWidth + .18f, new Color(.34f, .29f, .19f, .40f), 2.5f);
     }
 
     private void DrawWaterArtDetails()
@@ -371,74 +242,175 @@ public partial class CountyVisualChunk : Node2D
             DrawGroundTexture("res://assets/art/terrain/water/pond_reeds_01.png", new Vector2(146, 242), .38f, new Color(1, 1, 1, .78f));
     }
 
+    // ---------------------------------------------------------------- roads
+
+    /// <summary>
+    /// True for routes built from the authored dirt kit. Highway 16 and the
+    /// town grid keep the ribbon renderer: they are asphalt and genuinely
+    /// engineered, and the dirt kit would be the wrong material for them.
+    /// </summary>
+    private static bool UsesDirtKit(CountyRoadDefinition road) =>
+        CountyRoadClasses.UsesDirtKit(road);
+
+    /// <summary>
+    /// Draw the composed dirt roads that fall inside this chunk.
+    ///
+    /// Composition is cached for the whole county, so this is a lookup and a
+    /// draw. Surface slices go down first and the curve and junction pieces
+    /// over them, which is what lets an intersection read as one road feature
+    /// rather than several strips crossing.
+    /// </summary>
+    private void DrawDirtRoadPieces()
+    {
+        List<RoadPiecePlacement> placements = [];
+        DirtRoadComposer.CollectFor(_grownBounds, placements);
+
+        foreach (RoadPiecePlacement placement in placements)
+        {
+            if (placement.Kind != RoadPieceKind.Slice)
+                continue;
+            Texture2D texture = TextureRegistry.Get(placement.Texture);
+            if (texture is null)
+                continue;
+            Vector2[] points = new Vector2[4];
+            for (int index = 0; index < 4; index++)
+                points[index] = P(placement.GridCorners[index]);
+            Color[] colors = [placement.Tint, placement.Tint, placement.Tint, placement.Tint];
+            DrawPolygon(points, colors, placement.Uvs, texture);
+        }
+
+        foreach (RoadPiecePlacement placement in placements)
+        {
+            if (placement.Kind != RoadPieceKind.Sprite || !_gridBounds.HasPoint(placement.Anchor))
+                continue;
+            Texture2D texture = TextureRegistry.Get(placement.Texture);
+            if (texture is null)
+                continue;
+            Vector2 native = texture.GetSize();
+            Vector2 size = native * placement.SpriteScale;
+            Rect2 destination = new(P(placement.Anchor) - size * .5f, size);
+            // Untransformed: a junction's or curve's arms already point along
+            // the ground axes in the artwork. Fitting them to grid cells rotates
+            // those arms a quarter turn off the roads they join.
+            DrawTextureRect(texture, destination, false, placement.Tint);
+            if (AssetInspector.Capturing)
+                AssetInspector.Record(placement.Texture, placement.Anchor, native, size, true);
+        }
+    }
+
     private void DrawRoadNetwork()
     {
-        foreach (CountyRoadDefinition road in CountyMacroLayout.Roads.Concat(FarmTracks))
-            DrawRoad(road);
-
-        // Ashwood uses a connected but deliberately incomplete street plan:
-        // main corridors, civic access and neighborhood loops. This avoids a
-        // board-game grid while preserving clear urban navigation.
-        DrawRoad(new CountyRoadDefinition("ashwood_main", "Ashwood Main Street", 1.05f, [new(216, 143), new(292, 143)]));
-        DrawRoad(new CountyRoadDefinition("ashwood_north", "North Ashwood Street", .68f, [new(220, 122), new(287, 122)]));
-        DrawRoad(new CountyRoadDefinition("ashwood_south", "South Ashwood Street", .68f, [new(220, 166), new(287, 166)]));
-        foreach (int x in new[] { 216, 237, 270, 291 })
-            DrawRoad(new CountyRoadDefinition($"ashwood_cross_{x}", "Ashwood Cross Street", .68f, [new(x, 118), new(x, 173)]));
+        // Shoulders for the whole network first, then carriageways. Drawing in
+        // that order means an intersection's surfaces meet cleanly instead of
+        // one road's shoulder cutting across another's asphalt.
+        foreach (CountyRoadDefinition road in CountyTerrain.AllRoads)
+            if (!UsesDirtKit(road))
+                DrawRoadShoulder(road);
+        DrawDirtRoadPieces();
+        foreach (CountyRoadDefinition road in CountyTerrain.AllRoads)
+            if (!UsesDirtKit(road))
+                DrawRoadSurface(road);
+        foreach (CountyRoadDefinition road in CountyTerrain.AllRoads)
+            DrawRoadMarkings(road);
     }
 
-    private void DrawRoad(CountyRoadDefinition road)
+    private void DrawRoadShoulder(CountyRoadDefinition road)
     {
-        List<(Vector2 Start, Vector2 End, int Phase)> pieces = LocalSegments(road.Points, 2.8f);
-        if (pieces.Count == 0)
+        RoadSurfaceProfile profile = RoadSurfacePalette.For(road);
+        float half = road.HalfWidth * RoadSurfacePalette.GridWidthScale;
+        float outer = half + profile.ShoulderWidth * RoadSurfacePalette.GridWidthScale + .18f;
+
+        // Both verges are drawn as one band under the carriageway, faded to
+        // nothing at the outer edge so the road dissolves into the terrain art.
+        DrawTexturedRibbon(road.Points, outer, profile.Shoulder,
+            profile.ShoulderVLow, profile.ShoulderVHigh, profile.ShoulderStretch,
+            new Color(profile.ShoulderTint, 0f), profile.ShoulderTint, profile.Wander);
+    }
+
+    private void DrawRoadSurface(CountyRoadDefinition road)
+    {
+        RoadSurfaceProfile profile = RoadSurfacePalette.For(road);
+        float half = road.HalfWidth * RoadSurfacePalette.GridWidthScale;
+        DrawTexturedRibbon(road.Points, half, profile.Surface,
+            profile.SurfaceVLow, profile.SurfaceVHigh, profile.SurfaceStretch,
+            profile.SurfaceTint, profile.SurfaceTint, profile.Wander * .45f);
+    }
+
+    private void DrawRoadMarkings(CountyRoadDefinition road)
+    {
+        if (!RoadSurfacePalette.For(road).CentreLine)
             return;
-
-        Color outer = road.Major ? new Color("#5f5b50") : new Color("#594f38");
-        Color shoulder = road.Major ? new Color("#8a806a") : new Color("#766442");
-        Color surface = road.Major ? new Color("#565750") : new Color("#957a4f");
-        foreach ((Vector2 start, Vector2 end, _) in pieces)
-            DrawRibbonSegment(start, end, road.HalfWidth + .78f, outer);
-        foreach ((Vector2 start, Vector2 end, _) in pieces)
-            DrawRibbonSegment(start, end, road.HalfWidth + .38f, shoulder);
-        foreach ((Vector2 start, Vector2 end, _) in pieces)
-            DrawRibbonSegment(start, end, road.HalfWidth, surface);
-
-        foreach ((Vector2 start, Vector2 end, int phase) in pieces)
+        float half = road.HalfWidth * RoadSurfacePalette.GridWidthScale;
+        foreach ((Vector2 start, Vector2 end, int phase) in LocalSegments(road.Points, 2.2f))
         {
+            if ((phase & 1) != 0)
+                continue;
             Vector2 tangent = (end - start).Normalized();
             Vector2 normal = new(-tangent.Y, tangent.X);
-            if (road.Major)
-            {
-                if ((phase & 1) == 0)
-                    DrawRibbonSegment(start + tangent * .35f, end - tangent * .35f, .055f, new Color("#c4ad69"));
-            }
-            else if (road.HalfWidth > .8f)
-            {
-                DrawRibbonSegment(start + normal * road.HalfWidth * .45f, end + normal * road.HalfWidth * .45f, .045f, new Color(.27f, .22f, .14f, .38f));
-                DrawRibbonSegment(start - normal * road.HalfWidth * .45f, end - normal * road.HalfWidth * .45f, .045f, new Color(.27f, .22f, .14f, .38f));
-            }
+            DrawRibbonQuad(start + tangent * .3f, end - tangent * .3f, normal * half * .055f, new Color("#c9b06a"));
         }
     }
 
-    private void DrawRoadArtStamps()
+    /// <summary>
+    /// Authored junction tiles laid over the places roads actually cross.
+    ///
+    /// Two ribbons crossing just overlap, which looks like exactly what it is.
+    /// The library carries proper isometric junction art, so a crossing gets a
+    /// real one stamped over it and reads as built rather than incidental.
+    /// </summary>
+    private void DrawRoadJunctions()
     {
-        foreach (CountyRoadDefinition road in CountyMacroLayout.Roads.Concat(FarmTracks))
+        foreach (CountyTerrain.RoadJunction junction in CountyTerrain.Junctions)
         {
-            float spacing = road.Major ? 12f : 15f;
-            foreach ((Vector2 point, Vector2 tangent, int index) in SamplesAlong(road.Points, spacing))
+            if (!_gridBounds.HasPoint(junction.Position))
+                continue;
+            int salt = Mathf.RoundToInt(junction.Position.X * 13 + junction.Position.Y * 7);
+            if (!junction.Paved)
+                continue;
+            string texture = junction.Paved
+                ? RoadArtRoot + "asphalt_intersection_01.png"
+                : CountyTerrain.Hash01(salt, salt >> 2, 331) > .5f
+                    ? RoadArtRoot + "dirt_junction_01.png"
+                    : RoadArtRoot + "dirt_crossroads_01.png";
+            // Requested at native width: these tiles are around 150px, and
+            // asking for a road-width stamp would only enlarge them.
+            DrawGroundTexture(texture, junction.Position, 1f,
+                new Color(1, 1, 1, junction.Paved ? .62f : .48f));
+        }
+    }
+
+    /// <summary>
+    /// Roadside character: surface wear stamps on the carriageway and verge
+    /// dressing just off it. Both are keyed to the road so they follow bends.
+    /// </summary>
+    private void DrawRoadDressing()
+    {
+        foreach (CountyRoadDefinition road in CountyTerrain.AllRoads)
+        {
+            // Authored pieces already carry ruts, stones and worn edges. Adding
+            // procedural wear on top of them just reintroduces the repeating
+            // streaks the kit was brought in to remove.
+            if (UsesDirtKit(road))
+                continue;
+            RoadSurfaceProfile profile = RoadSurfacePalette.For(road);
+            int salt = road.Id.GetHashCode();
+
+            foreach ((Vector2 point, Vector2 tangent, int index) in SamplesAlong(road.Points, profile.WearSpacing))
             {
-                if (!_gridBounds.HasPoint(point) || Hash01(index, road.Id.GetHashCode(), 113) < .38f)
+                if (!_gridBounds.HasPoint(point))
                     continue;
-                string path = road.Major ? RoadArtRoot + "asphalt_wear_01.png"
-                    : road.Id.Contains("farm", StringComparison.Ordinal) ? RoadArtRoot + "dirt_track_01.png"
-                    : road.Id.Contains("mill", StringComparison.Ordinal) || road.Id.Contains("logging", StringComparison.Ordinal)
-                        ? RoadArtRoot + "forest_track_01.png"
-                        : RoadArtRoot + "gravel_road_01.png";
-                DrawGroundTexture(path, point, road.Major ? .34f : .28f, new Color(1, 1, 1, road.Major ? .44f : .34f));
+                if (CountyTerrain.Hash01(index, salt, 113) < .42f)
+                    continue;
+                float scale = (road.Major ? .38f : .28f) + CountyTerrain.Hash01(index, salt, 117) * .09f;
+                // Minor roads get a whisper of wear. At full strength every
+                // track grew its own extra set of parallel ruts on top of the
+                // ones already in the surface material.
+                DrawGroundTexture(profile.WearTexture, point, scale, new Color(1, 1, 1, road.Major ? .38f : .18f));
             }
         }
-
-        DrawGroundTexture(RoadArtRoot + "asphalt_cracked_01.png", new Vector2(227, 144), .36f, new Color(1, 1, 1, .56f));
     }
+
+    // ------------------------------------------------------------- railway
 
     private void DrawRailwayCorridor()
     {
@@ -466,14 +438,19 @@ public partial class CountyVisualChunk : Node2D
         }
     }
 
-    private void DrawFarmComposition()
+    // --------------------------------------------------------------- fields
+
+    private void DrawFieldStructure()
     {
+        // The ground layer paints the soil itself now, so this pass only adds
+        // the structure a field needs to read as worked land: plough direction,
+        // boundary fences and standing crop.
         foreach (Field field in Fields)
         {
-            if (!field.Bounds.Intersects(_gridBounds))
+            if (!field.Bounds.Intersects(_grownBounds))
                 continue;
 
-            Color dark = field.Soil.Darkened(.20f);
+            Color dark = new(field.Soil.Darkened(.28f), .42f);
             if (field.RowsAlongX)
             {
                 for (float y = field.Bounds.Position.Y + 1.6f; y < field.Bounds.End.Y; y += 2.35f)
@@ -490,136 +467,305 @@ public partial class CountyVisualChunk : Node2D
             DrawFenceLine(new Vector2(field.Bounds.Position.X, field.Bounds.Position.Y), new Vector2(field.Bounds.Position.X, field.Bounds.End.Y));
             DrawFenceLine(new Vector2(field.Bounds.End.X, field.Bounds.Position.Y), new Vector2(field.Bounds.End.X, field.Bounds.End.Y));
 
-            Vector2 fieldArt = field.Bounds.GetCenter();
-            if (_gridBounds.HasPoint(fieldArt))
-                DrawGroundTexture(Ground02Root + "farm_rows_muddy_01.png", fieldArt, .48f, new Color(1, 1, 1, .72f));
-        }
-
-        // Barn, farm sheds and silos make the agricultural center readable.
-        DrawBuildingIfLocal(new Vector2(165, 199), new Vector2(3.0f, 2.4f), new Color("#715039"), new Color("#844c35"), 36);
-        DrawBuildingIfLocal(new Vector2(177, 202), new Vector2(2.1f, 1.7f), new Color("#655443"), new Color("#586354"), 25);
-        DrawSiloIfLocal(new Vector2(169, 201), .72f, 34);
-        DrawSiloIfLocal(new Vector2(171, 202), .62f, 30);
-    }
-
-    private void DrawForestComposition()
-    {
-        List<(Vector2 Point, Biome Biome, float Value)> trees = [];
-        int startX = Mathf.FloorToInt(_gridBounds.Position.X) - 3;
-        int startY = Mathf.FloorToInt(_gridBounds.Position.Y) - 3;
-        int endX = Mathf.CeilToInt(_gridBounds.End.X) + 3;
-        int endY = Mathf.CeilToInt(_gridBounds.End.Y) + 3;
-        for (int y = startY; y < endY; y += 4)
-        {
-            for (int x = startX; x < endX; x += 4)
+            // Only fields whose season is "standing" carry visible crop, which
+            // is what makes the plough/crop/fallow mosaic read at a glance.
+            int index = System.Array.IndexOf(Fields, field);
+            int fieldIndex = CountyTerrain.FieldIndex(field.Bounds.GetCenter());
+            if (fieldIndex < 0 || CountyTerrain.StateOfField(fieldIndex) != FieldState.Standing)
+                continue;
+            string crop = CountyTerrain.Hash01(fieldIndex, index, 911) switch
             {
-                Vector2 point = new(x + (Hash01(x, y, 41) - .5f) * 3.0f, y + (Hash01(x, y, 43) - .5f) * 3.0f);
-                if (!_gridBounds.HasPoint(point) || IsInLake(point))
-                    continue;
-                Biome biome = BiomeAt(point);
-                float threshold = biome switch
-                {
-                    Biome.Mill => .32f,
-                    Biome.Forest => .43f,
-                    Biome.PineRidge => .28f,
-                    Biome.Logging => IsLoggingClearing(point) ? .86f : .44f,
-                    Biome.Outskirts => .68f,
-                    Biome.Scrub => .72f,
-                    Biome.Farm or Biome.SouthFarm => IsFarmTreeLine(point) ? .45f : .91f,
-                    Biome.Urban => .92f,
-                    Biome.TrailerPark => .87f,
-                    Biome.Fairgrounds => .95f,
-                    _ => .78f
-                };
-                float value = Hash01(x, y, 47);
-                if (value < threshold || DistanceToAnyRoad(point) < 3.4f || DistanceToPolyline(point, MillCreek) < 2.7f)
-                    continue;
-                trees.Add((point, biome, value));
-            }
-        }
-
-        foreach ((Vector2 point, Biome biome, float value) in trees.OrderBy(tree => tree.Point.X + tree.Point.Y))
-        {
-            string texture;
-            if (biome is Biome.PineRidge)
-                texture = value > .86f ? Vegetation02Root + "pine_03.png"
-                    : value > .68f ? Vegetation02Root + "pine_02.png"
-                    : Vegetation02Root + "young_pine_02.png";
-            else if (biome is Biome.Logging)
-                texture = value > .82f ? Vegetation02Root + "pine_03.png"
-                    : value > .64f ? Vegetation02Root + "pine_02.png"
-                    : Vegetation02Root + "dead_tree_02.png";
-            else if (biome is Biome.Mill or Biome.Forest)
-                texture = value > .88f ? Vegetation02Root + "pine_02.png"
-                    : value > .76f ? VegetationRoot + "pine_01.png"
-                    : value > .63f ? Vegetation02Root + "deciduous_02.png"
-                    : value > .54f ? VegetationRoot + "oak_01.png"
-                    : Vegetation02Root + "young_deciduous_02.png";
-            else
-                texture = value > .86f ? VegetationRoot + "oak_01.png"
-                    : value > .73f ? Vegetation02Root + "birch_01.png"
-                    : VegetationRoot + "young_tree_01.png";
-            float scale = texture.Contains("young", StringComparison.Ordinal) ? .27f : .29f + Hash01((int)point.X, (int)point.Y, 53) * .05f;
-            Color tint = biome switch
-            {
-                Biome.Mill => new Color(.82f, .90f, .82f, .96f),
-                Biome.PineRidge => new Color(.78f, .88f, .82f, .98f),
-                Biome.Logging => new Color(.88f, .86f, .77f, .97f),
-                _ => Colors.White
+                < .34f => FarmPropsRoot + "corn_rows_02.png",
+                < .62f => FarmPropsRoot + "crop_rows_green_01.png",
+                < .84f => FarmPropsRoot + "wheat_patch_01.png",
+                _ => FarmPropsRoot + "crop_rows_mixed_01.png"
             };
-            DrawAnchoredTexture(texture, point, scale, tint);
-
-            if (Hash01((int)point.X, (int)point.Y, 59) > .66f)
+            for (float y = field.Bounds.Position.Y + 1.6f; y < field.Bounds.End.Y - 1f; y += 3.2f)
             {
-                Vector2 undergrowth = point + new Vector2(1.2f, -.5f);
-                string floor = biome is Biome.Mill or Biome.Logging ? Vegetation02Root + "fern_02.png"
-                    : biome == Biome.PineRidge ? RoadsidePropsRoot + "mossy_boulder_02.png"
-                    : Vegetation02Root + "bush_dense_02.png";
-                DrawAnchoredTexture(floor, undergrowth, .24f, new Color(1, 1, 1, .88f));
+                for (float x = field.Bounds.Position.X + 1.6f; x < field.Bounds.End.X - 1f; x += 3.2f)
+                {
+                    Vector2 point = new(x, y);
+                    if (!_gridBounds.HasPoint(point))
+                        continue;
+                    DrawAnchoredTexture(crop, point, .38f, new Color(1, 1, 1, .94f));
+                }
             }
         }
 
-        // Sparse ground-level composition provides density without hiding actors.
-        for (int y = startY; y < endY; y += 7)
+        // The agricultural centre uses the project's rural building artwork
+        // rather than coloured blockout volumes.
+        DrawFarmstead();
+    }
+
+    /// <summary>Farm District's working yard, built from real rural building art.</summary>
+    private void DrawFarmstead()
+    {
+        (string Texture, Vector2 At, float Scale)[] farmstead =
+        [
+            (RuralBuildingsRoot + "farm_shelter_01.png", new Vector2(165.0f, 199.0f), .62f),
+            (RuralBuildingsRoot + "wood_shelter_01.png", new Vector2(169.4f, 200.4f), .42f),
+            (RuralBuildingsRoot + "shed_01.png", new Vector2(172.2f, 201.6f), .34f),
+            (RuralBuildingsRoot + "tool_shed_01.png", new Vector2(177.0f, 202.2f), .34f),
+            (RuralBuildingsRoot + "greenhouse_01.png", new Vector2(174.0f, 204.0f), .34f),
+            (RuralBuildingsRoot + "garden_shed_01.png", new Vector2(162.0f, 202.4f), .30f),
+            (FarmPropsRoot + "hay_bale_round_01.png", new Vector2(167.4f, 203.0f), .30f),
+            (FarmPropsRoot + "hay_bale_square_01.png", new Vector2(168.4f, 203.6f), .30f),
+            (FarmPropsRoot + "gate_01.png", new Vector2(171.0f, 197.6f), .32f)
+        ];
+
+        foreach ((string texture, Vector2 at, float scale) in farmstead)
         {
-            for (int x = startX; x < endX; x += 7)
+            if (_gridBounds.HasPoint(at))
+                DrawAnchoredTexture(texture, at, scale, Colors.White);
+        }
+    }
+
+    // ----------------------------------------------------------- vegetation
+
+    /// <summary>
+    /// Vegetation is placed from a clustered canopy field rather than a flat
+    /// per-cell probability. That gives closed woodland, thinning edges and
+    /// genuine clearings out of the same deterministic sample grid.
+    /// </summary>
+    private void CollectVegetation(List<Placement> output)
+    {
+        int startX = CountyTerrain.LatticeStart(_gridBounds.Position.X, VegetationStep);
+        int startY = CountyTerrain.LatticeStart(_gridBounds.Position.Y, VegetationStep);
+        int endX = Mathf.CeilToInt(_gridBounds.End.X) + VegetationStep;
+        int endY = Mathf.CeilToInt(_gridBounds.End.Y) + VegetationStep;
+
+        for (int y = startY; y < endY; y += VegetationStep)
+        {
+            for (int x = startX; x < endX; x += VegetationStep)
             {
-                Vector2 point = new(x + Hash01(x, y, 61) * 3f, y + Hash01(x, y, 67) * 3f);
-                if (!_gridBounds.HasPoint(point) || DistanceToAnyRoad(point) < 2.3f)
+                Vector2 point = new(
+                    x + VegetationStep * .5f + (CountyTerrain.Hash01(x, y, 41) - .5f) * 3.0f,
+                    y + VegetationStep * .5f + (CountyTerrain.Hash01(x, y, 43) - .5f) * 3.0f);
+                if (!_gridBounds.HasPoint(point) || CountyTerrain.IsInLake(point))
                     continue;
-                Biome biome = BiomeAt(point);
-                if (biome is not (Biome.Mill or Biome.Forest or Biome.PineRidge or Biome.Logging or Biome.Outskirts))
+
+                CountyBiome biome = CountyTerrain.BiomeAt(point);
+                float baseDensity = BaseCanopyDensity(biome, point);
+                if (baseDensity <= 0f)
                     continue;
-                float choice = Hash01(x, y, 71);
-                string path = biome == Biome.PineRidge
-                    ? choice < .48f ? RoadsidePropsRoot + "rock_formation_02.png" : RoadsidePropsRoot + "mossy_boulder_02.png"
-                    : choice < .34f ? VegetationRoot + "fern_01.png"
-                    : choice < .68f ? VegetationRoot + "grass_clump_01.png"
-                    : RocksRoot + "mossy_rock_01.png";
-                DrawAnchoredTexture(path, point, .22f + Hash01(x, y, 73) * .06f, new Color(1, 1, 1, .84f));
+
+                // Large soft masses decide where woodland actually sits; the
+                // clearing term carves believable holes in it.
+                float mass = CountyTerrain.Fbm(point, .055f, 1201);
+                float canopy = Mathf.Clamp(baseDensity * (.45f + mass * 1.25f), 0f, 1f);
+                canopy *= 1f - CountyTerrain.VegetationSuppression(point);
+                if (canopy <= .02f)
+                    continue;
+
+                float roll = CountyTerrain.Hash01(x, y, 47);
+                if (roll < 1f - canopy)
+                {
+                    // Not a trunk. Low growth belongs at a woodland edge, where
+                    // it stops the canopy ending on a hard line. Sprinkling it
+                    // across open meadow instead just adds noise, so open
+                    // country is left to its grass.
+                    bool edge = canopy is > .16f and < .58f;
+                    if (edge && CountyTerrain.Hash01(x, y, 149) > .70f)
+                        output.Add(Undergrowth(biome, point, x, y, 151, .90f));
+                    continue;
+                }
+
+                // Three storeys. Closed canopy is mostly full-grown trees;
+                // thinner cover is mid storey and saplings. That is what a wood
+                // actually looks like, and it also lets every sprite be drawn at
+                // a size its own resolution can carry.
+                float tierRoll = CountyTerrain.Hash01(x, y, 157);
+                VegetationTier tier = canopy > .50f && tierRoll > .34f ? VegetationTier.Large
+                    : canopy > .24f || tierRoll > .58f ? VegetationTier.Medium
+                    : VegetationTier.Sapling;
+                float variant = CountyTerrain.Hash01(x, y, 53);
+                string texture = VegetationCatalog.SelectTree(biome, tier, variant);
+                // The upward half of this variation must not push the shortest
+                // sprite in a tier past its own native height, or the scale cap
+                // silently starts clamping and that one species reads soft.
+                float height = VegetationCatalog.HeightFor(tier)
+                    * (.86f + CountyTerrain.Hash01(x, y, 59) * .22f);
+                output.Add(new Placement(texture, point, SpriteScaling.ForHeight(texture, height), CanopyTint(biome), true));
+
+                // Understory beneath closed canopy only.
+                if (canopy > .55f && CountyTerrain.Hash01(x, y, 61) > .72f)
+                    output.Add(Undergrowth(biome, point + new Vector2(1.1f, -.4f), x, y, 63, .88f));
             }
         }
     }
 
-    private void DrawAuthoredProps()
+    /// <summary>
+    /// How wooded each region is. These are the numbers that make a region
+    /// recognisable without a label: Pine Ridge is closed forest, the farm belt
+    /// is open but for its hedgerow trees, the outskirts are patchy in between.
+    ///
+    /// Values are lower than a raw canopy fraction because trees are now
+    /// two and a half times taller, so each one covers far more ground.
+    /// </summary>
+    private static float BaseCanopyDensity(CountyBiome biome, Vector2 point) => biome switch
+    {
+        CountyBiome.PineRidge => .62f,
+        CountyBiome.Forest => .54f,
+        CountyBiome.Mill => .48f,
+        CountyBiome.Logging => IsLoggingClearing(point) ? .07f : .40f,
+        CountyBiome.Outskirts => .22f,
+        CountyBiome.Scrub => .13f,
+        CountyBiome.Meadow => .10f,
+        CountyBiome.Farm or CountyBiome.SouthFarm => IsFarmTreeLine(point) ? .34f : .02f,
+        CountyBiome.TrailerPark => .06f,
+        CountyBiome.Fairgrounds => .03f,
+        CountyBiome.Urban => .04f,
+        _ => 0f
+    };
+
+
+    /// <summary>
+    /// One piece of ground cover, chosen from the biome's own pools and drawn at
+    /// the size band its layer belongs to. A fern is not a flower is not a
+    /// branch, so each gets its own height rather than a shared understory size.
+    /// </summary>
+    private static Placement Undergrowth(CountyBiome biome, Vector2 point, int x, int y, int salt, float alpha)
+    {
+        float layerRoll = CountyTerrain.Hash01(x, y, salt);
+        float pickRoll = CountyTerrain.Hash01(x, y, salt + 7);
+        (string texture, UndergrowthLayer layer) = VegetationCatalog.SelectUndergrowth(biome, layerRoll, pickRoll);
+        float height = VegetationCatalog.HeightFor(layer) * (.84f + CountyTerrain.Hash01(x, y, salt + 13) * .32f);
+        return new Placement(texture, point, SpriteScaling.ForHeight(texture, height), new Color(1, 1, 1, alpha), false);
+    }
+
+    private static Color CanopyTint(CountyBiome biome) => biome switch
+    {
+        CountyBiome.Mill => new Color(.84f, .91f, .83f),
+        CountyBiome.PineRidge => new Color(.80f, .89f, .83f),
+        CountyBiome.Logging => new Color(.89f, .87f, .78f),
+        CountyBiome.Scrub => new Color(.94f, .92f, .78f),
+        _ => Colors.White
+    };
+
+    /// <summary>
+    /// Sparse ground furniture (rocks, deadfall, reeds), spread far more
+    /// thinly than vegetation so it reads as incident rather than texture.
+    /// </summary>
+    private void CollectGroundClutter(List<Placement> output)
+    {
+        int startX = CountyTerrain.LatticeStart(_gridBounds.Position.X, ClutterStep);
+        int startY = CountyTerrain.LatticeStart(_gridBounds.Position.Y, ClutterStep);
+        int endX = Mathf.CeilToInt(_gridBounds.End.X);
+        int endY = Mathf.CeilToInt(_gridBounds.End.Y);
+
+        for (int y = startY; y < endY; y += ClutterStep)
+        {
+            for (int x = startX; x < endX; x += ClutterStep)
+            {
+                Vector2 point = new(
+                    x + CountyTerrain.Hash01(x, y, 601) * (ClutterStep - .6f),
+                    y + CountyTerrain.Hash01(x, y, 607) * (ClutterStep - .6f));
+                if (!_gridBounds.HasPoint(point) || CountyTerrain.IsInLake(point))
+                    continue;
+                if (CountyTerrain.VegetationSuppression(point) > .55f)
+                    continue;
+
+                // A ploughed field has been cleared of its boulders and deadfall
+                // by the people who work it. Leaving loose rock in the furrows
+                // read as an obvious mistake.
+                if (CountyTerrain.IsInField(point))
+                    continue;
+
+                float roll = CountyTerrain.Hash01(x, y, 613);
+                if (roll > .30f)
+                    continue;
+
+                CountyBiome biome = CountyTerrain.BiomeAt(point);
+                float water = CountyTerrain.DistanceToWater(point);
+                string texture;
+                if (water < 3.2f)
+                    texture = VegetationCatalog.SelectWaterside(CountyTerrain.Hash01(x, y, 619));
+                else
+                    texture = biome switch
+                    {
+                        CountyBiome.PineRidge or CountyBiome.Scrub => CountyTerrain.Hash01(x, y, 623) > .5f
+                            ? RoadsidePropsRoot + "cliff_rock_02.png" : RoadsidePropsRoot + "rock_slab_01.png",
+                        // Focal woodland pieces: a mossy stump or a fallen log
+                        // reads as somewhere, which uniform scatter never does.
+                        CountyBiome.Forest or CountyBiome.Mill => VegetationCatalog.WoodlandFeatures[
+                            (int)(CountyTerrain.Hash01(x, y, 623) * VegetationCatalog.WoodlandFeatures.Length)
+                            % VegetationCatalog.WoodlandFeatures.Length],
+                        CountyBiome.Logging => CountyTerrain.Hash01(x, y, 623) > .5f
+                            ? LoggingPropsRoot + "log_pile_03.png" : LoggingPropsRoot + "stump_02.png",
+                        _ => CountyTerrain.Hash01(x, y, 623) > .62f
+                            ? RoadsidePropsRoot + "mossy_boulder_02.png" : RocksRoot + "rock_cluster_01.png"
+                    };
+
+                output.Add(new Placement(texture, point,
+                    SpriteScaling.ForHeight(texture, ClutterHeight * (.8f + CountyTerrain.Hash01(x, y, 629) * .55f)),
+                    new Color(1, 1, 1, .92f), false));
+            }
+        }
+    }
+
+    private void CollectAuthoredProps(List<Placement> output)
     {
         foreach (Prop prop in AuthoredProps)
         {
             if (_gridBounds.HasPoint(prop.Position))
-                DrawAnchoredTexture(prop.Texture, prop.Position, prop.Scale, prop.Tint);
+                output.Add(new Placement(prop.Texture, prop.Position, prop.Scale, prop.Tint, true));
         }
     }
 
-    private void DrawAshwoodTown()
+    private void CollectStartingArea(List<Placement> output)
     {
-        CountyLocationDefinition? ashwood = CountyMacroLayout.Find("ashwood");
-        if (ashwood is null || !ashwood.Bounds.Intersects(_gridBounds))
+        if (!StartingAreaComposition.Bounds.Intersects(_gridBounds))
             return;
-
-        // Structures, lots, civic anchors and the town green are owned by the
-        // dedicated chunked authoring layer. This intentionally remains a
-        // no-op so no legacy blockout or oversized translucent patch leaks in.
+        foreach (StartingAreaComposition.Piece piece in StartingAreaComposition.Pieces)
+        {
+            if (_gridBounds.HasPoint(piece.Position))
+                output.Add(new Placement(piece.Texture, piece.Position, piece.Scale, piece.Tint, true));
+        }
     }
+
+    /// <summary>
+    /// Emit the standing art in two passes: low growth grouped purely by
+    /// texture, then tall art in strict back-to-front order. See
+    /// <see cref="Placement"/> for why the split is safe.
+    /// </summary>
+    private void DrawStanding(List<Placement> placements)
+    {
+        placements.Sort(static (left, right) =>
+        {
+            if (left.Tall != right.Tall)
+                return left.Tall ? 1 : -1;
+            if (!left.Tall)
+                return string.CompareOrdinal(left.Texture, right.Texture);
+            return (left.Position.X + left.Position.Y).CompareTo(right.Position.X + right.Position.Y);
+        });
+
+        // Resolving the texture once per run avoids a dictionary lookup per
+        // sprite in what is the chunk's largest draw list.
+        string current = string.Empty;
+        Texture2D? texture = null;
+        foreach (Placement placement in placements)
+        {
+            if (current != placement.Texture)
+            {
+                current = placement.Texture;
+                texture = TextureRegistry.Get(current);
+            }
+            if (texture is null)
+                continue;
+            Vector2 native = texture.GetSize();
+            Vector2 size = native * placement.Scale;
+            DrawTextureRect(texture, new Rect2(P(placement.Position) - new Vector2(size.X * .5f, size.Y), size), false, placement.Tint);
+
+            // This is the path every tree and every piece of undergrowth takes.
+            // It draws directly rather than through DrawAnchoredTexture for
+            // batching, which meant the asset inspector never saw a single
+            // plant and always fell through to the ground beneath it.
+            if (AssetInspector.Capturing)
+                AssetInspector.Record(placement.Texture, placement.Position, native, size, false);
+        }
+    }
+
+    // ------------------------------------------------------------ landmarks
 
     private void DrawLandmarks()
     {
@@ -640,7 +786,7 @@ public partial class CountyVisualChunk : Node2D
                     // Their authored visual is drawn by the district pass.
                     break;
                 case "starting_camp":
-                    // Existing full-detail camp content owns this footprint.
+                    // StartingAreaComposition owns this footprint in full.
                     break;
                 default:
                     DrawBuilding(landmark.Center, new Vector2(2.3f, 2.0f), new Color("#5e5543"), new Color("#756147"), 28);
@@ -655,23 +801,155 @@ public partial class CountyVisualChunk : Node2D
         }
     }
 
-    private void DrawFenceLine(Vector2 start, Vector2 end)
+    // ------------------------------------------------------- drawing helpers
+
+    /// <summary>
+    /// A mitred, UV-mapped ribbon along a county polyline. Widths are in grid
+    /// cells so the strip foreshortens with the isometric projection, and each
+    /// quad is emitted by exactly the chunk that contains its midpoint.
+    /// </summary>
+    /// <summary>
+    /// A textured ribbon along a county polyline.
+    ///
+    /// The two sides are widened independently from a smooth noise field keyed
+    /// to world position, so the strip breathes instead of holding one exact
+    /// width for its whole length. A constant-width ribbon with perfectly
+    /// parallel edges is the clearest sign of a road that was computed rather
+    /// than built; letting the verge wander a little, and wander differently on
+    /// each side, is most of what makes it read as worn ground.
+    ///
+    /// The wander is strongest on the shoulder pass, where the outer edge is
+    /// already fading to nothing, and slight on the carriageway, which should
+    /// still look like a maintained running surface.
+    /// </summary>
+    private void DrawTexturedRibbon(Vector2[] points, float gridHalfWidth, string texturePath,
+        float vLow, float vHigh, float stretch, Color outerTint, Color innerTint, float wander)
     {
-        float length = start.DistanceTo(end);
-        int pieces = Mathf.Max(1, Mathf.CeilToInt(length / 3.5f));
-        for (int index = 0; index <= pieces; index++)
+        Texture2D texture = TextureRegistry.Get(texturePath);
+        if (texture is null || points.Length < 2)
+            return;
+
+        Vector2[] line = Resample(points, 2.4f);
+        float band = Mathf.Max(.02f, vHigh - vLow);
+        float repeat = Mathf.Max(1.2f, 2f * gridHalfWidth / band * stretch);
+
+        float travelled = 0f;
+        for (int index = 0; index < line.Length - 1; index++)
         {
-            Vector2 point = start.Lerp(end, index / (float)pieces);
-            if (_gridBounds.HasPoint(point) && Hash01((int)(point.X * 3), (int)(point.Y * 3), 91) > .12f)
-                DrawAnchoredTexture(PropsRoot + "fence_01.png", point, .28f, new Color(.91f, .86f, .74f, .91f));
+            Vector2 a = line[index];
+            Vector2 b = line[index + 1];
+            float length = a.DistanceTo(b);
+            if (length <= .0001f)
+                continue;
+
+            float uA = travelled / repeat;
+            travelled += length;
+            float uB = travelled / repeat;
+
+            if (!_grownBounds.HasPoint((a + b) * .5f))
+                continue;
+
+            Vector2 unitA = MitreNormal(line, index);
+            Vector2 unitB = MitreNormal(line, index + 1);
+            Vector2 leftA = unitA * gridHalfWidth * EdgeWidth(a, wander, 0);
+            Vector2 leftB = unitB * gridHalfWidth * EdgeWidth(b, wander, 0);
+            Vector2 rightA = unitA * gridHalfWidth * EdgeWidth(a, wander, 977);
+            Vector2 rightB = unitB * gridHalfWidth * EdgeWidth(b, wander, 977);
+
+            if (outerTint == innerTint)
+            {
+                // Uniform strip: one quad spanning the full width.
+                EmitBand(texture, a + leftA, b + leftB, Vector2.Zero, -(leftA + rightA), -(leftB + rightB),
+                    uA, uB, vLow, vHigh, innerTint, innerTint);
+                continue;
+            }
+
+            // Two half-bands: the outer edge of each fades out, so the shoulder
+            // pass blends into the painted ground on both sides.
+            EmitBand(texture, a, b, Vector2.Zero, leftA, leftB, uA, uB, vLow + band * .5f, vLow, innerTint, outerTint);
+            EmitBand(texture, a, b, Vector2.Zero, -rightA, -rightB, uA, uB, vLow + band * .5f, vHigh, innerTint, outerTint);
         }
     }
 
-    private void DrawBuildingIfLocal(Vector2 center, Vector2 size, Color wall, Color roof, float height)
+    /// <summary>Width multiplier for one edge of a ribbon at a point.</summary>
+    private static float EdgeWidth(Vector2 point, float wander, int salt) =>
+        wander <= 0f ? 1f : 1f + (CountyTerrain.Fbm(point, 1f / 6.5f, 1877 + salt) - .5f) * 2f * wander;
+
+    private void EmitBand(Texture2D texture, Vector2 a, Vector2 b, Vector2 innerOffset,
+        Vector2 outerA, Vector2 outerB, float uA, float uB, float vInner, float vOuter,
+        Color innerTint, Color outerTint)
     {
-        if (_gridBounds.HasPoint(center))
-            DrawBuilding(center, size, wall, roof, height);
+        Vector2[] points =
+        [
+            P(a + innerOffset), P(b + innerOffset), P(b + outerB), P(a + outerA)
+        ];
+        Vector2[] uvs =
+        [
+            new(uA, vInner), new(uB, vInner), new(uB, vOuter), new(uA, vOuter)
+        ];
+        Color[] colors = [innerTint, innerTint, outerTint, outerTint];
+        DrawPolygon(points, colors, uvs, texture);
     }
+
+    /// <summary>Averaged perpendicular at a polyline vertex, so bends do not notch.</summary>
+    private static Vector2 MitreNormal(Vector2[] line, int index)
+    {
+        Vector2 previous = index > 0 ? (line[index] - line[index - 1]).Normalized() : Vector2.Zero;
+        Vector2 next = index < line.Length - 1 ? (line[index + 1] - line[index]).Normalized() : Vector2.Zero;
+        Vector2 tangent = (previous + next);
+        if (tangent.LengthSquared() < .0001f)
+            tangent = next.LengthSquared() > 0 ? next : previous;
+        tangent = tangent.Normalized();
+        return new Vector2(-tangent.Y, tangent.X);
+    }
+
+    private static Vector2[] Resample(Vector2[] points, float spacing)
+    {
+        List<Vector2> result = [points[0]];
+        for (int index = 0; index < points.Length - 1; index++)
+        {
+            Vector2 a = points[index];
+            Vector2 b = points[index + 1];
+            int steps = Mathf.Max(1, Mathf.CeilToInt(a.DistanceTo(b) / spacing));
+            for (int step = 1; step <= steps; step++)
+                result.Add(a.Lerp(b, step / (float)steps));
+        }
+        return [.. result];
+    }
+
+    private void DrawRibbonQuad(Vector2 start, Vector2 end, Vector2 offset, Color color)
+    {
+        Vector2[] points = [P(start + offset), P(end + offset), P(end - offset), P(start - offset)];
+        DrawColoredPolygon(points, color);
+    }
+
+    /// <summary>
+    /// A field boundary, drawn as a continuous run rather than scattered posts.
+    ///
+    /// At three and a half cells apart the pieces read as unrelated litter
+    /// dropped around the fields. Closing the spacing turns them into the
+    /// hedgerow lines that give the farm belt its structure, and occasional
+    /// gaps keep the run from looking machine-placed.
+    /// </summary>
+    private void DrawFenceLine(Vector2 start, Vector2 end)
+    {
+        float length = start.DistanceTo(end);
+        int pieces = Mathf.Max(1, Mathf.CeilToInt(length / 1.7f));
+        for (int index = 0; index <= pieces; index++)
+        {
+            Vector2 point = start.Lerp(end, index / (float)pieces);
+            if (!_gridBounds.HasPoint(point))
+                continue;
+            float roll = CountyTerrain.Hash01((int)(point.X * 3), (int)(point.Y * 3), 91);
+            if (roll < .14f)
+                continue;
+            string texture = roll > .82f
+                ? FarmPropsRoot + "fence_overgrown_02.png"
+                : PropsRoot + "fence_01.png";
+            DrawAnchoredTexture(texture, point, roll > .82f ? .24f : .28f, new Color(.91f, .86f, .74f, .91f));
+        }
+    }
+
 
     private void DrawBuilding(Vector2 center, Vector2 size, Color wall, Color roof, float height)
     {
@@ -685,55 +963,33 @@ public partial class CountyVisualChunk : Node2D
         DrawPolyline([footprint[0] + lift, footprint[1] + lift, ridge, footprint[3] + lift, footprint[0] + lift], roof.Lightened(.16f), 1.3f, true);
     }
 
-    private void DrawSiloIfLocal(Vector2 center, float radius, float height)
-    {
-        if (!_gridBounds.HasPoint(center))
-            return;
-        Vector2 basePoint = P(center);
-        Vector2 radii = new(radius * IsometricGrid.TileWidth * .45f, radius * IsometricGrid.TileHeight * .35f);
-        Vector2[] bottom = CanvasEllipse(basePoint, radii, 18);
-        Vector2[] top = bottom.Select(point => point - new Vector2(0, height)).ToArray();
-        DrawColoredPolygon([bottom[4], bottom[13], top[13], top[4]], new Color("#676a60"));
-        DrawColoredPolygon(top, new Color("#8b8a76"));
-        DrawPolyline(top.Append(top[0]).ToArray(), new Color("#bab49a"), 1.2f, true);
-    }
-
-    private void DrawPatch(Vector2 center, Vector2 radius, Color color, int segments)
-    {
-        // Tessellate broad patches into chunk-local diamonds. Drawing one huge
-        // ellipse from several chunks would defeat CanvasItem culling and stack
-        // translucent copies along boundaries.
-        const int block = 4;
-        int startX = Mathf.FloorToInt(_gridBounds.Position.X / block) * block;
-        int startY = Mathf.FloorToInt(_gridBounds.Position.Y / block) * block;
-        for (int y = startY; y < _gridBounds.End.Y; y += block)
-        {
-            for (int x = startX; x < _gridBounds.End.X; x += block)
-            {
-                Vector2 sample = new(x + block * .5f, y + block * .5f);
-                Vector2 normalized = new((sample.X - center.X) / radius.X, (sample.Y - center.Y) / radius.Y);
-                float distance = normalized.Length();
-                if (distance >= 1f)
-                    continue;
-                float feather = Mathf.Clamp((1f - distance) * 2.5f, 0f, 1f);
-                Color localColor = new(color, color.A * feather);
-                DrawColoredPolygon(ProjectRectangle(new Rect2(x, y, block + .08f, block + .08f)), localColor);
-            }
-        }
-    }
 
     private void DrawGroundTexture(string path, Vector2 point, float scale, Color tint)
     {
         Texture2D texture = TextureRegistry.Get(path);
+        if (texture is null) return;
         Vector2 size = texture.GetSize() * scale;
         DrawTextureRect(texture, new Rect2(P(point) - size * .5f, size), false, tint);
     }
 
+    /// <summary>
+    /// Scale needed to draw a sprite at a given canvas height.
+    ///
+    /// The art library mixes resolutions badly: pine_01 is 288x491 while
+    /// pine_02 is 94x175. Choosing sizes by raw scale therefore produces trees
+    /// that differ by a factor of three. Procedural placement asks for a height
+    /// instead, so a mature tree is a mature tree whichever asset is picked.
+    /// </summary>
+
     private void DrawAnchoredTexture(string path, Vector2 point, float scale, Color tint)
     {
         Texture2D texture = TextureRegistry.Get(path);
-        Vector2 size = texture.GetSize() * scale;
+        if (texture is null) return;
+        Vector2 native = texture.GetSize();
+        Vector2 size = native * scale;
         DrawTextureRect(texture, new Rect2(P(point) - new Vector2(size.X * .5f, size.Y), size), false, tint);
+        if (AssetInspector.Capturing)
+            AssetInspector.Record(path, point, native, size, false);
     }
 
     private void DrawGridLineClipped(Vector2 start, Vector2 end, Color color, float width)
@@ -753,7 +1009,7 @@ public partial class CountyVisualChunk : Node2D
         if (start.IsEqualApprox(end))
             return;
 
-        // Canvas-space strokes avoid oversized skewed quads where a road crosses
+        // Canvas-space strokes avoid oversized skewed quads where a bank crosses
         // an isometric chunk seam, while retaining the one shared projection.
         float width = Mathf.Max(1f, halfWidth * IsometricGrid.TileHeight * 1.25f);
         DrawLine(P(start), P(end), color, width, true);
@@ -809,57 +1065,6 @@ public partial class CountyVisualChunk : Node2D
         return points;
     }
 
-    private static Biome BiomeAt(Vector2 point)
-    {
-        if (IsInLake(point)) return Biome.Water;
-        float mill = Influence(point, new Vector2(154, 250), new Vector2(49, 43));
-        float farm = Influence(point, new Vector2(170, 204), new Vector2(55, 45));
-        float outskirts = Influence(point, new Vector2(197, 157), new Vector2(48, 40));
-        float urban = Influence(point, new Vector2(252, 145), new Vector2(54, 45));
-        float south = Influence(point, new Vector2(164, 263), new Vector2(91, 59));
-        float logging = Influence(point, new Vector2(105, 74), new Vector2(31, 24));
-        float pine = Influence(point, new Vector2(72, 37), new Vector2(67, 37));
-        float trailer = Influence(point, new Vector2(279, 211), new Vector2(32, 25));
-        float fairgrounds = Influence(point, new Vector2(246, 234), new Vector2(41, 30));
-        if (logging > .25f) return Biome.Logging;
-        if (pine > .24f) return Biome.PineRidge;
-        if (mill > .34f) return Biome.Mill;
-        if (farm > .37f) return Biome.Farm;
-        if (outskirts > .38f) return Biome.Outskirts;
-        if (urban > .38f) return Biome.Urban;
-        if (trailer > .30f) return Biome.TrailerPark;
-        if (fairgrounds > .30f) return Biome.Fairgrounds;
-        if (south > .35f) return Biome.SouthFarm;
-        if (point.Y < 118 || point.X < 115) return Biome.Forest;
-        if (point.X > 290) return Biome.Scrub;
-        return Biome.Meadow;
-    }
-
-    private static Color TerrainColor(Vector2 point)
-    {
-        Color color = new("#49613b");
-        color = color.Lerp(new Color("#304735"), Influence(point, new Vector2(145, 54), new Vector2(170, 76)) * .83f);
-        color = color.Lerp(new Color("#263b31"), Influence(point, new Vector2(72, 37), new Vector2(69, 39)) * .82f);
-        color = color.Lerp(new Color("#604f35"), Influence(point, new Vector2(105, 74), new Vector2(31, 24)) * .72f);
-        color = color.Lerp(new Color("#607848"), Influence(point, new Vector2(197, 157), new Vector2(51, 43)) * .78f);
-        color = color.Lerp(new Color("#737747"), Influence(point, new Vector2(170, 204), new Vector2(62, 51)) * .82f);
-        color = color.Lerp(new Color("#304e3b"), Influence(point, new Vector2(154, 250), new Vector2(53, 48)) * .88f);
-        color = color.Lerp(new Color("#777849"), Influence(point, new Vector2(164, 268), new Vector2(100, 66)) * .72f);
-        color = color.Lerp(new Color("#565a50"), Influence(point, new Vector2(252, 145), new Vector2(57, 48)) * .84f);
-        color = color.Lerp(new Color("#5f5b4d"), Influence(point, new Vector2(279, 211), new Vector2(32, 25)) * .73f);
-        color = color.Lerp(new Color("#78764a"), Influence(point, new Vector2(246, 234), new Vector2(41, 30)) * .68f);
-        color = color.Lerp(new Color("#46593b"), Influence(point, new Vector2(322, 193), new Vector2(77, 105)) * .58f);
-        return color;
-    }
-
-    private static float Influence(Vector2 point, Vector2 center, Vector2 radius)
-    {
-        Vector2 offset = point - center;
-        float distance = Mathf.Sqrt(Mathf.Pow(offset.X / radius.X, 2) + Mathf.Pow(offset.Y / radius.Y, 2));
-        float value = Mathf.Clamp(1f - distance, 0f, 1f);
-        return value * value * (3f - 2f * value);
-    }
-
     private static bool IsFarmTreeLine(Vector2 point)
     {
         foreach (Field field in Fields)
@@ -874,60 +1079,7 @@ public partial class CountyVisualChunk : Node2D
     }
 
     private static bool IsLoggingClearing(Vector2 point) =>
-        Influence(point, new Vector2(105, 74), new Vector2(21, 15)) > .18f;
-
-    private static float DistanceToAnyRoad(Vector2 point)
-    {
-        float distance = float.PositiveInfinity;
-        foreach (CountyRoadDefinition road in CountyMacroLayout.Roads)
-            distance = Mathf.Min(distance, DistanceToPolyline(point, road.Points));
-        foreach (CountyRoadDefinition road in FarmTracks)
-            distance = Mathf.Min(distance, DistanceToPolyline(point, road.Points));
-        return distance;
-    }
-
-    private static float DistanceToPolyline(Vector2 point, Vector2[] line)
-    {
-        float best = float.PositiveInfinity;
-        for (int index = 0; index < line.Length - 1; index++)
-            best = Mathf.Min(best, DistanceToSegment(point, line[index], line[index + 1]));
-        return best;
-    }
-
-    private static float DistanceToSegment(Vector2 point, Vector2 start, Vector2 end)
-    {
-        Vector2 segment = end - start;
-        float lengthSquared = segment.LengthSquared();
-        if (lengthSquared <= .0001f)
-            return point.DistanceTo(start);
-        float t = Mathf.Clamp((point - start).Dot(segment) / lengthSquared, 0f, 1f);
-        return point.DistanceTo(start + segment * t);
-    }
-
-    private static bool IsInLake(Vector2 point) => Geometry2D.IsPointInPolygon(point, CountyMacroLayout.BlackwaterLake);
-
-    private static float Hash01(int x, int y, int salt)
-    {
-        unchecked
-        {
-            uint value = (uint)(x * 374761393 + y * 668265263 + salt * 69069);
-            value = (value ^ (value >> 13)) * 1274126177u;
-            return (value ^ (value >> 16)) / (float)uint.MaxValue;
-        }
-    }
-
-    private static bool TryIntersect(Rect2 a, Rect2 b, out Rect2 intersection)
-    {
-        Vector2 start = new(Mathf.Max(a.Position.X, b.Position.X), Mathf.Max(a.Position.Y, b.Position.Y));
-        Vector2 end = new(Mathf.Min(a.End.X, b.End.X), Mathf.Min(a.End.Y, b.End.Y));
-        if (end.X <= start.X || end.Y <= start.Y)
-        {
-            intersection = default;
-            return false;
-        }
-        intersection = new Rect2(start, end - start);
-        return true;
-    }
+        CountyTerrain.Influence(point, new Vector2(105, 74), new Vector2(21, 15)) > .18f;
 
     private static Prop P(string texture, float x, float y, float scale) =>
         new(texture, new Vector2(x, y), scale, Colors.White);
