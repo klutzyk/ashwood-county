@@ -37,6 +37,12 @@ public sealed class SearchInteriorContainerOrder(InteriorContainerRuntime contai
             IsComplete = true;
             return;
         }
+        if (!survivor.IsInsideInterior(container.Building))
+        {
+            Notify(survivor, "Enter the building first");
+            IsComplete = true;
+            return;
+        }
         if (!container.TryClaim(_survivorId))
         {
             Notify(survivor, "Already being searched");

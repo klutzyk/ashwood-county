@@ -15,6 +15,7 @@ public sealed class UseInteriorDoorOrder(InteriorDoorRuntime door) : ISurvivorOr
     public void Start(Survivor survivor)
     {
         if (!GodotObject.IsInstanceValid(door)) { IsComplete = true; return; }
+        if (!door.IsExterior && !survivor.IsInsideInterior(door.Building)) { IsComplete = true; return; }
         _open = door.State != InteriorDoorState.Open;
         _path.Plan(survivor, door.InteractionPosition);
     }

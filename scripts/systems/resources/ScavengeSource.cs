@@ -33,6 +33,7 @@ public partial class ScavengeSource : Node2D, IGridOccupant
     public bool IsDesignatedForScavenging { get; private set; }
     public bool IsClaimed => _claimingWorker != 0;
     public bool IsHovered { get; private set; }
+    public bool IsWorkHighlighted { get; private set; }
     public float DisplayedSearchProgress => _searchProgress;
     public Vector2 WorldPosition => GridPosition + new Vector2(0.5f, 0.5f);
     public WorldFootprint OccupancyFootprint => new(WorldPosition - Vector2.One * 0.35f, Vector2.One * 0.7f);
@@ -42,6 +43,13 @@ public partial class ScavengeSource : Node2D, IGridOccupant
     {
         if (IsHovered == hovered) return;
         IsHovered = hovered;
+        RefreshVisual();
+    }
+
+    public void SetWorkHighlighted(bool highlighted)
+    {
+        if (IsWorkHighlighted == highlighted) return;
+        IsWorkHighlighted = highlighted;
         RefreshVisual();
     }
 

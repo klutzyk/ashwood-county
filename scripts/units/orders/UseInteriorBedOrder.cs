@@ -19,6 +19,12 @@ public sealed class UseInteriorBedOrder(InteriorBedRuntime bed, float restoredEn
     {
         _survivorId = survivor.GetInstanceId();
         if (!GodotObject.IsInstanceValid(bed) || !bed.TryReserve(_survivorId)) { IsComplete = true; return; }
+        if (!survivor.IsInsideInterior(bed.Building))
+        {
+            bed.Release(_survivorId);
+            IsComplete = true;
+            return;
+        }
         _reserved = true;
         _path.Plan(survivor, bed.InteractionPosition);
     }

@@ -74,6 +74,7 @@ public partial class StartingScenario : Node
         }
 
         CreateFoodCache();
+        CreateHaulableDrops();
 
         if (GetTree().GetFirstNodeInGroup(GameClock.GroupName) is GameClock clock)
         {
@@ -108,5 +109,36 @@ public partial class StartingScenario : Node
         cache.SearchDuration = 3.5f;
         cache.DesignatedAtStart = false;
         objects.AddChild(cache);
+    }
+
+    /// <summary>
+    /// A couple of loose item piles near camp so HAUL has legitimate live
+    /// targets on day one. They use the real item catalog and deposit through
+    /// settlement item storage; nothing about the haul path is scripted.
+    /// </summary>
+    private void CreateHaulableDrops()
+    {
+        Node2D? objects = GetNodeOrNull<Node2D>("../World/Objects");
+        if (objects is null) return;
+
+        HaulableDrop scrap = new()
+        {
+            Name = "LooseScrap",
+            DisplayName = "Loose Scrap",
+            GridPosition = new Vector2(209.5f, 159f)
+        };
+        scrap.AddStack("scrap_metal", 3);
+        scrap.AddStack("wood_planks", 2);
+        objects.AddChild(scrap);
+
+        HaulableDrop supplies = new()
+        {
+            Name = "CannedSupplies",
+            DisplayName = "Canned Supplies",
+            GridPosition = new Vector2(214.5f, 165f)
+        };
+        supplies.AddStack("canned_beans", 2);
+        supplies.AddStack("bandage", 1);
+        objects.AddChild(supplies);
     }
 }

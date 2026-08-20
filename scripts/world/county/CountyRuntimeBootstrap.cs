@@ -1,4 +1,5 @@
 using AshwoodCounty.World.Fog;
+using AshwoodCounty.World;
 using AshwoodCounty.Buildings.Interiors;
 using AshwoodCounty.UI;
 using AshwoodCounty.Authoring;
@@ -32,6 +33,10 @@ public partial class CountyRuntimeBootstrap : Node
     private void CreateInteriorSystems()
     {
         Node root=GetParent();
+        if(root.GetNodeOrNull<WorldNavigationService>("WorldNavigationService") is null)
+            root.AddChild(new WorldNavigationService{Name="WorldNavigationService"});
+        if(root.GetNodeOrNull<OcclusionController>("OcclusionController") is null)
+            root.AddChild(new OcclusionController{Name="OcclusionController"});
         if(root.GetNodeOrNull<InteriorNavigationService>("InteriorNavigationService") is null)
             root.AddChild(new InteriorNavigationService{Name="InteriorNavigationService"});
         if(root.GetNodeOrNull<InteriorBuildingSystem>("InteriorBuildingSystem") is null)
@@ -62,6 +67,8 @@ public partial class CountyRuntimeBootstrap : Node
             root.AddChild(new ItemVerticalSliceValidation{Name="ItemVerticalSliceValidation"});
         if(root.GetNodeOrNull<ScavengeInteractionValidation>("ScavengeInteractionValidation") is null)
             root.AddChild(new ScavengeInteractionValidation{Name="ScavengeInteractionValidation"});
+        if(root.GetNodeOrNull<WorkLoopValidation>("WorkLoopValidation") is null)
+            root.AddChild(new WorkLoopValidation{Name="WorkLoopValidation"});
         if(root.GetNodeOrNull<AuthoredWorldObjectSystem>("AuthoredWorldObjectSystem") is null)
             root.AddChild(new AuthoredWorldObjectSystem{Name="AuthoredWorldObjectSystem"});
         if(root.GetNodeOrNull<AuthoredLandscapeSystem>("AuthoredLandscapeSystem") is null)

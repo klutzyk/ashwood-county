@@ -10,6 +10,11 @@ public partial class ScavengeSourceVisual : Node2D
 
     public override void _Ready() { _source = GetParent<ScavengeSource>(); QueueRedraw(); }
 
+    public override void _Process(double delta)
+    {
+        if (!Engine.IsEditorHint() && (_source.IsWorkHighlighted || _source.IsHovered || _source.IsClaimed)) QueueRedraw();
+    }
+
     public override void _Draw()
     {
         bool depleted = !Engine.IsEditorHint() && _source.IsDepleted;
@@ -17,12 +22,21 @@ public partial class ScavengeSourceVisual : Node2D
 
         if (!Engine.IsEditorHint() && !_source.IsDepleted)
         {
-            float glowAlpha = _source.IsHovered ? 0.26f : 0.13f;
+            float pulse = _source.IsWorkHighlighted ? 0.82f + 0.18f * Mathf.Sin((float)Time.GetTicksMsec() / 520.0f) : 1f;
+            float glowAlpha = _source.IsWorkHighlighted ? 0.30f * pulse : _source.IsHovered ? 0.22f : 0.13f;
             DrawSetTransform(Vector2.Zero, 0, new Vector2(1.14f, 1.14f));
             DrawPolygon(
                 [new(-37, -9), new(0, -22), new(37, -9), new(37, 7), new(0, 21), new(-37, 7)],
                 [new Color(1f, 1f, 1f, glowAlpha)]);
             DrawSetTransform(Vector2.Zero, 0, Vector2.One);
+            if (_source.IsWorkHighlighted)
+            {
+                DrawSetTransform(Vector2.Zero, 0, new Vector2(1.28f, 1.28f));
+                DrawPolygon(
+                    [new(-37, -9), new(0, -22), new(37, -9), new(37, 7), new(0, 21), new(-37, 7)],
+                    [new Color(1f, 1f, 1f, 0.10f * pulse)]);
+                DrawSetTransform(Vector2.Zero, 0, Vector2.One);
+            }
         }
 
         DrawPolygon([new(-37, -9), new(0, -22), new(37, -9), new(0, 5)], [body]);
@@ -42,6 +56,7 @@ public partial class ScavengeSourceVisual : Node2D
 
         if (!Engine.IsEditorHint() && _source.IsDesignatedForScavenging)
             DrawPolyline(Ellipse(43, 16), new Color("#e6b955"), 2, true);
+
     }
 
     private static Vector2[] Ellipse(float x, float y)

@@ -134,15 +134,20 @@ internal partial class InteriorRoomMaskVisual : Node2D
     }
 }
 
-internal partial class InteriorExteriorVisual : Node2D
+internal partial class InteriorExteriorVisual : Node2D, IOccludable
 {
     private Texture2D _texture = null!;
     private float _targetHeight;
     private float _targetWidth;
     private bool _mirror;
+    private InteriorBuildingDefinition _definition = null!;
+
+    public bool Hovered { get; set; }
+    public float OcclusionAlpha { get; set; } = 1f;
 
     public void Initialize(InteriorBuildingDefinition definition)
     {
+        _definition = definition;
         _texture = TextureRegistry.Get(definition.ExteriorTexturePath);
         _targetHeight = definition.ExteriorTargetHeight;
         _targetWidth = definition.ExteriorTargetWidth;
@@ -154,13 +159,61 @@ internal partial class InteriorExteriorVisual : Node2D
         ZIndex = 0;
     }
 
-    public override void _Ready() => QueueRedraw();
+    public override void _Ready()
+    {
+        if (GetTree().GetFirstNodeInGroup(OcclusionController.GroupName) is OcclusionController occlusion)
+        {
+            occlusion.Register(this);
+        }
+
+        QueueRedraw();
+    }
+
+    public override void _ExitTree()
+    {
+        if (IsInsideTree() && GetTree().GetFirstNodeInGroup(OcclusionController.GroupName) is OcclusionController occlusion)
+        {
+            occlusion.Unregister(this);
+        }
+    }
+
+    public bool IsValidOccludable() => GodotObject.IsInstanceValid(this) && Visible;
+
+    public float ComputeOcclusionAlpha(Vector2 survivorScreenPosition)
+    {
+        Vector2 origin = GetGlobalTransformWithCanvas().Origin;
+        Vector2 size = GetDrawnSize();
+        float halfWidth = size.X * 0.5f + 18f;
+        if (survivorScreenPosition.X < origin.X - halfWidth || survivorScreenPosition.X > origin.X + halfWidth) return 1f;
+        if (survivorScreenPosition.Y >= origin.Y - 6f) return 1f;
+        if (survivorScreenPosition.Y < origin.Y - size.Y - 10f) return 1f;
+        return 0.22f;
+    }
+
+    public bool ContainsScreenPoint(Vector2 screenPoint)
+    {
+        Vector2 local = GetGlobalTransformWithCanvas().AffineInverse() * screenPoint;
+        Vector2 size = GetDrawnSize();
+        return new Rect2(-size.X * 0.5f, -size.Y, size.X, size.Y + 8f).HasPoint(local);
+    }
 
     public override void _Draw()
     {
+        Vector2 size = GetDrawnSize();
+        if(_mirror){DrawSetTransform(Vector2.Zero,0,new Vector2(-1,1));DrawTextureRect(_texture,new Rect2(-size.X*.5f,-size.Y,size.X,size.Y),false);DrawSetTransform(Vector2.Zero);}else DrawTextureRect(_texture, new Rect2(-size.X * .5f, -size.Y, size.X, size.Y), false);
+        if (Hovered)
+        {
+            Vector2[] footprint = IsometricGrid.ProjectRectangle(_definition.Footprint.Position, _definition.Footprint.Size);
+            for (int index = 0; index < footprint.Length; index++) footprint[index] -= Position;
+            DrawPolyline([footprint[0], footprint[1], footprint[2], footprint[3], footprint[0]], new Color(1f, 1f, 1f, 0.55f), 2.5f, true);
+            DrawColoredPolygon(footprint, new Color(1f, 1f, 1f, 0.07f));
+        }
+    }
+
+    private Vector2 GetDrawnSize()
+    {
         float scaleY = _targetHeight / Mathf.Max(1, _texture.GetHeight());
         float scaleX = _targetWidth > 0 ? _targetWidth / Mathf.Max(1, _texture.GetWidth()) : scaleY;
-        Vector2 size = _texture.GetSize() * new Vector2(scaleX,scaleY);
-        if(_mirror){DrawSetTransform(Vector2.Zero,0,new Vector2(-1,1));DrawTextureRect(_texture,new Rect2(-size.X*.5f,-size.Y,size.X,size.Y),false);DrawSetTransform(Vector2.Zero);}else DrawTextureRect(_texture, new Rect2(-size.X * .5f, -size.Y, size.X, size.Y), false);
+        return _texture.GetSize() * new Vector2(scaleX, scaleY);
     }
 }

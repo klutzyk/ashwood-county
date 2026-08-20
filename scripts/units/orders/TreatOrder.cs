@@ -22,7 +22,7 @@ public sealed class TreatOrder(Survivor patient, SettlementInventory inventory, 
     {
         if (IsComplete) return;
         if (!GodotObject.IsInstanceValid(patient) || !patient.IsAlive) { IsComplete = true; return; }
-        if (!_arrived) { _arrived = survivor.MoveTowardsGridPosition(patient.SimulationPosition, delta); return; }
+        if (!_arrived) { _arrived = survivor.MoveTowardsGridPositionNavigated(patient.SimulationPosition, delta); return; }
 
         survivor.StopMovement();
         _elapsed += (float)delta;

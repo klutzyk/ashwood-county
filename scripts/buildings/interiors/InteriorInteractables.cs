@@ -24,16 +24,21 @@ public partial class InteriorDoorRuntime : Node2D, IInteriorInteractable
     private DoorRuntimeState _state = null!;
     private Texture2D _closed = null!;
     private Texture2D _open = null!;
+    private InteriorBuildingRuntime _building = null!;
 
     public string DisplayName => _definition.DisplayName;
     public Vector2 InteractionPosition => _definition.Position;
     public InteriorDoorState State => _state.State;
     public bool IsPassable => State is InteriorDoorState.Open or InteriorDoorState.Broken;
+    public bool IsExterior => _definition.Exterior;
+    public InteriorBuildingRuntime Building => _building;
+    public bool IsHovered { get; private set; }
 
-    public void Initialize(DoorDefinition definition, DoorRuntimeState state)
+    public void Initialize(DoorDefinition definition, DoorRuntimeState state, InteriorBuildingRuntime building)
     {
         _definition = definition;
         _state = state;
+        _building = building;
         _closed = TextureRegistry.Get(definition.ClosedTexturePath);
         _open = TextureRegistry.Get(definition.OpenTexturePath);
         Position = IsometricGrid.GridToScreen(definition.Position);
@@ -41,6 +46,13 @@ public partial class InteriorDoorRuntime : Node2D, IInteriorInteractable
     }
 
     public override void _Ready() { AddToGroup(GroupName); QueueRedraw(); }
+
+    public void SetHovered(bool hovered)
+    {
+        if (IsHovered == hovered) return;
+        IsHovered = hovered;
+        QueueRedraw();
+    }
 
     public bool TryOpenForTraversal(Survivor survivor)
     {
@@ -72,6 +84,10 @@ public partial class InteriorDoorRuntime : Node2D, IInteriorInteractable
         Vector2 size = texture.GetSize() * scale;
         Color tint = State == InteriorDoorState.Barricaded ? new Color(.78f,.67f,.55f) : Colors.White;
         DrawTextureRect(texture,new Rect2(-size.X*.5f,-size.Y,size.X,size.Y),false,tint);
+        if (IsHovered)
+        {
+            DrawRect(new Rect2(-size.X * .5f - 3, -size.Y - 3, size.X + 6, size.Y + 6), new Color(1f, 1f, 1f, 0.55f), false, 2f);
+        }
     }
 }
 
@@ -90,6 +106,7 @@ public partial class InteriorContainerRuntime : Node2D, IInteriorInteractable
 
     public string Id => _definition.Id;
     public string DisplayName => _definition.DisplayName;
+    public InteriorBuildingRuntime Building => _building;
     public Vector2 InteractionPosition => _definition.InteractionPosition;
     public float SearchDuration => _definition.SearchDuration;
     public bool IsSearched => _state.Searched;
@@ -136,6 +153,12 @@ public partial class InteriorContainerRuntime : Node2D, IInteriorInteractable
     }
 
     public override void _Ready() { AddToGroup(GroupName); QueueRedraw(); }
+    public void SetHovered(bool hovered)
+    {
+        if (IsHovered == hovered) return;
+        IsHovered = hovered;
+        QueueRedraw();
+    }
 
     public bool TryClaim(ulong survivorId)
     {
@@ -258,7 +281,9 @@ public partial class InteriorBedRuntime : Node2D, IInteriorInteractable
 
     public string Id => _definition.Id;
     public string DisplayName => _definition.DisplayName;
+    public InteriorBuildingRuntime Building => _building;
     public Vector2 InteractionPosition => _definition.InteractionPosition;
+    public bool IsHovered { get; private set; }
 
     public void Initialize(BedDefinition definition, InteriorBuildingRuntime building)
     {
@@ -270,6 +295,12 @@ public partial class InteriorBedRuntime : Node2D, IInteriorInteractable
     }
 
     public override void _Ready() { AddToGroup(GroupName); QueueRedraw(); }
+    public void SetHovered(bool hovered)
+    {
+        if (IsHovered == hovered) return;
+        IsHovered = hovered;
+        QueueRedraw();
+    }
     public bool TryReserve(ulong survivorId)
     {
         if (_claimingSurvivor != 0 && _claimingSurvivor != survivorId) return false;
@@ -290,5 +321,9 @@ public partial class InteriorBedRuntime : Node2D, IInteriorInteractable
     {
         float scale=_definition.TargetHeight/Mathf.Max(1,_texture.GetHeight());Vector2 size=_texture.GetSize()*scale;
         DrawTextureRect(_texture,new Rect2(-size.X*.5f,-size.Y,size.X,size.Y),false);
+        if (IsHovered)
+        {
+            DrawRect(new Rect2(-size.X * .5f - 3, -size.Y - 3, size.X + 6, size.Y + 6), new Color(1f, 1f, 1f, 0.55f), false, 2f);
+        }
     }
 }

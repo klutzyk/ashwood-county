@@ -28,6 +28,7 @@ public sealed class HarvestResourceOrder(
 
     public SurvivorOrderType Type => SurvivorOrderType.HarvestResource;
     public bool IsComplete { get; private set; }
+    public HarvestableResource Target => _target;
 
     public void Start(Survivor survivor)
     {
@@ -83,7 +84,7 @@ public sealed class HarvestResourceOrder(
             return;
         }
 
-        if (survivor.MoveTowardsGridPosition(_interactionPosition, delta))
+        if (survivor.MoveTowardsGridPositionNavigated(_interactionPosition, delta))
         {
             _harvestElapsed = 0;
             _phase = HarvestPhase.Harvesting;
@@ -120,7 +121,7 @@ public sealed class HarvestResourceOrder(
 
     private void Deliver(Survivor survivor, double delta)
     {
-        if (!survivor.MoveTowardsGridPosition(_deliveryPosition, delta))
+        if (!survivor.MoveTowardsGridPositionNavigated(_deliveryPosition, delta))
         {
             return;
         }
