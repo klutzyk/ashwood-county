@@ -15,31 +15,49 @@ public enum RoadAxis
     SouthEast
 }
 
-/// <summary>One authored road piece placed on the county grid.</summary>
-public readonly record struct RoadPiecePlacement(
-    string Texture, Vector2 Origin, RoadAxis Axis, float Along, float Across, bool Mirror, Color Tint);
+/// <summary>How a composed placement is drawn.</summary>
+public enum RoadPieceKind
+{
+    /// <summary>A cross-section slice of a straight, fitted to grid cells.</summary>
+    Slice,
+
+    /// <summary>A whole piece drawn untransformed in screen space.</summary>
+    Sprite
+}
+
+/// <summary>
+/// One composed road placement, resolved to final geometry.
+///
+/// Composition is cached, so the arrays here are built once for the county and
+/// then only read while drawing.
+/// </summary>
+public sealed record RoadPiecePlacement(
+    RoadPieceKind Kind,
+    string Texture,
+    Vector2 Anchor,
+    Vector2[] GridCorners,
+    Vector2[] Uvs,
+    float SpriteScale,
+    Color Tint);
 
 /// <summary>
 /// The authored isometric dirt-road construction kit.
 ///
-/// The previous roads were a UV-mapped ribbon swept along the logical spline.
-/// That is why they read as railway track: the spline bends constantly, so the
-/// ribbon sheared the surface texture around every wobble, the two shoulder
-/// bands ran perfectly parallel to the carriageway for its whole length, and
-/// mitred corners produced hard polygon notches. No amount of better texture
-/// fixes a road whose geometry is a mathematical line.
+/// The pieces are pre-rendered isometric artwork. Perspective, verge shape and
+/// lighting are baked in, so a piece is only valid in the orientation it was
+/// drawn in, plus a horizontal mirror; a mirror is safe because reflecting the
+/// screen about its vertical axis maps one ground axis onto the other and
+/// leaves the horizon alone.
 ///
-/// These pieces are pre-rendered isometric artwork instead. Perspective,
-/// verge shape and lighting are baked in, so a piece is only valid in the
-/// orientation it was drawn in, plus a horizontal mirror. A horizontal mirror
-/// is safe because reflecting the screen about its vertical axis maps one
-/// isometric ground axis onto the other and leaves the horizon unchanged;
-/// rotating them, which is what a spline sweep effectively does, is not.
-///
-/// Each piece is therefore drawn as an affine quad: its authored parallelogram
-/// is mapped onto the parallelogram of grid cells it should occupy. That fits
-/// the art to this project's 2:1 grid exactly, keeps neighbouring pieces
-/// sharing an edge, and never stretches the surface along its length.
+/// The important change over the first version of this kit is that a straight
+/// is no longer placed as a whole sprite. Whole sprites have worn, ragged ends,
+/// so butting two of them together showed grass through the notch and the road
+/// read as a row of separate slabs. Instead an arbitrary window along the
+/// middle of the piece is taken as a cross-section slice, and slices are laid
+/// edge to edge. A cross-section has a clean straight cut across the road, so
+/// consecutive slices share an edge exactly and there is nothing to see through.
+/// The ragged part of the artwork that still matters, the verge along the road's
+/// sides, is untouched.
 /// </summary>
 public static class DirtRoadKit
 {
@@ -47,153 +65,124 @@ public static class DirtRoadKit
 
     /// <summary>
     /// A piece's authored parallelogram, as the four extreme points of its
-    /// opaque area in source pixels, ordered so that the first edge runs along
-    /// the road and the second across it.
+    /// opaque area in source pixels, ordered so the first edge runs along the
+    /// road and the second across it.
     /// </summary>
-    private readonly record struct Shape(
-        string Path, Vector2 Left, Vector2 Top, Vector2 Right, Vector2 Bottom, float Along, float Across);
+    private readonly record struct Shape(string Path, Vector2 Left, Vector2 Top, Vector2 Right, Vector2 Bottom);
 
-    // Measured from the artwork rather than assumed: these are the corners of
-    // each piece's opaque parallelogram. Along/Across are the grid footprints
-    // that make the carriageway about a cell and a half wide, which matches the
-    // logical widths the county was laid out with.
+    // Measured from the artwork, not assumed from filenames.
     private static readonly Dictionary<string, Shape> Shapes = new()
     {
         ["dirt_straight"] = new(Reference + "dirt_straight.png",
-            new(3, 180), new(266, 3), new(400, 82), new(128, 278), 3.4f, 2.0f),
+            new(3, 180), new(266, 3), new(400, 82), new(128, 278)),
         ["farm_track_straight"] = new(Reference + "farm_track_straight.png",
-            new(3, 180), new(270, 3), new(395, 79), new(127, 269), 3.4f, 1.9f),
+            new(3, 180), new(270, 3), new(395, 79), new(127, 269)),
         ["logging_road_straight"] = new(Reference + "logging_road_straight.png",
-            new(4, 200), new(302, 4), new(422, 76), new(133, 292), 3.6f, 2.0f),
+            new(4, 200), new(302, 4), new(422, 76), new(133, 292)),
         ["two_track_road"] = new(Reference + "two_track_road.png",
-            new(3, 248), new(225, 4), new(342, 33), new(183, 326), 3.2f, 1.7f),
+            new(3, 248), new(225, 4), new(342, 33), new(183, 326)),
         ["muddy_logging_road"] = new(Reference + "muddy_logging_road.png",
-            new(4, 210), new(280, 4), new(393, 92), new(130, 337), 3.4f, 2.0f),
-        // Junction and curve pieces. Their opaque area is not a simple
-        // parallelogram, so the footprint below is the square of grid cells the
-        // piece should cover and the corners are the bounding box: the artwork's
-        // own transparency does the shaping.
-        ["dirt_crossroad"] = new(Reference + "dirt_crossroad.png",
-            new(4, 184), new(108, 4), new(394, 184), new(92, 257), 4.6f, 4.6f),
-        ["dirt_t_junction"] = new(Reference + "dirt_t_junction.png",
-            new(4, 156), new(251, 6), new(391, 191), new(300, 261), 4.4f, 4.4f),
-        ["dirt_y_junction"] = new(Reference + "dirt_y_junction.png",
-            new(4, 150), new(150, 4), new(357, 150), new(180, 252), 4.2f, 4.2f),
-        ["dirt_quarter_curve"] = new(Reference + "dirt_quarter_curve.png",
-            new(5, 203), new(278, 4), new(283, 64), new(128, 274), 4.0f, 4.0f),
+            new(4, 210), new(280, 4), new(393, 92), new(130, 337)),
         ["footpath_winding"] = new(Reference + "footpath_winding.png",
-            new(4, 250), new(200, 4), new(284, 60), new(120, 361), 3.2f, 1.7f),
+            new(4, 250), new(200, 4), new(284, 60), new(120, 361)),
     };
 
-    /// <summary>Straight surfacing for each class of dirt route.</summary>
-    public static string StraightFor(CountyRoadDefinition road)
+    /// <summary>Pieces drawn untransformed: their arms already point along the ground axes.</summary>
+    private static readonly Dictionary<string, string> SpritePieces = new()
     {
-        if (road.Id.Contains("logging", System.StringComparison.Ordinal))
-            return "muddy_logging_road";
-        if (road.Id.Contains("ridge", System.StringComparison.Ordinal)
-            || road.Id.Contains("lookout", System.StringComparison.Ordinal)
-            || road.Id.Contains("mill", System.StringComparison.Ordinal))
-            return "logging_road_straight";
-        if (road.HalfWidth < .42f)
-            return "footpath_winding";
-        if (road.Id.Contains("farm", System.StringComparison.Ordinal) || road.HalfWidth < .70f)
-            return "farm_track_straight";
-        return road.HalfWidth < 1.0f ? "two_track_road" : "dirt_straight";
-    }
+        ["dirt_crossroad"] = Reference + "dirt_crossroad.png",
+        ["dirt_t_junction"] = Reference + "dirt_t_junction.png",
+        ["dirt_y_junction"] = Reference + "dirt_y_junction.png",
+        ["dirt_quarter_curve"] = Reference + "dirt_quarter_curve.png",
+        ["dirt_turnaround"] = Reference + "dirt_turnaround.png",
+    };
 
-    public static bool Has(string piece) => Shapes.ContainsKey(piece);
+    /// <summary>
+    /// How much road, in grid cells, a whole straight piece represents along its
+    /// length. Used to keep texel density roughly constant when a slice takes
+    /// only part of the source.
+    /// </summary>
+    private const float PieceAlongCells = 3.4f;
+
+    public static bool HasStraight(string piece) => Shapes.ContainsKey(piece);
+
+    public static bool HasSprite(string piece) => SpritePieces.ContainsKey(piece);
+
+    public static string StraightPath(string piece) => Shapes[piece].Path;
+
+    public static string SpritePath(string piece) => SpritePieces[piece];
 
     /// <summary>Every texture the kit can request, for start-up warm-up.</summary>
     public static IEnumerable<string> AllTextures()
     {
         foreach (Shape shape in Shapes.Values)
             yield return shape.Path;
+        foreach (string path in SpritePieces.Values)
+            yield return path;
     }
 
-    public static string TexturePath(string piece) => Shapes[piece].Path;
-
-    public static float AlongCells(string piece) => Shapes[piece].Along;
-
-    public static float AcrossCells(string piece) => Shapes[piece].Across;
-
     /// <summary>
-    /// The grid-space corners a piece covers, in the same order as its source
-    /// corners, so the two can be handed straight to a textured quad.
+    /// Grid corners for a slice running from <paramref name="lo"/> to
+    /// <paramref name="hi"/> along an axis.
     ///
-    /// The road runs along the first axis and the verges sit either side of it,
-    /// which is why the origin is offset by half the across width: a route's
-    /// centre line should run down the middle of the carriageway, not along its
-    /// edge.
+    /// The centre line is allowed to drift between the two ends. A route that
+    /// falls twenty-six cells sideways over forty cannot be drawn as runs pinned
+    /// to one fixed coordinate without stepping sideways in visible jumps, which
+    /// is what made a shallow diagonal read as a flight of separate slabs.
+    /// Letting each slice lean slightly, while its edges stay parallel to the
+    /// authored piece's own axes, follows the route without rotating the art.
+    ///
+    /// Both ends are exact and a slice takes its neighbour's offset at the
+    /// shared boundary, so consecutive slices share an edge and no gap opens.
     /// </summary>
-    public static Vector2[] GridCorners(Vector2 origin, RoadAxis axis, float along, float across)
+    public static Vector2[] SliceCorners(
+        RoadAxis axis, float lo, float hi, float offsetLo, float offsetHi, float width)
     {
+        float half = width * .5f;
         if (axis == RoadAxis.NorthEast)
         {
-            // Road runs towards decreasing Y; verges spread along X.
-            Vector2 a = origin - new Vector2(across * .5f, 0);
+            // Runs along grid Y; the carriageway spreads along X.
             return
             [
-                a,
-                a - new Vector2(0, along),
-                a + new Vector2(across, -along),
-                a + new Vector2(across, 0)
+                new Vector2(offsetHi - half, hi),
+                new Vector2(offsetLo - half, lo),
+                new Vector2(offsetLo + half, lo),
+                new Vector2(offsetHi + half, hi)
             ];
         }
 
-        // Road runs towards increasing X; verges spread along Y.
-        Vector2 b = origin - new Vector2(0, across * .5f);
         return
         [
-            b,
-            b + new Vector2(along, 0),
-            b + new Vector2(along, across),
-            b + new Vector2(0, across)
-        ];
-    }
-
-    /// <summary>Source-pixel corners as UVs, mirrored horizontally when asked.</summary>
-    /// <summary>
-    /// Junction and curve pieces cover a square block of cells centred on the
-    /// meeting point, rather than a length of road, because their artwork
-    /// contains the road arms in every direction they serve.
-    /// </summary>
-    public static Vector2[] BlockCorners(Vector2 centre, float cells)
-    {
-        float half = cells * .5f;
-        return
-        [
-            centre + new Vector2(-half, -half),
-            centre + new Vector2(half, -half),
-            centre + new Vector2(half, half),
-            centre + new Vector2(-half, half)
+            new Vector2(lo, offsetLo - half),
+            new Vector2(hi, offsetHi - half),
+            new Vector2(hi, offsetHi + half),
+            new Vector2(lo, offsetLo + half)
         ];
     }
 
     /// <summary>
-    /// How large a junction sprite is drawn, as a fraction of native.
+    /// UVs for a window along a straight, from <paramref name="u0"/> to
+    /// <paramref name="u1"/> of its authored length.
     ///
-    /// Chosen so the width of the piece's arms matches the composed road width;
-    /// the pieces are authored a little wider than this project's rural routes.
+    /// Taking a different window for each slice is what stops a run repeating
+    /// the same stones and ruts on a visible beat, without rotating anything.
     /// </summary>
-    public static float JunctionScale(string piece) => piece switch
-    {
-        "dirt_crossroad" => .82f,
-        "dirt_t_junction" => .82f,
-        "dirt_y_junction" => .80f,
-        _ => .80f
-    };
-
-    /// <summary>Whole-bitmap UVs, for pieces shaped by their own alpha.</summary>
-    public static Vector2[] BlockUvs(bool mirror) => mirror
-        ? [new(1, 0), new(0, 0), new(0, 1), new(1, 1)]
-        : [new(0, 0), new(1, 0), new(1, 1), new(0, 1)];
-
-    public static Vector2[] SourceUvs(string piece, bool mirror)
+    public static Vector2[] SliceUvs(string piece, float u0, float u1, bool mirror)
     {
         Shape shape = Shapes[piece];
         Texture2D texture = TextureRegistry.Get(shape.Path);
         Vector2 size = texture is null ? Vector2.One : texture.GetSize();
-        Vector2[] corners = [shape.Left, shape.Top, shape.Right, shape.Bottom];
+
+        Vector2 along = shape.Top - shape.Left;
+        Vector2 across = shape.Right - shape.Top;
+        Vector2[] corners =
+        [
+            shape.Left + along * u0,
+            shape.Left + along * u1,
+            shape.Left + along * u1 + across,
+            shape.Left + along * u0 + across
+        ];
+
         Vector2[] uvs = new Vector2[4];
         for (int index = 0; index < 4; index++)
         {
@@ -203,5 +192,55 @@ public static class DirtRoadKit
             uvs[index] = point / size;
         }
         return uvs;
+    }
+
+    /// <summary>Fraction of a straight's source length that covers a given run length.</summary>
+    public static float SourceSpanFor(float cells) => Mathf.Clamp(cells / PieceAlongCells, .12f, .92f);
+
+    /// <summary>
+    /// How large a sprite piece is drawn, so its arms match the road width it
+    /// serves. The pieces are authored a little wider than this county's rural
+    /// routes, so they are reduced rather than enlarged.
+    /// </summary>
+    public static float SpriteScaleFor(string piece, float roadWidthCells)
+    {
+        // Arm width as a fraction of the bitmap's width, measured from the art.
+        float armFraction = piece switch
+        {
+            "dirt_crossroad" => .30f,
+            "dirt_t_junction" => .31f,
+            "dirt_y_junction" => .30f,
+            "dirt_quarter_curve" => .40f,
+            _ => .32f
+        };
+        Texture2D texture = TextureRegistry.Get(SpritePath(piece));
+        if (texture is null)
+            return .8f;
+
+        // A road of w cells across projects to roughly w * 53.7px on screen.
+        float wantedArmPixels = roadWidthCells * 53.7f;
+        float nativeArmPixels = texture.GetSize().X * armFraction;
+        return Mathf.Clamp(wantedArmPixels / Mathf.Max(1f, nativeArmPixels), .25f, 1f);
+    }
+
+    /// <summary>
+    /// Radius, in cells, that straights must keep clear of around a sprite piece.
+    ///
+    /// This is deliberately well inside the sprite's own half width. A junction
+    /// or curve bitmap is mostly transparent at its corners, so clearing its
+    /// full extent takes away road the artwork never covers and opens a wedge of
+    /// grass at exactly the place the road is supposed to bend. Keeping the
+    /// clearance to the road-bearing core lets the straights run under the piece
+    /// and the two overlap instead of leaving a hole.
+    /// </summary>
+    public static float SpriteCoverCells(string piece, float roadWidthCells)
+    {
+        Texture2D texture = TextureRegistry.Get(SpritePath(piece));
+        if (texture is null)
+            return roadWidthCells * .5f;
+        float scale = SpriteScaleFor(piece, roadWidthCells);
+        float halfWidthCells = texture.GetSize().X * scale * .5f / 53.7f;
+        float core = piece == "dirt_quarter_curve" ? .42f : .62f;
+        return halfWidthCells * core;
     }
 }

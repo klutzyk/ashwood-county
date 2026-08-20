@@ -245,108 +245,57 @@ public partial class CountyVisualChunk : Node2D
     // ---------------------------------------------------------------- roads
 
     /// <summary>
-    /// True for routes that are now built from authored dirt-road pieces.
-    /// Highway 16 and the town grid keep the ribbon renderer: they are asphalt,
-    /// they are genuinely straight and engineered, and the dirt kit would be
-    /// the wrong material for them.
+    /// True for routes built from the authored dirt kit. Highway 16 and the
+    /// town grid keep the ribbon renderer: they are asphalt and genuinely
+    /// engineered, and the dirt kit would be the wrong material for them.
     /// </summary>
     private static bool UsesDirtKit(CountyRoadDefinition road) =>
-        !road.Major && !road.Id.StartsWith("ashwood_", StringComparison.Ordinal);
+        CountyRoadClasses.UsesDirtKit(road);
 
     /// <summary>
-    /// Lay the authored dirt-road pieces for every route that crosses this
-    /// chunk. Composition is per route, and each piece is emitted by whichever
-    /// chunk contains its origin, so a piece is drawn exactly once.
+    /// Draw the composed dirt roads that fall inside this chunk.
+    ///
+    /// Composition is cached for the whole county, so this is a lookup and a
+    /// draw. Surface slices go down first and the curve and junction pieces
+    /// over them, which is what lets an intersection read as one road feature
+    /// rather than several strips crossing.
     /// </summary>
     private void DrawDirtRoadPieces()
     {
-        foreach (CountyRoadDefinition road in CountyTerrain.AllRoads)
+        List<RoadPiecePlacement> placements = [];
+        DirtRoadComposer.CollectFor(_grownBounds, placements);
+
+        foreach (RoadPiecePlacement placement in placements)
         {
-            if (!UsesDirtKit(road))
+            if (placement.Kind != RoadPieceKind.Slice)
                 continue;
-            foreach (RoadPiecePlacement piece in DirtRoadComposer.Compose(road))
-            {
-                if (!_grownBounds.HasPoint(piece.Origin))
-                    continue;
-                Texture2D texture = TextureRegistry.Get(piece.Texture);
-                if (texture is null)
-                    continue;
-                Vector2[] corners = DirtRoadKit.GridCorners(piece.Origin, piece.Axis, piece.Along, piece.Across);
-                Vector2[] points = new Vector2[4];
-                for (int index = 0; index < 4; index++)
-                    points[index] = P(corners[index]);
-                Vector2[] uvs = DirtRoadKit.SourceUvs(PieceKey(piece.Texture), piece.Mirror);
-                Color[] colors = [piece.Tint, piece.Tint, piece.Tint, piece.Tint];
-                DrawPolygon(points, colors, uvs, texture);
-            }
-        }
-    }
-
-    private static string PieceKey(string texturePath) =>
-        System.IO.Path.GetFileNameWithoutExtension(texturePath);
-
-    /// <summary>
-    /// Authored junction art laid over the places dirt routes actually cross.
-    ///
-    /// Two composed roads meeting still just overlap, which reads as two strips
-    /// laid on top of each other. A real crossroads is one built feature, so the
-    /// kit's crossroad, T and Y pieces are stamped over the meeting point and
-    /// the road pieces run up to them.
-    ///
-    /// Which piece is used is decided by how many arms the crossing actually
-    /// has, so a route ending on another road gets a T rather than a crossroad
-    /// with two arms leading nowhere.
-    /// </summary>
-    private void DrawDirtJunctions()
-    {
-        foreach (CountyTerrain.RoadJunction junction in CountyTerrain.Junctions)
-        {
-            if (junction.Paved || !_gridBounds.HasPoint(junction.Position))
-                continue;
-
-            int arms = CountArms(junction.Position);
-            string piece = arms >= 4 ? "dirt_crossroad" : arms == 3 ? "dirt_t_junction" : "dirt_y_junction";
-            if (!DirtRoadKit.Has(piece))
-                continue;
-
-            Texture2D texture = TextureRegistry.Get(DirtRoadKit.TexturePath(piece));
+            Texture2D texture = TextureRegistry.Get(placement.Texture);
             if (texture is null)
                 continue;
-
-            // Drawn as a plain screen-space sprite, with no transform at all.
-            //
-            // A junction's arms already point along the two isometric ground
-            // axes in the artwork itself. Fitting its bitmap to a square of grid
-            // cells rotates those arms a quarter turn relative to the roads they
-            // are meant to join, which is exactly the kind of "arbitrary
-            // rotation of isometric art" that breaks the perspective. Leaving
-            // the sprite untransformed is the only orientation that is certainly
-            // correct.
-            Vector2 native = texture.GetSize();
-            float scale = DirtRoadKit.JunctionScale(piece);
-            Vector2 size = native * scale;
-            DrawTextureRect(texture, new Rect2(P(junction.Position) - size * .5f, size), false, Colors.White);
-            if (AssetInspector.Capturing)
-                AssetInspector.Record(DirtRoadKit.TexturePath(piece), junction.Position, native, size, true);
+            Vector2[] points = new Vector2[4];
+            for (int index = 0; index < 4; index++)
+                points[index] = P(placement.GridCorners[index]);
+            Color[] colors = [placement.Tint, placement.Tint, placement.Tint, placement.Tint];
+            DrawPolygon(points, colors, placement.Uvs, texture);
         }
-    }
 
-    /// <summary>How many dirt route ends or through-routes meet at a point.</summary>
-    private static int CountArms(Vector2 at)
-    {
-        int arms = 0;
-        foreach (CountyRoadDefinition road in CountyTerrain.AllRoads)
+        foreach (RoadPiecePlacement placement in placements)
         {
-            if (!UsesDirtKit(road))
+            if (placement.Kind != RoadPieceKind.Sprite || !_gridBounds.HasPoint(placement.Anchor))
                 continue;
-            if (CountyTerrain.DistanceToPolyline(at, road.Points) > 2.2f)
+            Texture2D texture = TextureRegistry.Get(placement.Texture);
+            if (texture is null)
                 continue;
-            // A route that merely passes through contributes two arms; one that
-            // starts or ends here contributes one.
-            bool endpoint = road.Points[0].DistanceTo(at) < 3f || road.Points[^1].DistanceTo(at) < 3f;
-            arms += endpoint ? 1 : 2;
+            Vector2 native = texture.GetSize();
+            Vector2 size = native * placement.SpriteScale;
+            Rect2 destination = new(P(placement.Anchor) - size * .5f, size);
+            // Untransformed: a junction's or curve's arms already point along
+            // the ground axes in the artwork. Fitting them to grid cells rotates
+            // those arms a quarter turn off the roads they join.
+            DrawTextureRect(texture, destination, false, placement.Tint);
+            if (AssetInspector.Capturing)
+                AssetInspector.Record(placement.Texture, placement.Anchor, native, size, true);
         }
-        return arms;
     }
 
     private void DrawRoadNetwork()
@@ -358,7 +307,6 @@ public partial class CountyVisualChunk : Node2D
             if (!UsesDirtKit(road))
                 DrawRoadShoulder(road);
         DrawDirtRoadPieces();
-        DrawDirtJunctions();
         foreach (CountyRoadDefinition road in CountyTerrain.AllRoads)
             if (!UsesDirtKit(road))
                 DrawRoadSurface(road);

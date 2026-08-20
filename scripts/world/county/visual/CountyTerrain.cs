@@ -231,7 +231,14 @@ public static class CountyTerrain
                 continue;
             CountyRoadDefinition road = AllRoads[index];
             float distance = DistanceToPolyline(point, road.Points);
-            float reach = road.HalfWidth + 2.6f;
+            // Reach comes from the road's class, not a flat constant.
+            //
+            // Every route used to wear a band 2.6 cells wider than its half
+            // width, so a farm lane painted eight cells of bare earth for a two
+            // cell track. The authored road art then sat in the middle of a
+            // dirt platform far wider than itself, which is most of why the
+            // pieces read as sprites pasted onto the ground.
+            float reach = CountyRoadClasses.ProfileOf(road).VergeReach + road.HalfWidth * .35f;
             if (distance >= reach)
                 continue;
             float value = 1f - distance / reach;
@@ -488,8 +495,8 @@ public static class CountyTerrain
         float suppression = 0f;
 
         float roadDistance = DistanceToRoad(point);
-        if (roadDistance < 4.2f)
-            suppression = Mathf.Max(suppression, Mathf.Clamp(1f - (roadDistance - 1.1f) / 3.1f, 0f, 1f));
+        if (roadDistance < 3.4f)
+            suppression = Mathf.Max(suppression, Mathf.Clamp(1f - (roadDistance - .9f) / 2.5f, 0f, 1f));
 
         suppression = Mathf.Max(suppression, ClearingInfluence(point) * 1.18f);
 
@@ -513,24 +520,26 @@ public static class CountyTerrain
         roads.Add(new CountyRoadDefinition("farm_north_track", "North Field Track", .52f,
             [new(145, 180), new(157, 184), new(170, 188), new(184, 192)]));
         roads.Add(new CountyRoadDefinition("farm_west_track", "West Field Track", .46f,
-            [new(151, 180), new(151, 197), new(148, 216), new(151, 232)]));
+            [new(151, 180), new(151, 197), new(148, 216), new(155, 231), new(160, 233)]));
         roads.Add(new CountyRoadDefinition("farmyard_track", "Farmyard Track", .56f,
             [new(183, 191), new(173, 198), new(164, 204), new(155, 211)]));
         roads.Add(new CountyRoadDefinition("mill_logging_track", "Mill Logging Track", .48f,
-            [new(154, 250), new(143, 246), new(132, 247), new(122, 254)]));
+            [new(154, 250), new(143, 246), new(132, 247), new(122, 254), new(117, 264), new(116, 272)]));
 
         // The outskirts lane the starting camp actually sits on, and the field
         // track running north from it. These were previously drawn by the local
         // TerrainRenderer as flat ribbons; owning them here lets the county
         // road, wear and vegetation-exclusion passes treat them properly.
         roads.Add(new CountyRoadDefinition("outskirts_lane", "Outskirts Lane", .92f,
-            [new(183, 170), new(190, 168), new(196, 166), new(202, 164), new(208, 163), new(214, 160), new(220, 156), new(229, 153)]));
+            [new(189, 179), new(186, 174), new(190, 168), new(196, 166), new(202, 164), new(208, 163), new(214, 160), new(220, 156), new(229, 153)]));
         roads.Add(new CountyRoadDefinition("outskirts_field_track", "Outskirts Field Track", .46f,
-            [new(196, 166), new(195, 161), new(194, 155), new(192, 148), new(188, 142)]));
+            [new(196, 166), new(195, 161), new(194, 155), new(192, 148), new(191, 146)]));
 
         // One short worn spur, east to the abandoned house. The camp's other
         // connection is farm_mill_road, which already starts on its doorstep;
         // adding more here just crowds the outskirts with parallel tracks.
+        roads.Add(new CountyRoadDefinition("camp_lane_spur", "Camp Spur", .40f,
+            [new(203, 157), new(205, 160), new(207, 163)]));
         roads.Add(new CountyRoadDefinition("camp_house_path", "Farmhouse Path", .30f,
             [new(203, 157), new(207, 156), new(211, 155), new(215, 155)]));
 
@@ -538,9 +547,9 @@ public static class CountyTerrain
         roads.Add(new CountyRoadDefinition("ashwood_main", "Ashwood Main Street", 1.05f,
             [new(216, 143), new(292, 143)]));
         roads.Add(new CountyRoadDefinition("ashwood_north", "North Ashwood Street", .68f,
-            [new(220, 122), new(287, 122)]));
+            [new(216, 122), new(291, 122)]));
         roads.Add(new CountyRoadDefinition("ashwood_south", "South Ashwood Street", .68f,
-            [new(220, 166), new(287, 166)]));
+            [new(216, 166), new(291, 166)]));
         foreach (int x in new[] { 216, 237, 270, 291 })
             roads.Add(new CountyRoadDefinition($"ashwood_cross_{x}", "Ashwood Cross Street", .68f,
                 [new(x, 118), new(x, 173)]));

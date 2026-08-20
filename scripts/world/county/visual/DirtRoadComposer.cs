@@ -6,101 +6,386 @@ using Godot;
 namespace AshwoodCounty.World.County.Visual;
 
 /// <summary>
-/// Turns a logical road route into a sequence of authored road pieces.
+/// Rebuilds the county's dirt routes out of authored road pieces.
 ///
-/// The logical network is left exactly as it is. Navigation, region entry,
-/// vegetation suppression, surface wear and the Authoring Studio all keep
-/// reading the same polylines they always did. What changes is only how the
-/// route is drawn: instead of sweeping a ribbon along every wobble in the
-/// spline, the route is read as a sequence of intentions and rebuilt from
-/// pieces that were drawn for this projection.
+/// The logical network is untouched. Navigation, region entry, vegetation
+/// suppression, road queries and the Authoring Studio all keep reading the same
+/// polylines. Only the drawing changes.
 ///
-/// A route becomes runs along the two isometric ground axes. Small lateral
-/// wander inside a run is deliberately discarded, because that wander is what
-/// the ribbon renderer turned into a shearing, railway-like strip; an
-/// environment artist laying this out would use a straight and then a curve,
-/// not two hundred slightly rotated slabs.
+/// Composition happens once for the whole county and is cached, for two
+/// reasons. It has to be, because a junction is where two roads' composed
+/// centre lines meet and that cannot be known while looking at one road; and it
+/// wants to be, because the result is deterministic and every chunk can then
+/// just read the slices that fall inside it.
+///
+/// The geometry is built in one order so that everything agrees:
+///
+///   1. each route becomes runs along the two ground axes
+///   2. a run's centre line is a single fixed coordinate
+///   3. corners are where one run's line meets the next run's line
+///   4. junctions are where two different roads' run lines meet
+///   5. curves and junction pieces claim a radius around those points
+///   6. straights are sliced into the gaps that remain
+///
+/// Because corners and junctions are both derived from the same run lines, a
+/// junction sits exactly on the roads that meet there. The previous version
+/// took junctions from the raw spline crossing while the straights snapped to
+/// their run's average coordinate, so the two disagreed by a cell or two and
+/// every intersection looked pasted on.
 /// </summary>
 public static class DirtRoadComposer
 {
     /// <summary>
-    /// Shortest run worth keeping, in cells. Below this a wobble is noise in
-    /// the blockout rather than a real change of direction.
+    /// Shortest run worth keeping.
+    ///
+    /// This is deliberately short. A near-diagonal route alternates between the
+    /// two ground axes every few cells, and the previous behaviour, absorbing a
+    /// too-short run into the last run that happened to share its axis, moved
+    /// that run's extent to a completely different centre line and left the
+    /// ground between them bare. Short runs are now kept, and the corner
+    /// extension below is what joins them into a continuous staircase.
     /// </summary>
-    private const float MinimumRun = 9.0f;
+    private const float MinimumRun = 6.0f;
 
     /// <summary>
-    /// Spacing the route is resampled to before its direction is classified.
-    ///
-    /// The logical routes carry a deliberate meander, added so the old ribbon
-    /// would not look machine-drawn. Classifying direction sample by sample
-    /// turns that meander into a rapid alternation between the two ground axes,
-    /// and the composed road staircases sideways. Reading direction over a
-    /// several-cell window instead sees the route's actual intent and lets the
-    /// meander be expressed by the artwork rather than by the layout.
+    /// Both neighbours must be at least this long before a corner earns an
+    /// authored curve. On a fine staircase the runs are shorter than the curve
+    /// artwork itself, so a curve there would swallow the road rather than
+    /// describe a bend.
     /// </summary>
-    private const float ClassifySpacing = 6.5f;
+    private const float CurveMinimumRun = 6.5f;
 
-    private readonly record struct Run(RoadAxis Axis, float Start, float End, float Offset);
+    /// <summary>Spacing the route is resampled to before direction is judged.</summary>
+    private const float ClassifySpacing = 10.0f;
 
-    /// <summary>Compose one road into placements, in draw order.</summary>
-    public static List<RoadPiecePlacement> Compose(CountyRoadDefinition road)
+    /// <summary>
+    /// Two consecutive runs on the same axis whose centre lines are closer than
+    /// this are one run.
+    ///
+    /// Judging direction over a window still leaves a route flicking axis for a
+    /// few cells and back, which produced a run a cell or two to the side of its
+    /// neighbour and a road that stepped sideways repeatedly. Collapsing those
+    /// into a single averaged centre line is what keeps a nominally straight
+    /// road straight.
+    /// </summary>
+    private const float CollinearOffset = 2.6f;
+
+    /// <summary>
+    /// Target length of one surface slice, in cells.
+    ///
+    /// Short enough that each slice can take a different window of the source
+    /// and the run never repeats visibly; long enough that a run is not made of
+    /// hundreds of quads.
+    /// </summary>
+    private const float SliceCells = 2.3f;
+
+    private readonly record struct Run(RoadAxis Axis, float Lo, float Hi, float Offset);
+
+    private readonly record struct Cover(Vector2 Centre, float Radius);
+
+    private static List<RoadPiecePlacement>? _placements;
+    private static Rect2[]? _bounds;
+
+    /// <summary>Every composed placement in the county, built once.</summary>
+    public static IReadOnlyList<RoadPiecePlacement> Placements
     {
-        List<RoadPiecePlacement> pieces = [];
-        string straight = DirtRoadKit.StraightFor(road);
-        if (!DirtRoadKit.Has(straight))
-            return pieces;
-
-        List<Run> runs = BuildRuns(Resample(road.Points, ClassifySpacing));
-        if (runs.Count == 0)
-            return pieces;
-
-        float along = DirtRoadKit.AlongCells(straight);
-        float across = DirtRoadKit.AcrossCells(straight);
-        int salt = road.Id.GetHashCode();
-
-        for (int index = 0; index < runs.Count; index++)
+        get
         {
-            Run run = runs[index];
-            float length = Mathf.Abs(run.End - run.Start);
-            int count = Mathf.Max(1, Mathf.RoundToInt(length / along));
-            float step = length / count;
-            float direction = run.End >= run.Start ? 1f : -1f;
+            Build();
+            return _placements!;
+        }
+    }
 
-            for (int piece = 0; piece < count; piece++)
+    /// <summary>Discard the cache. Only needed if the logical network changes.</summary>
+    public static void Invalidate()
+    {
+        _placements = null;
+        _bounds = null;
+    }
+
+    private static void Build()
+    {
+        if (_placements is not null)
+            return;
+
+        List<RoadPiecePlacement> placements = [];
+        Dictionary<string, List<Run>> byRoad = [];
+        Dictionary<string, CountyRoadDefinition> roads = [];
+
+        foreach (CountyRoadDefinition road in CountyTerrain.AllRoads)
+        {
+            if (!CountyRoadClasses.UsesDirtKit(road))
+                continue;
+            List<Run> runs = BuildRuns(Resample(road.Points, ClassifySpacing));
+            if (runs.Count == 0)
+                continue;
+            byRoad[road.Id] = runs;
+            roads[road.Id] = road;
+        }
+
+        // Corners inside a route, and junctions between routes, both expressed
+        // as points on the composed run lines.
+        Dictionary<string, List<Cover>> covers = [];
+        foreach ((string id, List<Run> runs) in byRoad)
+            covers[id] = [];
+
+        foreach ((string id, List<Run> runs) in byRoad)
+        {
+            RoadClassProfile profile = CountyRoadClasses.ProfileOf(roads[id]);
+            for (int index = 0; index + 1 < runs.Count; index++)
             {
-                float at = run.Start + direction * step * piece;
-                Vector2 origin = run.Axis == RoadAxis.NorthEast
-                    ? new Vector2(run.Offset, direction > 0 ? at + step : at)
-                    : new Vector2(direction > 0 ? at : at - step, run.Offset);
+                if (runs[index].Axis == runs[index + 1].Axis)
+                    continue;
+                Vector2 corner = LineMeet(runs[index], runs[index + 1]);
+                if (!CountyCoordinateSpace.Contains(corner))
+                    continue;
+                if (profile.Curve.Length == 0 || !DirtRoadKit.HasSprite(profile.Curve))
+                    continue;
+                if (runs[index].Hi - runs[index].Lo < CurveMinimumRun
+                    || runs[index + 1].Hi - runs[index + 1].Lo < CurveMinimumRun)
+                    continue;
 
-                // Mirroring alternates along a run. Both orientations are
-                // perspective-valid, and swapping between them stops the
-                // surface detail repeating on an obvious beat.
-                bool mirror = CountyTerrain.Hash01(piece, salt + index, 733) > .5f;
-                // Each piece is drawn a little longer than its step so its
-                // end laps over its neighbour. The artwork's ends are worn
-                // rather than square, so a small overlap reads as continuous
-                // ground while a butt joint shows as a seam.
-                pieces.Add(new RoadPiecePlacement(
-                    DirtRoadKit.TexturePath(straight), origin, run.Axis,
-                    step * 1.18f, across, mirror, Colors.White));
+                float radius = DirtRoadKit.SpriteCoverCells(profile.Curve, profile.WidthCells);
+                covers[id].Add(new Cover(corner, radius));
+                placements.Add(Sprite(profile.Curve, corner, profile.WidthCells, CurveMirror(runs[index], runs[index + 1])));
             }
         }
 
-        return pieces;
+        AddJunctions(byRoad, roads, covers, placements);
+
+        foreach ((string id, List<Run> runs) in byRoad)
+            AddSlices(roads[id], runs, covers[id], placements);
+
+        _placements = placements;
+        _bounds = new Rect2[placements.Count];
+        for (int index = 0; index < placements.Count; index++)
+            _bounds[index] = BoundsOf(placements[index]);
     }
 
     /// <summary>
-    /// Collapse a polyline into axis-aligned runs.
+    /// Junctions, taken where two roads' composed run lines cross.
     ///
-    /// Each sample is classified by which ground axis it is mostly travelling
-    /// along; consecutive samples that agree are merged, and the run's fixed
-    /// coordinate is the average of the samples in it, so the piece line sits
-    /// through the middle of the original route rather than at one end of its
-    /// wander.
+    /// Using the run lines rather than the raw splines is what makes the
+    /// junction land on the road as drawn. The arm count decides the piece: a
+    /// route that ends here contributes one arm, one that passes through
+    /// contributes two.
     /// </summary>
-    /// <summary>Even resampling, so direction is judged over a fixed distance.</summary>
+    private static void AddJunctions(
+        Dictionary<string, List<Run>> byRoad,
+        Dictionary<string, CountyRoadDefinition> roads,
+        Dictionary<string, List<Cover>> covers,
+        List<RoadPiecePlacement> placements)
+    {
+        List<(Vector2 Point, string Owner, int Arms)> found = [];
+
+        foreach ((string idA, List<Run> runsA) in byRoad)
+        {
+            foreach ((string idB, List<Run> runsB) in byRoad)
+            {
+                if (string.CompareOrdinal(idA, idB) >= 0)
+                    continue;
+                foreach (Run a in runsA)
+                {
+                    foreach (Run b in runsB)
+                    {
+                        if (a.Axis == b.Axis)
+                            continue;
+                        Vector2 point = LineMeet(a, b);
+                        if (!Within(a, b, point) || !CountyCoordinateSpace.Contains(point))
+                            continue;
+                        bool duplicate = false;
+                        foreach ((Vector2 existing, _, _) in found)
+                        {
+                            if (existing.DistanceSquaredTo(point) < 16f) { duplicate = true; break; }
+                        }
+                        if (duplicate)
+                            continue;
+
+                        // The wider of the two roads owns the junction, so a
+                        // farm lane meeting a county road gets the county
+                        // road's junction art rather than the lane's.
+                        string owner = CountyRoadClasses.ProfileOf(roads[idA]).WidthCells
+                                       >= CountyRoadClasses.ProfileOf(roads[idB]).WidthCells ? idA : idB;
+                        int arms = ArmsAt(point, byRoad);
+                        found.Add((point, owner, arms));
+                    }
+                }
+            }
+        }
+
+        foreach ((Vector2 point, string owner, int arms) in found)
+        {
+            RoadClassProfile profile = CountyRoadClasses.ProfileOf(roads[owner]);
+            string piece = arms >= 4 ? profile.JunctionFour : profile.JunctionThree;
+            if (piece.Length == 0 || !DirtRoadKit.HasSprite(piece))
+                continue;
+
+            float radius = DirtRoadKit.SpriteCoverCells(piece, profile.WidthCells);
+            // Every road meeting here keeps clear, so the junction art is the
+            // only thing drawn at the crossing and the arms read as one piece.
+            foreach ((string id, List<Run> runs) in byRoad)
+            {
+                foreach (Run run in runs)
+                {
+                    if (DistanceToRun(run, point) > profile.WidthCells * 1.2f)
+                        continue;
+                    covers[id].Add(new Cover(point, radius * .92f));
+                    break;
+                }
+            }
+            placements.Add(Sprite(piece, point, profile.WidthCells,
+                CountyTerrain.Hash01((int)point.X, (int)point.Y, 331) > .5f));
+        }
+    }
+
+    /// <summary>Lay contiguous surface slices along every run, skipping covered ground.</summary>
+    private static void AddSlices(
+        CountyRoadDefinition road, List<Run> runs, List<Cover> covers, List<RoadPiecePlacement> placements)
+    {
+        RoadClassProfile profile = CountyRoadClasses.ProfileOf(road);
+        if (profile.Straights.Length == 0)
+            return;
+        int salt = road.Id.GetHashCode();
+
+        for (int runIndex = 0; runIndex < runs.Count; runIndex++)
+        {
+            Run run = runs[runIndex];
+            float length = run.Hi - run.Lo;
+            if (length <= .01f)
+                continue;
+
+            int count = Mathf.Max(1, Mathf.RoundToInt(length / SliceCells));
+            float step = length / count;
+
+            for (int slice = 0; slice < count; slice++)
+            {
+                float lo = run.Lo + step * slice;
+                float hi = lo + step;
+                Vector2 centre = run.Axis == RoadAxis.NorthEast
+                    ? new Vector2(run.Offset, (lo + hi) * .5f)
+                    : new Vector2((lo + hi) * .5f, run.Offset);
+
+                bool covered = false;
+                foreach (Cover cover in covers)
+                {
+                    if (centre.DistanceTo(cover.Centre) < cover.Radius) { covered = true; break; }
+                }
+                if (covered)
+                    continue;
+
+                // One surface per route: continuity along a road matters more
+                // than variety between its slices. The choice is seeded by the
+                // road, not by the slice.
+                string piece = profile.Straights[
+                    (int)(CountyTerrain.Hash01(salt, runIndex, 191) * profile.Straights.Length) % profile.Straights.Length];
+                if (!DirtRoadKit.HasStraight(piece))
+                    continue;
+
+                // A different window of the source for each slice, so the run
+                // never repeats the same stones on a visible beat.
+                float span = DirtRoadKit.SourceSpanFor(step);
+                float u0 = .03f + CountyTerrain.Hash01(runIndex * 97 + slice, salt, 211) * Mathf.Max(0f, .94f - span);
+                bool mirror = CountyTerrain.Hash01(runIndex, salt + slice / 3, 733) > .5f;
+
+                // A hair of overlap past the shared edge, so no subpixel seam
+                // can show between neighbours.
+                const float lap = .06f;
+                placements.Add(new RoadPiecePlacement(
+                    RoadPieceKind.Slice,
+                    DirtRoadKit.StraightPath(piece),
+                    centre,
+                    DirtRoadKit.SliceCorners(run.Axis, lo - lap, hi + lap, run.Offset, profile.WidthCells),
+                    DirtRoadKit.SliceUvs(piece, u0, u0 + span, mirror),
+                    1f,
+                    Colors.White));
+            }
+        }
+    }
+
+    private static RoadPiecePlacement Sprite(string piece, Vector2 centre, float width, bool mirror) =>
+        new(RoadPieceKind.Sprite,
+            DirtRoadKit.SpritePath(piece),
+            centre,
+            [],
+            mirror ? [new Vector2(1, 0), new Vector2(0, 0), new Vector2(0, 1), new Vector2(1, 1)] : [],
+            DirtRoadKit.SpriteScaleFor(piece, width),
+            Colors.White);
+
+    /// <summary>Placements whose footprint touches a chunk.</summary>
+    public static void CollectFor(Rect2 bounds, List<RoadPiecePlacement> output)
+    {
+        Build();
+        for (int index = 0; index < _placements!.Count; index++)
+        {
+            if (_bounds![index].Intersects(bounds))
+                output.Add(_placements[index]);
+        }
+    }
+
+    private static Rect2 BoundsOf(RoadPiecePlacement placement)
+    {
+        if (placement.Kind == RoadPieceKind.Sprite)
+            return new Rect2(placement.Anchor - Vector2.One * 4f, Vector2.One * 8f);
+        Rect2 box = new(placement.GridCorners[0], Vector2.Zero);
+        foreach (Vector2 corner in placement.GridCorners)
+            box = box.Expand(corner);
+        return box;
+    }
+
+    // ------------------------------------------------------------- geometry
+
+    /// <summary>Where two perpendicular run centre lines meet.</summary>
+    private static Vector2 LineMeet(Run a, Run b)
+    {
+        Run northEast = a.Axis == RoadAxis.NorthEast ? a : b;
+        Run southEast = a.Axis == RoadAxis.NorthEast ? b : a;
+        // A north-east run holds X fixed; a south-east run holds Y fixed.
+        return new Vector2(northEast.Offset, southEast.Offset);
+    }
+
+    private static bool Within(Run a, Run b, Vector2 point)
+    {
+        Run northEast = a.Axis == RoadAxis.NorthEast ? a : b;
+        Run southEast = a.Axis == RoadAxis.NorthEast ? b : a;
+        return point.Y >= northEast.Lo - 1f && point.Y <= northEast.Hi + 1f
+            && point.X >= southEast.Lo - 1f && point.X <= southEast.Hi + 1f;
+    }
+
+    private static float DistanceToRun(Run run, Vector2 point) => run.Axis == RoadAxis.NorthEast
+        ? (point.Y >= run.Lo - 1f && point.Y <= run.Hi + 1f ? Mathf.Abs(point.X - run.Offset) : float.PositiveInfinity)
+        : (point.X >= run.Lo - 1f && point.X <= run.Hi + 1f ? Mathf.Abs(point.Y - run.Offset) : float.PositiveInfinity);
+
+    private static int ArmsAt(Vector2 point, Dictionary<string, List<Run>> byRoad)
+    {
+        int arms = 0;
+        foreach (List<Run> runs in byRoad.Values)
+        {
+            foreach (Run run in runs)
+            {
+                if (DistanceToRun(run, point) > 2.5f)
+                    continue;
+                float along = run.Axis == RoadAxis.NorthEast ? point.Y : point.X;
+                bool ends = along - run.Lo < 2.5f || run.Hi - along < 2.5f;
+                arms += ends ? 1 : 2;
+                break;
+            }
+        }
+        return arms;
+    }
+
+    /// <summary>Which way round the curve art goes for a given pair of runs.</summary>
+    private static bool CurveMirror(Run first, Run second)
+    {
+        Run northEast = first.Axis == RoadAxis.NorthEast ? first : second;
+        Run southEast = first.Axis == RoadAxis.NorthEast ? second : first;
+        Vector2 corner = new(northEast.Offset, southEast.Offset);
+        // The curve's free arms point away from the corner; mirroring swaps
+        // which side they leave on.
+        bool northEastLeaves = northEast.Hi - corner.Y > corner.Y - northEast.Lo;
+        bool southEastLeaves = southEast.Hi - corner.X > corner.X - southEast.Lo;
+        return northEastLeaves == southEastLeaves;
+    }
+
     private static Vector2[] Resample(Vector2[] points, float spacing)
     {
         List<Vector2> result = [points[0]];
@@ -124,11 +409,12 @@ public static class DirtRoadComposer
         return [.. result];
     }
 
+    /// <summary>Collapse a polyline into axis-aligned runs with fixed centre lines.</summary>
     private static List<Run> BuildRuns(Vector2[] points)
     {
-        List<Run> runs = [];
+        List<(RoadAxis Axis, float Start, float End, float Offset)> raw = [];
         if (points.Length < 2)
-            return runs;
+            return [];
 
         RoadAxis? currentAxis = null;
         float runStart = 0f;
@@ -136,26 +422,14 @@ public static class DirtRoadComposer
         int offsetCount = 0;
         Vector2 previous = points[0];
 
-        // A run shorter than the minimum is not dropped: dropping it leaves a
-        // hole in the road. It is absorbed into the previous run of the same
-        // axis instead, which is what keeps the composed route continuous.
         void Flush(float end)
         {
             if (currentAxis is not RoadAxis axis || offsetCount == 0)
                 return;
             float offset = offsetSum / offsetCount;
-            if (Mathf.Abs(end - runStart) >= MinimumRun)
-            {
-                runs.Add(new Run(axis, runStart, end, offset));
+            if (Mathf.Abs(end - runStart) < .35f)
                 return;
-            }
-            for (int index = runs.Count - 1; index >= 0; index--)
-            {
-                if (runs[index].Axis != axis)
-                    continue;
-                runs[index] = runs[index] with { End = end };
-                return;
-            }
+            raw.Add((axis, runStart, end, offset));
         }
 
         for (int index = 1; index < points.Length; index++)
@@ -165,7 +439,6 @@ public static class DirtRoadComposer
             if (delta.LengthSquared() < .0001f)
                 continue;
 
-            // Grid X moves the piece south-east on screen, grid Y north-east.
             RoadAxis axis = Mathf.Abs(delta.X) >= Mathf.Abs(delta.Y) ? RoadAxis.SouthEast : RoadAxis.NorthEast;
             if (currentAxis != axis)
             {
@@ -180,8 +453,47 @@ public static class DirtRoadComposer
             offsetCount++;
             previous = point;
         }
-
         Flush(currentAxis == RoadAxis.SouthEast ? previous.X : previous.Y);
+
+        // Collapse runs that are really the same road before anything else
+        // looks at them.
+        for (int index = raw.Count - 2; index >= 0; index--)
+        {
+            if (raw[index].Axis != raw[index + 1].Axis)
+                continue;
+            if (Mathf.Abs(raw[index].Offset - raw[index + 1].Offset) > CollinearOffset)
+                continue;
+            float lo = Mathf.Min(Mathf.Min(raw[index].Start, raw[index].End),
+                                 Mathf.Min(raw[index + 1].Start, raw[index + 1].End));
+            float hi = Mathf.Max(Mathf.Max(raw[index].Start, raw[index].End),
+                                 Mathf.Max(raw[index + 1].Start, raw[index + 1].End));
+            raw[index] = (raw[index].Axis, lo, hi, (raw[index].Offset + raw[index + 1].Offset) * .5f);
+            raw.RemoveAt(index + 1);
+        }
+
+        // Extend each run to its neighbours' centre lines so consecutive runs
+        // actually reach the corner between them instead of stopping short and
+        // leaving a wedge of grass through the bend.
+        List<Run> runs = [];
+        for (int index = 0; index < raw.Count; index++)
+        {
+            (RoadAxis axis, float start, float end, float offset) = raw[index];
+            float lo = Mathf.Min(start, end);
+            float hi = Mathf.Max(start, end);
+            if (index > 0 && raw[index - 1].Axis != axis)
+            {
+                float neighbour = raw[index - 1].Offset;
+                lo = Mathf.Min(lo, neighbour);
+                hi = Mathf.Max(hi, neighbour);
+            }
+            if (index + 1 < raw.Count && raw[index + 1].Axis != axis)
+            {
+                float neighbour = raw[index + 1].Offset;
+                lo = Mathf.Min(lo, neighbour);
+                hi = Mathf.Max(hi, neighbour);
+            }
+            runs.Add(new Run(axis, lo, hi, offset));
+        }
         return runs;
     }
 }

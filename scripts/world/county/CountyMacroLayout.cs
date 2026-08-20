@@ -99,15 +99,23 @@ public static class CountyMacroLayout
 
     public static readonly CountyRoadDefinition[] Roads =
     [
+        // The county's through route, carried to both borders. It used to stop
+        // twenty cells short of each edge in open ground, which made the one
+        // road that should obviously continue past Ashwood look like a fragment.
         new("highway_16", "Highway 16", 2.25f,
-        [new(18, 151), new(70, 150), new(116, 153), new(153, 150), new(192, 146), new(229, 144), new(264, 143), new(307, 137), new(364, 130)], true),
+        [new(0, 152), new(18, 151), new(70, 150), new(116, 153), new(153, 150), new(192, 146), new(229, 144), new(264, 143), new(307, 137), new(364, 130), new(384, 128)], true),
 
         // The first real traversal spine: camp -> Farm District -> Mill Creek.
+        // Camp to Farm District to Mill Creek. It now ends at the Old Mill
+        // rather than fourteen cells past it in a field.
         new("farm_mill_road", "Farm and Mill Road", 1.45f,
-        [new(206, 157), new(199, 166), new(192, 176), new(180, 190), new(170, 204), new(166, 218), new(160, 232), new(154, 250), new(151, 262)]),
+        [new(206, 157), new(199, 166), new(192, 176), new(180, 190), new(170, 204), new(166, 218), new(160, 232), new(154, 250)]),
 
+        // Leaves Highway 16 and sweeps the south of the county to the fairgrounds
+        // and the trailer park. Previously it began in an empty field forty
+        // cells from anything, which is not how a road of this length exists.
         new("south_county_road", "South County Road", 1.35f,
-        [new(142, 169), new(151, 202), new(164, 232), new(190, 245), new(224, 240), new(247, 233), new(277, 211)]),
+        [new(150, 150), new(145, 160), new(142, 169), new(151, 202), new(164, 232), new(190, 245), new(224, 240), new(247, 233), new(277, 211)]),
         new("ashwood_south_approach", "Ashwood South Approach", 1.5f,
         [new(229, 144), new(227, 166), new(226, 190), new(247, 202), new(277, 211)]),
         new("old_mill_road", "Old Mill Road", 1.2f,
