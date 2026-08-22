@@ -294,7 +294,7 @@ public static class DirtRoadComposer
                     RoadPieceKind.Slice,
                     DirtRoadKit.StraightPath(piece),
                     centre,
-                    DirtRoadKit.SliceCorners(run.Axis, lo - lap, hi + lap, run.Offset, profile.WidthCells),
+                    DirtRoadKit.SliceCorners(run.Axis, lo - lap, hi + lap, run.Offset, run.Offset, profile.WidthCells),
                     DirtRoadKit.SliceUvs(piece, u0, u0 + span, mirror),
                     1f,
                     Colors.White));

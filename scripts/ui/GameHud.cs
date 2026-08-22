@@ -411,11 +411,11 @@ public partial class GameHud : CanvasLayer
             Label name = Text(skill.ToString(), "HudMuted");
             name.CustomMinimumSize = new Vector2(74, 0);
             row.AddChild(name);
-            ProgressBar bar = CreateBar(new Color("a8935eff"), 10);
+            ProgressBar bar = CreateBar(new Color("a8935eff"), 100);
             bar.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
             row.AddChild(bar);
             Label value = Text("1", "HudHeading");
-            value.CustomMinimumSize = new Vector2(18, 0);
+            value.CustomMinimumSize = new Vector2(38, 0);
             value.HorizontalAlignment = HorizontalAlignment.Right;
             row.AddChild(value);
             _skillBars[skill] = bar;
@@ -996,8 +996,12 @@ public partial class GameHud : CanvasLayer
         foreach (SurvivorSkill skill in Enum.GetValues<SurvivorSkill>())
         {
             int level = profile.Skill(skill);
-            _skillBars[skill].Value = level;
-            _skillValues[skill].Text = level.ToString();
+            float progress = profile.ExperienceProgress(skill);
+            _skillBars[skill].Value = progress * 100f;
+            _skillBars[skill].TooltipText = level >= SurvivorProfile.MaximumSkillLevel
+                ? $"{skill} is mastered."
+                : $"{progress * 100f:0}% toward level {level + 1}.";
+            _skillValues[skill].Text = $"LV {level}";
         }
         RefreshPriorities(profile);
         RefreshInventoryTab(survivor);

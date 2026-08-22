@@ -99,7 +99,7 @@ public sealed class HarvestResourceOrder(
             return;
         }
 
-        _harvestElapsed += (float)delta * survivor.WorkSpeedMultiplier;
+        _harvestElapsed += (float)delta * survivor.WorkSpeedMultiplier * survivor.SkillMultiplier(SurvivorSkill.Labor);
         _target.ReportHarvestProgress(_workerId, _harvestElapsed / _target.HarvestDuration);
         if (_harvestElapsed < _target.HarvestDuration)
         {
@@ -115,6 +115,7 @@ public sealed class HarvestResourceOrder(
             return;
         }
 
+        survivor.GainSkillExperience(SurvivorSkill.Labor, 4f + harvested * 0.8f);
         EmitNoise(survivor, 3.5f);
         _phase = HarvestPhase.Delivering;
     }

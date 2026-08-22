@@ -30,7 +30,7 @@ public sealed class TreatOrder(Survivor patient, SettlementInventory inventory, 
         if (inventory.TrySpend(ResourceType.Medicine, 1))
         {
             applyTreatment(patient, 28f * survivor.SkillMultiplier(SurvivorSkill.Medical));
-            survivor.GainSkillExperience(SurvivorSkill.Medical, 1.5f);
+            survivor.GainSkillExperience(SurvivorSkill.Medical, 12f);
         }
         IsComplete = true;
     }

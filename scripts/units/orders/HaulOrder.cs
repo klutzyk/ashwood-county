@@ -114,14 +114,18 @@ public sealed class HaulOrder(
 
     private void Deliver(Survivor survivor)
     {
+        int deliveredTotal = 0;
         foreach (ItemStack stack in _carried)
         {
             int held = survivor.Inventory.GetQuantity(stack.ItemId);
             int amount = Mathf.Min(held, stack.Quantity);
             if (amount <= 0 || !survivor.Inventory.TryRemove(stack.ItemId, amount)) continue;
             _itemStorage.Deposit(stack.ItemId, amount);
+            deliveredTotal += amount;
         }
 
+        if (deliveredTotal > 0)
+            survivor.GainSkillExperience(SurvivorSkill.Labor, 1f + deliveredTotal * 0.35f);
         _carried.Clear();
     }
 

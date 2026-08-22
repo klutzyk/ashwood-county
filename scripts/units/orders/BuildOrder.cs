@@ -16,6 +16,7 @@ public sealed class BuildOrder(ConstructionSite target, Vector2 interactionPosit
     private BuildPhase _phase;
     private ulong _workerId;
     private bool _registered;
+    private float _experienceEarned;
 
     public SurvivorOrderType Type => SurvivorOrderType.Build;
     public bool IsComplete { get; private set; }
@@ -58,7 +59,15 @@ public sealed class BuildOrder(ConstructionSite target, Vector2 interactionPosit
             return;
         }
 
-        _target.AddConstructionWork(_workerId, (float)delta * survivor.WorkSpeedMultiplier);
+        float work = (float)delta * survivor.WorkSpeedMultiplier * survivor.SkillMultiplier(SurvivorSkill.Labor);
+        _target.AddConstructionWork(_workerId, work);
+        _experienceEarned += work;
+        if (_experienceEarned >= 1f)
+        {
+            float wholeExperience = Mathf.Floor(_experienceEarned);
+            survivor.GainSkillExperience(SurvivorSkill.Labor, wholeExperience);
+            _experienceEarned -= wholeExperience;
+        }
         if (!_target.IsAvailableForBuilding)
         {
             Complete();

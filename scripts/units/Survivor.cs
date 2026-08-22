@@ -112,7 +112,7 @@ public partial class Survivor : Node2D
                 && ItemCatalog.TryGet(weaponId, out ItemDefinition weapon)
                     ? weapon.DamageValue
                     : 0f;
-            return Mathf.Max(0f, MeleeDamage + weaponDamage);
+            return Mathf.Max(0f, (MeleeDamage + weaponDamage) * SkillMultiplier(SurvivorSkill.Combat));
         }
     }
     public bool NeedsMeal => Hunger <= HungryThreshold;
@@ -353,7 +353,15 @@ public partial class Survivor : Node2D
 
     public bool AllowsWork(WorkCategory category) => Profile.Priority(category) != WorkPriority.Disabled;
     public float SkillMultiplier(SurvivorSkill skill) => 1f + (Profile.Skill(skill) - 1) * .06f;
-    public void GainSkillExperience(SurvivorSkill skill, float amount) => Profile.AddExperience(skill, amount);
+    public void GainSkillExperience(SurvivorSkill skill, float amount)
+    {
+        int previousLevel = Profile.Skill(skill);
+        int currentLevel = Profile.AddExperience(skill, amount);
+        if (currentLevel <= previousLevel) return;
+
+        (GetTree().GetFirstNodeInGroup(GameHud.GroupName) as GameHud)?.Notify(
+            $"{Profile.DisplayName.ToUpperInvariant()} IMPROVED\n{skill} reached level {currentLevel}.");
+    }
 
     /// <summary>True when the survivor is inside a building or near an established shelter/outpost.</summary>
     public bool IsSheltered()
