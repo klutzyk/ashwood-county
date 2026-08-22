@@ -1,0 +1,31 @@
+{
+    "$schema": "https://opencode.ai/config.json",
+    "model": "ollama/sera",
+    "provider": {
+      "ollama": {
+        "npm": "@ai-sdk/openai-compatible",
+        "name": "Ollama Local",
+        "options": {
+          "baseURL": "http://127.0.0.1:11434/v1"
+        },
+        "models": {
+          "sera": {
+            "name": "SERA 8B",
+            "modelID": "sera:latest",
+            "limit": {
+              "context": 16384,
+              "output": 4096
+            }
+          },
+          "qwen2.5-coder:7b": {
+            "name": "Qwen 2.5 Coder 7B",
+            "modelID": "qwen2.5-coder:7b",
+            "limit": {
+              "context": 16384,
+              "output": 4096
+            }
+          }
+        }
+      }
+    }
+  }
